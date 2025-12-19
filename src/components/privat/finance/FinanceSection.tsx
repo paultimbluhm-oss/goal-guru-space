@@ -109,21 +109,46 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       });
     }
 
-    // For ETFs/stocks we'd need a different API - for now show purchase values
+    // Fetch ETF/stock prices via Edge Function
     const stockInvs = invs.filter(
       (i) => (i.investment_type === 'etf' || i.investment_type === 'stock') && i.symbol
     );
-    // Note: Yahoo Finance API requires a proxy/edge function for CORS
-    // For demo purposes, we'll just show the purchase price
-    stockInvs.forEach((inv) => {
-      setPrices((prev) => ({ ...prev, [inv.id]: inv.purchase_price }));
-    });
+    
+    for (const inv of stockInvs) {
+      if (!inv.symbol) continue;
+      setLoadingPrices((prev) => ({ ...prev, [inv.id]: true }));
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-stock-price`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ symbol: inv.symbol }),
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.price) {
+            setPrices((prev) => ({ ...prev, [inv.id]: data.price }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching stock price:', error);
+      }
+      setLoadingPrices((prev) => ({ ...prev, [inv.id]: false }));
+    }
   };
 
   const refreshPrice = async (investment: Investment) => {
-    if (investment.investment_type === 'crypto' && investment.symbol) {
-      setLoadingPrices((prev) => ({ ...prev, [investment.id]: true }));
-      try {
+    if (!investment.symbol) return;
+    
+    setLoadingPrices((prev) => ({ ...prev, [investment.id]: true }));
+    
+    try {
+      if (investment.investment_type === 'crypto') {
         const res = await fetch(
           `https://api.coingecko.com/api/v3/simple/price?ids=${investment.symbol.toLowerCase()}&vs_currencies=eur`
         );
@@ -132,11 +157,31 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         if (price) {
           setPrices((prev) => ({ ...prev, [investment.id]: price }));
         }
-      } catch (error) {
-        console.error('Error refreshing price:', error);
+      } else {
+        // ETF/Stock via Edge Function
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-stock-price`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ symbol: investment.symbol }),
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.price) {
+            setPrices((prev) => ({ ...prev, [investment.id]: data.price }));
+          }
+        }
       }
-      setLoadingPrices((prev) => ({ ...prev, [investment.id]: false }));
+    } catch (error) {
+      console.error('Error refreshing price:', error);
     }
+    
+    setLoadingPrices((prev) => ({ ...prev, [investment.id]: false }));
   };
 
   useEffect(() => {
