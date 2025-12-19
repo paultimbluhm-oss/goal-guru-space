@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, ChevronDown, ChevronUp, BookOpen, Calendar, CheckCircle2 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Trash2, ChevronDown, BookOpen, Calendar, CheckCircle2, FileText, Mic, PenLine } from 'lucide-react';
 import { getSupabase, useAuth } from '@/hooks/useAuth';
 import { useGamification } from '@/contexts/GamificationContext';
 import { toast } from 'sonner';
@@ -53,10 +54,12 @@ interface SubjectCardProps {
 export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardProps) {
   const { user } = useAuth();
   const { addXP } = useGamification();
-  const [expanded, setExpanded] = useState(false);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [homework, setHomework] = useState<Homework[]>([]);
   const [events, setEvents] = useState<SchoolEvent[]>([]);
+  const [gradesOpen, setGradesOpen] = useState(true);
+  const [homeworkOpen, setHomeworkOpen] = useState(true);
+  const [eventsOpen, setEventsOpen] = useState(true);
 
   const fetchData = async () => {
     if (!user) return;
@@ -158,6 +161,14 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
     fetchData();
   };
 
+  const getGradeColor = (grade: number) => {
+    if (grade >= 13) return 'text-green-400';
+    if (grade >= 10) return 'text-emerald-400';
+    if (grade >= 7) return 'text-yellow-400';
+    if (grade >= 4) return 'text-orange-400';
+    return 'text-red-400';
+  };
+
   const finalGrade = calculateFinalGrade();
   const oralGrades = grades.filter(g => g.grade_type === 'oral');
   const writtenGrades = grades.filter(g => g.grade_type === 'written');
@@ -169,130 +180,211 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
     : '-';
 
   return (
-    <Card className="glass-card border-border/50">
-      <CardHeader className="p-3 md:p-6 pb-2">
-        <div className="flex items-start sm:items-center justify-between gap-2">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
-            <CardTitle className="text-base md:text-lg truncate">{subject.name}</CardTitle>
-            <Badge variant="secondary" className="w-fit text-xs">Klasse {subject.grade_year}</Badge>
-          </div>
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {finalGrade !== null && (
-              <div className="text-lg md:text-2xl font-bold text-primary">{finalGrade} P</div>
-            )}
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpanded(!expanded)}>
-              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-1 sm:gap-4 text-xs md:text-sm text-muted-foreground mt-1">
-          <span>Mündlich: {oralAvg} ({subject.oral_weight}%)</span>
-          <span>Schriftlich: {writtenAvg} ({subject.written_weight}%)</span>
-        </div>
-      </CardHeader>
-
-      {expanded && (
-        <CardContent className="p-3 pt-0 md:p-6 md:pt-0 space-y-3 md:space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <AddGradeDialog 
-              subjectId={subject.id} 
-              subjectName={subject.name} 
-              onGradeAdded={() => { fetchData(); onDataChanged(); }} 
-            />
-            <AddHomeworkDialog 
-              subjectId={subject.id} 
-              subjectName={subject.name} 
-              onHomeworkAdded={fetchData} 
-            />
-            <AddEventDialog 
-              subjectId={subject.id} 
-              subjectName={subject.name} 
-              onEventAdded={fetchData} 
-            />
-            <Button variant="destructive" size="sm" onClick={handleDelete} className="gap-1 sm:ml-auto text-xs md:text-sm">
-              <Trash2 className="h-3 w-3" />
-              <span className="hidden sm:inline">Fach löschen</span>
-              <span className="sm:hidden">Löschen</span>
-            </Button>
-          </div>
-
-          {grades.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium text-xs md:text-sm text-muted-foreground">Noten</h4>
-              <div className="grid gap-2">
-                {grades.map((grade) => (
-                  <div key={grade.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-secondary/30">
-                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2 min-w-0">
-                      <Badge variant={grade.grade_type === 'oral' ? 'secondary' : 'default'} className="text-xs shrink-0">
-                        {grade.grade_type === 'oral' ? 'M' : 'S'}
-                      </Badge>
-                      <span className="font-medium text-sm md:text-base">{grade.points} P</span>
-                      {grade.description && <span className="text-xs md:text-sm text-muted-foreground truncate">- {grade.description}</span>}
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => deleteGrade(grade.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
+    <div className="space-y-4">
+      {/* Overview Card */}
+      <Card className="overflow-hidden border-border/50 bg-gradient-to-br from-card via-card to-blue-500/5">
+        <CardHeader className="p-4 md:p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary">Klasse {subject.grade_year}</Badge>
+              <div className="text-sm text-muted-foreground">
+                M: {subject.oral_weight}% | S: {subject.written_weight}%
               </div>
             </div>
-          )}
+            <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+              <Trash2 className="h-4 w-4 mr-1" />
+              Löschen
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-background/50 border border-border/50 text-center">
+              <div className="text-muted-foreground text-xs mb-1 flex items-center justify-center gap-1">
+                <Mic className="h-3 w-3" /> Mündlich
+              </div>
+              <div className="text-2xl font-bold">{oralAvg}</div>
+              <div className="text-xs text-muted-foreground">{oralGrades.length} Noten</div>
+            </div>
+            <div className="p-4 rounded-xl bg-background/50 border border-border/50 text-center">
+              <div className="text-muted-foreground text-xs mb-1 flex items-center justify-center gap-1">
+                <PenLine className="h-3 w-3" /> Schriftlich
+              </div>
+              <div className="text-2xl font-bold">{writtenAvg}</div>
+              <div className="text-xs text-muted-foreground">{writtenGrades.length} Noten</div>
+            </div>
+            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/20 text-center">
+              <div className="text-muted-foreground text-xs mb-1">Gesamt</div>
+              <div className={`text-2xl font-bold ${finalGrade !== null ? getGradeColor(finalGrade) : ''}`}>
+                {finalGrade !== null ? `${finalGrade} P` : '-'}
+              </div>
+              <div className="text-xs text-muted-foreground">Endnote</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-          {homework.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium text-xs md:text-sm text-muted-foreground flex items-center gap-2">
-                <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4" /> Hausaufgaben
-              </h4>
-              <div className="grid gap-2">
-                {homework.map((hw) => (
-                  <div key={hw.id} className={`flex items-center justify-between gap-2 p-2 rounded-lg ${hw.completed ? 'bg-primary/10' : 'bg-secondary/30'}`}>
-                    <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => toggleHomework(hw)}>
-                        <CheckCircle2 className={`h-4 w-4 ${hw.completed ? 'text-primary' : 'text-muted-foreground'}`} />
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-2">
+        <AddGradeDialog 
+          subjectId={subject.id} 
+          subjectName={subject.name} 
+          onGradeAdded={() => { fetchData(); onDataChanged(); }} 
+        />
+        <AddHomeworkDialog 
+          subjectId={subject.id} 
+          subjectName={subject.name} 
+          onHomeworkAdded={fetchData} 
+        />
+        <AddEventDialog 
+          subjectId={subject.id} 
+          subjectName={subject.name} 
+          onEventAdded={fetchData} 
+        />
+      </div>
+
+      {/* Grades Section */}
+      <Collapsible open={gradesOpen} onOpenChange={setGradesOpen}>
+        <Card className="overflow-hidden border-border/50 bg-card/80">
+          <CollapsibleTrigger asChild>
+            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/30 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/10">
+                  <FileText className="h-4 w-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Noten</h3>
+                  <p className="text-xs text-muted-foreground">{grades.length} eingetragen</p>
+                </div>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${gradesOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-4 pb-4 space-y-2">
+              {grades.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-2">Noch keine Noten</p>
+              ) : (
+                grades.map((grade) => (
+                  <div key={grade.id} className="flex items-center justify-between gap-2 p-3 rounded-xl bg-secondary/30">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Badge variant={grade.grade_type === 'oral' ? 'secondary' : 'default'} className="shrink-0">
+                        {grade.grade_type === 'oral' ? 'M' : 'S'}
+                      </Badge>
+                      <span className={`font-bold ${getGradeColor(grade.points)}`}>{grade.points} P</span>
+                      {grade.description && (
+                        <span className="text-sm text-muted-foreground truncate">{grade.description}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {grade.date && (
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(grade.date), 'dd.MM.', { locale: de })}
+                        </span>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteGrade(grade.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Homework Section */}
+      <Collapsible open={homeworkOpen} onOpenChange={setHomeworkOpen}>
+        <Card className="overflow-hidden border-border/50 bg-card/80">
+          <CollapsibleTrigger asChild>
+            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/30 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500/20 to-amber-500/10">
+                  <BookOpen className="h-4 w-4 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Hausaufgaben</h3>
+                  <p className="text-xs text-muted-foreground">{homework.filter(h => !h.completed).length} offen</p>
+                </div>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${homeworkOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-4 pb-4 space-y-2">
+              {homework.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-2">Keine Hausaufgaben</p>
+              ) : (
+                homework.map((hw) => (
+                  <div key={hw.id} className={`flex items-center justify-between gap-2 p-3 rounded-xl ${hw.completed ? 'bg-primary/10' : 'bg-secondary/30'}`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => toggleHomework(hw)}>
+                        <CheckCircle2 className={`h-5 w-5 ${hw.completed ? 'text-primary' : 'text-muted-foreground'}`} />
                       </Button>
                       <div className="min-w-0">
-                        <span className={`text-sm md:text-base truncate block ${hw.completed ? 'line-through text-muted-foreground' : ''}`}>{hw.title}</span>
-                        <div className="text-xs text-muted-foreground">
+                        <span className={`text-sm block truncate ${hw.completed ? 'line-through text-muted-foreground' : ''}`}>
+                          {hw.title}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
                           {format(new Date(hw.due_date), 'dd.MM.yy', { locale: de })}
-                        </div>
+                        </span>
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => deleteHomework(hw.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          )}
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
-          {events.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium text-xs md:text-sm text-muted-foreground flex items-center gap-2">
-                <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4" /> Termine
-              </h4>
-              <div className="grid gap-2">
-                {events.map((event) => (
-                  <div key={event.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-secondary/30">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+      {/* Events Section */}
+      <Collapsible open={eventsOpen} onOpenChange={setEventsOpen}>
+        <Card className="overflow-hidden border-border/50 bg-card/80">
+          <CollapsibleTrigger asChild>
+            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/30 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-500/10">
+                  <Calendar className="h-4 w-4 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Termine</h3>
+                  <p className="text-xs text-muted-foreground">{events.length} geplant</p>
+                </div>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${eventsOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-4 pb-4 space-y-2">
+              {events.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-2">Keine Termine</p>
+              ) : (
+                events.map((event) => (
+                  <div key={event.id} className="flex items-center justify-between gap-2 p-3 rounded-xl bg-secondary/30">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs shrink-0">{event.event_type}</Badge>
-                        <span className="text-sm md:text-base truncate">{event.title}</span>
+                        <span className="text-sm truncate">{event.title}</span>
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {format(new Date(event.event_date), 'dd.MM.yy', { locale: de })}
-                      </div>
+                      </span>
                     </div>
                     <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => deleteEvent(event.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          )}
-        </CardContent>
-      )}
-    </Card>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    </div>
   );
 }
