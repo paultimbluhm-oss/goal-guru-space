@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
+import { useStats } from '@/hooks/useStats';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { XPCard } from '@/components/dashboard/XPCard';
 import { StreakCard } from '@/components/dashboard/StreakCard';
@@ -11,16 +13,20 @@ import { MotivationQuote } from '@/components/dashboard/MotivationQuote';
 import { Loader2 } from 'lucide-react';
 
 export default function Index() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading, recentActivity } = useProfile();
+  const { stats, loading: statsLoading } = useStats();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth');
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, navigate]);
 
-  if (loading) {
+  const isLoading = authLoading || profileLoading || statsLoading;
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -29,22 +35,6 @@ export default function Index() {
   }
 
   if (!user) return null;
-
-  // Mock data for now - will be fetched from database
-  const mockData = {
-    xp: 450,
-    level: 5,
-    streakDays: 3,
-    tasksCompleted: 12,
-    tasksPending: 5,
-    averageGrade: 11.5,
-    totalBalance: 1234.56,
-    activities: [
-      { id: '1', type: 'task_completed' as const, title: 'Mathe Hausaufgaben erledigt', timestamp: new Date(Date.now() - 3600000), xp: 15 },
-      { id: '2', type: 'achievement' as const, title: 'Erste Woche abgeschlossen!', timestamp: new Date(Date.now() - 86400000), xp: 50 },
-      { id: '3', type: 'item_added' as const, title: 'Neues Fach hinzugefügt: Englisch', timestamp: new Date(Date.now() - 172800000) },
-    ],
-  };
 
   return (
     <AppLayout>
@@ -64,21 +54,21 @@ export default function Index() {
 
         {/* Gamification Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-          <XPCard xp={mockData.xp} level={mockData.level} />
-          <LevelCard level={mockData.level} />
-          <StreakCard streakDays={mockData.streakDays} />
+          <XPCard xp={profile?.xp || 0} level={profile?.level || 1} />
+          <LevelCard level={profile?.level || 1} />
+          <StreakCard streakDays={profile?.streak_days || 0} />
         </div>
 
         {/* Quick Stats */}
         <QuickStats
-          tasksCompleted={mockData.tasksCompleted}
-          tasksPending={mockData.tasksPending}
-          averageGrade={mockData.averageGrade}
-          totalBalance={mockData.totalBalance}
+          tasksCompleted={stats.tasksCompleted}
+          tasksPending={stats.tasksPending}
+          averageGrade={stats.averageGrade}
+          totalBalance={stats.totalBalance}
         />
 
         {/* Recent Activity */}
-        <RecentActivity activities={mockData.activities} />
+        <RecentActivity activities={recentActivity} />
       </div>
     </AppLayout>
   );

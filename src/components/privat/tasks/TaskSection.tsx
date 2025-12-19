@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useGamification } from '@/contexts/GamificationContext';
 import { TaskCard } from './TaskCard';
 import { HomeworkCard } from './HomeworkCard';
 import { AddTaskDialog } from './AddTaskDialog';
@@ -49,6 +50,7 @@ interface TaskSectionProps {
 export function TaskSection({ onBack }: TaskSectionProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { addXP } = useGamification();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [homework, setHomework] = useState<Homework[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -106,30 +108,33 @@ export function TaskSection({ onBack }: TaskSectionProps) {
 
   const toggleTaskComplete = async (task: Task) => {
     const supabase = getSupabase();
+    const newCompleted = !task.completed;
     const { error } = await supabase
       .from('tasks')
-      .update({ completed: !task.completed })
+      .update({ completed: newCompleted })
       .eq('id', task.id);
 
     if (!error) {
-      setTasks(tasks.map(t => t.id === task.id ? { ...t, completed: !t.completed } : t));
-      if (!task.completed) {
-        toast({ title: `+${task.xp_reward} XP verdient!` });
+      setTasks(tasks.map(t => t.id === task.id ? { ...t, completed: newCompleted } : t));
+      if (newCompleted && task.xp_reward) {
+        await addXP(task.xp_reward, 'Aufgabe erledigt');
       }
     }
   };
 
   const toggleHomeworkComplete = async (hw: Homework) => {
     const supabase = getSupabase();
+    const newCompleted = !hw.completed;
     const { error } = await supabase
       .from('homework')
-      .update({ completed: !hw.completed })
+      .update({ completed: newCompleted })
       .eq('id', hw.id);
 
     if (!error) {
-      setHomework(homework.map(h => h.id === hw.id ? { ...h, completed: !h.completed } : h));
-      if (!hw.completed && hw.xp_reward) {
-        toast({ title: `+${hw.xp_reward} XP verdient!` });
+      setHomework(homework.map(h => h.id === hw.id ? { ...h, completed: newCompleted } : h));
+      if (newCompleted) {
+        const xpAmount = hw.xp_reward || 10;
+        await addXP(xpAmount, 'Hausaufgabe erledigt');
       }
     }
   };

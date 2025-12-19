@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, ChevronDown, ChevronUp, BookOpen, Calendar, CheckCircle2 } from 'lucide-react';
 import { getSupabase, useAuth } from '@/hooks/useAuth';
+import { useGamification } from '@/contexts/GamificationContext';
 import { toast } from 'sonner';
 import { AddGradeDialog } from './AddGradeDialog';
 import { AddHomeworkDialog } from './AddHomeworkDialog';
@@ -51,6 +52,7 @@ interface SubjectCardProps {
 
 export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardProps) {
   const { user } = useAuth();
+  const { addXP } = useGamification();
   const [expanded, setExpanded] = useState(false);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [homework, setHomework] = useState<Homework[]>([]);
@@ -117,12 +119,16 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
     const supabase = getSupabase();
     if (!supabase) return;
     
+    const newCompleted = !hw.completed;
     const { error } = await supabase
       .from('homework')
-      .update({ completed: !hw.completed })
+      .update({ completed: newCompleted })
       .eq('id', hw.id);
     
     if (!error) {
+      if (newCompleted) {
+        await addXP(10, 'Hausaufgabe erledigt');
+      }
       fetchData();
     }
   };
