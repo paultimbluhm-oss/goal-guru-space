@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useGamification } from '@/contexts/GamificationContext';
 
 const iconMap: Record<string, LucideIcon> = {
   Lightbulb, Gamepad2, Music, Palette, Book, Dumbbell, Code, Camera, ChefHat, Wrench, Languages, Brain
@@ -39,6 +40,7 @@ interface ActivityDetailViewProps {
 export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { addXP } = useGamification();
   const [activity, setActivity] = useState<Activity | null>(null);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,8 +115,9 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
         .eq('id', activityId);
     }
 
+    // Award XP to user profile
     if (newCompleted) {
-      toast({ title: `+${skill.xp_reward} XP verdient! 🎉`, description: `Skill "${skill.name}" abgeschlossen!` });
+      await addXP(skill.xp_reward, `Skill "${skill.name}" abgeschlossen`);
     }
 
     fetchData();
