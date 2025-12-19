@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { User, Wallet, ListChecks, Calendar, Sparkles } from 'lucide-react';
 import { FinanceSection } from '@/components/privat/finance/FinanceSection';
 import { ChecklistSection } from '@/components/privat/checklists';
+import { TaskSection } from '@/components/privat/tasks';
 
 const sections = [
   { id: 'finanzen', icon: Wallet, label: 'Finanzen', desc: 'Konten, Ausgaben, Investments' },
@@ -39,6 +40,16 @@ export default function Privat() {
       <AppLayout>
         <div className="p-6 lg:p-8 max-w-7xl mx-auto">
           <ChecklistSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'aufgaben') {
+    return (
+      <AppLayout>
+        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+          <TaskSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
     );
