@@ -1,10 +1,12 @@
 import { calculateXPProgress } from '@/hooks/useProfile';
-import { Zap, Flame, Trophy, Star } from 'lucide-react';
+import { Zap, Flame, Trophy, CheckCircle2 } from 'lucide-react';
 
 interface HeroStatsProps {
   xp: number;
   level: number;
   streakDays: number;
+  tasksCompleted: number;
+  tasksTotal: number;
 }
 
 const getLevelTitle = (level: number): string => {
@@ -16,11 +18,12 @@ const getLevelTitle = (level: number): string => {
   return 'Legende';
 };
 
-export function HeroStats({ xp, level, streakDays }: HeroStatsProps) {
+export function HeroStats({ xp, level, streakDays, tasksCompleted, tasksTotal }: HeroStatsProps) {
   const { current, needed, percentage } = calculateXPProgress(xp);
   const title = getLevelTitle(level);
   const circumference = 2 * Math.PI * 120;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const taskProgress = tasksTotal > 0 ? Math.round((tasksCompleted / tasksTotal) * 100) : 0;
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-6 md:p-8">
@@ -132,7 +135,7 @@ export function HeroStats({ xp, level, streakDays }: HeroStatsProps) {
                 <div className={`p-2.5 rounded-xl bg-streak/20 ${streakDays > 0 ? 'animate-pulse' : ''}`}>
                   <Flame className={`w-5 h-5 ${streakDays > 0 ? 'text-[hsl(var(--streak))]' : 'text-muted-foreground'}`} />
                 </div>
-                <span className="text-sm text-muted-foreground">Tages-Streak</span>
+                <span className="text-sm text-muted-foreground">Habit-Streak</span>
               </div>
               <p className="text-3xl font-bold text-streak font-mono">{streakDays} <span className="text-lg text-muted-foreground">Tage</span></p>
               <div className="mt-3 flex gap-1.5">
@@ -152,26 +155,30 @@ export function HeroStats({ xp, level, streakDays }: HeroStatsProps) {
                   ? streakDays % 7 === 0 
                     ? '🎉 Wochen-Bonus erreicht!' 
                     : `${7 - (streakDays % 7)} Tage bis Wochen-Bonus`
-                  : 'Starte heute deine Serie!'
+                  : 'Schließe alle Habits ab!'
                 }
               </p>
             </div>
           </div>
 
-          {/* Today's Progress Indicator */}
+          {/* Today's Task Progress */}
           <div className="sm:col-span-2 glass-card p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Star className="w-5 h-5 text-primary" />
-              <span className="text-sm text-foreground">Täglicher Fortschritt</span>
+              <CheckCircle2 className={`w-5 h-5 ${taskProgress === 100 ? 'text-success' : 'text-primary'}`} />
+              <span className="text-sm text-foreground">Täglicher Fortschritt (Tasks)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-32 h-2 bg-secondary rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
-                  style={{ width: '45%' }}
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    taskProgress === 100 
+                      ? 'bg-gradient-to-r from-success to-emerald-400' 
+                      : 'bg-gradient-to-r from-primary to-accent'
+                  }`}
+                  style={{ width: `${taskProgress}%` }}
                 />
               </div>
-              <span className="text-xs text-muted-foreground">45%</span>
+              <span className="text-xs text-muted-foreground">{tasksCompleted}/{tasksTotal}</span>
             </div>
           </div>
         </div>
