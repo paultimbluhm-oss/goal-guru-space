@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -16,13 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Plus, Search, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getSupabase } from '@/hooks/useAuth';
 import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
 
 interface AddInvestmentDialogProps {
   onInvestmentAdded: () => void;
+}
+
+interface SearchResult {
+  symbol: string;
+  name: string;
+  type?: string;
+  price?: number;
 }
 
 const investmentTypes = [
@@ -34,24 +42,124 @@ const investmentTypes = [
 export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [symbol, setSymbol] = useState('');
   const [investmentType, setInvestmentType] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [selectedAsset, setSelectedAsset] = useState<SearchResult | null>(null);
   const [quantity, setQuantity] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  // Search for assets when query changes
+  useEffect(() => {
+    if (!searchQuery || searchQuery.length < 2 || !investmentType) {
+      setSearchResults([]);
+      return;
+    }
+
+    const searchAssets = async () => {
+      setSearching(true);
+      try {
+        if (investmentType === 'crypto') {
+          // Search CoinGecko
+          const res = await fetch(
+            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(searchQuery)}`
+          );
+          const data = await res.json();
+          const results: SearchResult[] = (data.coins || []).slice(0, 8).map((coin: any) => ({
+            symbol: coin.id,
+            name: coin.name,
+            type: coin.symbol?.toUpperCase(),
+          }));
+          setSearchResults(results);
+        } else {
+          // Search stocks/ETFs via edge function
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/search-stocks`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({ query: searchQuery }),
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            setSearchResults(data.results || []);
+          }
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+      }
+      setSearching(false);
+    };
+
+    const debounce = setTimeout(searchAssets, 500);
+    return () => clearTimeout(debounce);
+  }, [searchQuery, investmentType]);
+
+  // Fetch current price when asset is selected
+  useEffect(() => {
+    if (!selectedAsset) return;
+
+    const fetchPrice = async () => {
+      try {
+        if (investmentType === 'crypto') {
+          const res = await fetch(
+            `https://api.coingecko.com/api/v3/simple/price?ids=${selectedAsset.symbol}&vs_currencies=eur`
+          );
+          const data = await res.json();
+          const price = data[selectedAsset.symbol]?.eur;
+          if (price) {
+            setSelectedAsset((prev) => prev ? { ...prev, price } : null);
+          }
+        } else {
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-stock-price`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({ symbol: selectedAsset.symbol }),
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.price) {
+              setSelectedAsset((prev) => prev ? { ...prev, price: data.price } : null);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Price fetch error:', error);
+      }
+    };
+
+    fetchPrice();
+  }, [selectedAsset?.symbol, investmentType]);
+
+  const handleSelectAsset = (result: SearchResult) => {
+    setSelectedAsset(result);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !name || !investmentType || !quantity || !purchasePrice) return;
+    if (!user || !selectedAsset || !investmentType || !quantity || !purchasePrice) return;
 
     setLoading(true);
     const supabase = getSupabase();
 
     const { error } = await supabase.from('investments').insert({
       user_id: user.id,
-      name,
-      symbol: symbol.toUpperCase() || null,
+      name: selectedAsset.name,
+      symbol: selectedAsset.symbol,
       investment_type: investmentType,
       quantity: parseFloat(quantity),
       purchase_price: parseFloat(purchasePrice),
@@ -63,44 +171,45 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
     } else {
       toast.success('Investment hinzugefügt');
       setOpen(false);
-      setName('');
-      setSymbol('');
-      setInvestmentType('');
-      setQuantity('');
-      setPurchasePrice('');
+      resetForm();
       onInvestmentAdded();
     }
     setLoading(false);
   };
 
-  const getSymbolPlaceholder = () => {
-    switch (investmentType) {
-      case 'crypto':
-        return 'z.B. bitcoin, ethereum';
-      case 'etf':
-      case 'stock':
-        return 'z.B. AAPL, MSFT';
-      default:
-        return 'Symbol/ID';
-    }
+  const resetForm = () => {
+    setInvestmentType('');
+    setSearchQuery('');
+    setSearchResults([]);
+    setSelectedAsset(null);
+    setQuantity('');
+    setPurchasePrice('');
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen);
+      if (!isOpen) resetForm();
+    }}>
       <DialogTrigger asChild>
         <Button size="sm" className="gap-2">
           <Plus className="w-4 h-4" />
-          Investment hinzufügen
+          Investment
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Neues Investment</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="type">Typ</Label>
-            <Select value={investmentType} onValueChange={setInvestmentType} required>
+            <Label>Typ</Label>
+            <Select value={investmentType} onValueChange={(val) => {
+              setInvestmentType(val);
+              setSelectedAsset(null);
+              setSearchQuery('');
+              setSearchResults([]);
+            }} required>
               <SelectTrigger>
                 <SelectValue placeholder="Typ auswählen" />
               </SelectTrigger>
@@ -113,59 +222,150 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="z.B. Bitcoin, Apple Inc."
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="symbol">Symbol/ID (für Live-Kurse)</Label>
-            <Input
-              id="symbol"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value)}
-              placeholder={getSymbolPlaceholder()}
-            />
-            {investmentType === 'crypto' && (
-              <p className="text-xs text-muted-foreground">
-                Verwende den CoinGecko-ID (z.B. bitcoin, ethereum, solana)
-              </p>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+
+          {investmentType && (
             <div className="space-y-2">
-              <Label htmlFor="quantity">Menge</Label>
-              <Input
-                id="quantity"
-                type="number"
-                step="0.00000001"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                placeholder="0"
-                required
-              />
+              <Label>
+                {investmentType === 'crypto' ? 'Kryptowährung suchen' : 'Aktie/ETF suchen'}
+              </Label>
+              
+              {selectedAsset ? (
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold flex items-center gap-2">
+                        <Check className="w-4 h-4 text-primary" />
+                        {selectedAsset.name}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {selectedAsset.type || selectedAsset.symbol}
+                      </div>
+                      {selectedAsset.price && (
+                        <div className="text-sm font-medium text-primary mt-1">
+                          Aktueller Kurs: {selectedAsset.price.toLocaleString('de-DE', {
+                            style: 'currency',
+                            currency: 'EUR',
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedAsset(null)}
+                    >
+                      Ändern
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={
+                      investmentType === 'crypto'
+                        ? 'z.B. Bitcoin, Ethereum...'
+                        : 'z.B. Apple, MSCI World...'
+                    }
+                    className="pl-9"
+                  />
+                  {searching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                  
+                  {searchResults.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {searchResults.map((result, index) => (
+                        <button
+                          key={`${result.symbol}-${index}`}
+                          type="button"
+                          onClick={() => handleSelectAsset(result)}
+                          className={cn(
+                            'w-full px-3 py-2 text-left hover:bg-accent transition-colors',
+                            index !== searchResults.length - 1 && 'border-b border-border/50'
+                          )}
+                        >
+                          <div className="font-medium">{result.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {result.type || result.symbol}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="price">Kaufpreis (€)</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-                placeholder="0.00"
-                required
-              />
-            </div>
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Füge hinzu...' : 'Hinzufügen'}
-          </Button>
+          )}
+
+          {selectedAsset && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">Menge</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    step="0.00000001"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price">Kaufpreis gesamt (€)</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    value={purchasePrice}
+                    onChange={(e) => setPurchasePrice(e.target.value)}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+              </div>
+
+              {quantity && purchasePrice && selectedAsset.price && (
+                <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Aktueller Wert:</span>
+                    <span className="font-medium">
+                      {(parseFloat(quantity) * selectedAsset.price).toLocaleString('de-DE', {
+                        style: 'currency',
+                        currency: 'EUR',
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Differenz:</span>
+                    <span className={cn(
+                      'font-medium',
+                      parseFloat(quantity) * selectedAsset.price - parseFloat(purchasePrice) >= 0
+                        ? 'text-success'
+                        : 'text-destructive'
+                    )}>
+                      {(parseFloat(quantity) * selectedAsset.price - parseFloat(purchasePrice)).toLocaleString('de-DE', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        signDisplay: 'always',
+                      })}
+                      {' '}
+                      ({(((parseFloat(quantity) * selectedAsset.price - parseFloat(purchasePrice)) / parseFloat(purchasePrice)) * 100).toFixed(2)}%)
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Füge hinzu...' : 'Hinzufügen'}
+              </Button>
+            </>
+          )}
         </form>
       </DialogContent>
     </Dialog>
