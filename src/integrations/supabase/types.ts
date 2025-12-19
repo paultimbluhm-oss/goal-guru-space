@@ -112,6 +112,36 @@ export type Database = {
           },
         ]
       }
+      balance_history: {
+        Row: {
+          accounts_balance: number
+          created_at: string | null
+          date: string
+          id: string
+          investments_balance: number
+          total_balance: number
+          user_id: string
+        }
+        Insert: {
+          accounts_balance?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          investments_balance?: number
+          total_balance?: number
+          user_id: string
+        }
+        Update: {
+          accounts_balance?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          investments_balance?: number
+          total_balance?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       boredom_activities: {
         Row: {
           category: string | null
