@@ -372,12 +372,12 @@ export function SubjectsSection({ onBack }: SubjectsSectionProps) {
                         </span>
                       )}
                     </div>
-                    {(oralAvg !== null || writtenAvg !== null) && (
+                    {(oralAvg != null || writtenAvg != null) && (
                       <div className="mt-2 pt-2 border-t border-border/50 flex gap-2 text-xs text-muted-foreground">
-                        {oralAvg !== null && (
+                        {oralAvg != null && (
                           <span>M: {oralAvg.toFixed(0)}</span>
                         )}
-                        {writtenAvg !== null && (
+                        {writtenAvg != null && (
                           <span>S: {writtenAvg.toFixed(0)}</span>
                         )}
                       </div>
