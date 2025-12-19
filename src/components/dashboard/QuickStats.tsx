@@ -32,7 +32,7 @@ export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBa
     },
     {
       icon: TrendingUp,
-      label: 'Gesamtvermögen',
+      label: 'Konten & Bargeld',
       value: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(totalBalance),
       color: 'text-primary',
       bgColor: 'bg-primary/20',

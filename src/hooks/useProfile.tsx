@@ -144,6 +144,49 @@ export function useProfile() {
     setLoading(false);
   }, [user]);
 
+  const syncXP = useCallback(async () => {
+    if (!user) return;
+    
+    const supabase = getSupabase();
+    
+    // Calculate total XP from all completed activities
+    const [tasksRes, homeworkRes, gradesRes, skillsRes] = await Promise.all([
+      supabase.from('tasks').select('xp_reward').eq('user_id', user.id).eq('completed', true),
+      supabase.from('homework').select('xp_reward').eq('user_id', user.id).eq('completed', true),
+      supabase.from('grades').select('id').eq('user_id', user.id),
+      supabase.from('activity_skills').select('xp_reward').eq('user_id', user.id).eq('completed', true),
+    ]);
+    
+    let totalXP = 0;
+    
+    // Tasks: default 10 XP each
+    (tasksRes.data || []).forEach(t => { totalXP += (t.xp_reward || 10); });
+    
+    // Homework: default 10 XP each  
+    (homeworkRes.data || []).forEach(h => { totalXP += (h.xp_reward || 10); });
+    
+    // Grades: 5 XP each
+    totalXP += (gradesRes.data?.length || 0) * 5;
+    
+    // Activity skills: default 15 XP each
+    (skillsRes.data || []).forEach(s => { totalXP += (s.xp_reward || 15); });
+    
+    // Update profile if XP is different
+    const newLevel = calculateLevelFromXP(totalXP);
+    const { data: updated } = await supabase
+      .from('profiles')
+      .update({ xp: totalXP, level: newLevel })
+      .eq('user_id', user.id)
+      .select()
+      .single();
+    
+    if (updated) {
+      setProfile(updated);
+    }
+    
+    return totalXP;
+  }, [user]);
+
   const addXP = useCallback(async (amount: number, reason?: string) => {
     if (!user || !profile) return;
     
@@ -237,10 +280,18 @@ export function useProfile() {
     fetchRecentActivity();
   }, [fetchProfile, fetchRecentActivity]);
 
+  // Sync XP when profile is loaded
+  useEffect(() => {
+    if (profile && profile.xp === 0) {
+      syncXP();
+    }
+  }, [profile?.id, syncXP]);
+
   return {
     profile,
     loading,
     addXP,
+    syncXP,
     refetch: fetchProfile,
     recentActivity,
     xpProgress: profile ? calculateXPProgress(profile.xp || 0) : { current: 0, needed: 100, percentage: 0 }
