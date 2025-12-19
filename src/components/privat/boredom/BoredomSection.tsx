@@ -6,7 +6,6 @@ import { useToast } from '@/hooks/use-toast';
 import { ActivityCard } from './ActivityCard';
 import { AddActivityDialog } from './AddActivityDialog';
 import { ActivityDetailView } from './ActivityDetailView';
-
 interface Activity {
   id: string;
   name: string;
@@ -18,85 +17,83 @@ interface Activity {
   skills_count?: number;
   completed_skills?: number;
 }
-
 interface BoredomSectionProps {
   onBack: () => void;
 }
-
-export function BoredomSection({ onBack }: BoredomSectionProps) {
-  const { user } = useAuth();
-  const { toast } = useToast();
+export function BoredomSection({
+  onBack
+}: BoredomSectionProps) {
+  const {
+    user
+  } = useAuth();
+  const {
+    toast
+  } = useToast();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
-
   const fetchActivities = async () => {
     if (!user) return;
     const supabase = getSupabase();
-
-    const { data, error } = await supabase
-      .from('boredom_activities')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
+    const {
+      data,
+      error
+    } = await supabase.from('boredom_activities').select('*').eq('user_id', user.id).order('created_at', {
+      ascending: false
+    });
     if (error) {
-      toast({ title: 'Fehler', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Fehler',
+        description: error.message,
+        variant: 'destructive'
+      });
     } else {
       // Fetch skill counts for each activity
-      const activitiesWithCounts = await Promise.all(
-        (data || []).map(async (activity) => {
-          const { data: skills } = await supabase
-            .from('activity_skills')
-            .select('completed')
-            .eq('activity_id', activity.id);
-
-          return {
-            ...activity,
-            skills_count: skills?.length || 0,
-            completed_skills: skills?.filter(s => s.completed).length || 0,
-          };
-        })
-      );
+      const activitiesWithCounts = await Promise.all((data || []).map(async activity => {
+        const {
+          data: skills
+        } = await supabase.from('activity_skills').select('completed').eq('activity_id', activity.id);
+        return {
+          ...activity,
+          skills_count: skills?.length || 0,
+          completed_skills: skills?.filter(s => s.completed).length || 0
+        };
+      }));
       setActivities(activitiesWithCounts);
     }
     setLoading(false);
   };
-
   useEffect(() => {
     fetchActivities();
   }, [user]);
-
   const handleDelete = async (id: string) => {
     const supabase = getSupabase();
-    const { error } = await supabase.from('boredom_activities').delete().eq('id', id);
-
+    const {
+      error
+    } = await supabase.from('boredom_activities').delete().eq('id', id);
     if (error) {
-      toast({ title: 'Fehler', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Fehler',
+        description: error.message,
+        variant: 'destructive'
+      });
     } else {
-      toast({ title: 'Aktivität gelöscht' });
+      toast({
+        title: 'Aktivität gelöscht'
+      });
       fetchActivities();
     }
   };
-
   const totalXP = activities.reduce((sum, a) => sum + (a.total_xp_earned || 0), 0);
   const totalSkills = activities.reduce((sum, a) => sum + (a.completed_skills || 0), 0);
-
   if (selectedActivity) {
-    return (
-      <ActivityDetailView
-        activityId={selectedActivity}
-        onBack={() => {
-          setSelectedActivity(null);
-          fetchActivities();
-        }}
-      />
-    );
+    return <ActivityDetailView activityId={selectedActivity} onBack={() => {
+      setSelectedActivity(null);
+      fetchActivities();
+    }} />;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack}>
@@ -141,42 +138,19 @@ export function BoredomSection({ onBack }: BoredomSectionProps) {
       </div>
 
       {/* Info */}
-      <div className="glass-card p-4 border-primary/30 bg-primary/5">
-        <p className="text-sm text-muted-foreground">
-          💡 Keine Lust auf YouTube? Starte ein Projekt und lerne neue Skills! 
-          Für jeden erlernten Skill bekommst du XP und bleibst motiviert.
-        </p>
-      </div>
+      
 
-      {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Laden...</div>
-      ) : activities.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
+      {loading ? <div className="text-center py-8 text-muted-foreground">Laden...</div> : activities.length === 0 ? <div className="text-center py-12 text-muted-foreground">
           <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>Noch keine Projekte vorhanden</p>
           <p className="text-sm mt-2">Erstelle dein erstes Projekt, z.B. "Zauberwürfel lernen"</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activities.map((activity) => (
-            <ActivityCard
-              key={activity.id}
-              activity={activity}
-              onClick={() => setSelectedActivity(activity.id)}
-              onDelete={() => handleDelete(activity.id)}
-            />
-          ))}
-        </div>
-      )}
+        </div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {activities.map(activity => <ActivityCard key={activity.id} activity={activity} onClick={() => setSelectedActivity(activity.id)} onDelete={() => handleDelete(activity.id)} />)}
+        </div>}
 
-      <AddActivityDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-        onSuccess={() => {
-          setShowAddDialog(false);
-          fetchActivities();
-        }}
-      />
-    </div>
-  );
+      <AddActivityDialog open={showAddDialog} onOpenChange={setShowAddDialog} onSuccess={() => {
+      setShowAddDialog(false);
+      fetchActivities();
+    }} />
+    </div>;
 }
