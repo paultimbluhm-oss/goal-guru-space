@@ -42,6 +42,7 @@ export function useStats() {
       homeworkRes,
       gradesRes,
       accountsRes,
+      investmentsRes,
       subjectsRes,
       recipesRes,
       ideasRes,
@@ -50,6 +51,7 @@ export function useStats() {
       supabase.from('homework').select('completed').eq('user_id', user.id),
       supabase.from('grades').select('points, grade_type, subject_id').eq('user_id', user.id),
       supabase.from('accounts').select('balance').eq('user_id', user.id),
+      supabase.from('investments').select('quantity, purchase_price').eq('user_id', user.id),
       supabase.from('subjects').select('id, oral_weight, written_weight').eq('user_id', user.id),
       supabase.from('recipes').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('ideas').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -111,9 +113,15 @@ export function useStats() {
       }
     }
 
-    // Calculate total balance
+    // Calculate total balance (accounts + investments)
     const accounts = accountsRes.data || [];
-    const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+    const accountsBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+    
+    // Add investments value (quantity * purchase_price)
+    const investments = investmentsRes.data || [];
+    const investmentsValue = investments.reduce((sum, inv) => sum + ((inv.quantity || 0) * (inv.purchase_price || 0)), 0);
+    
+    const totalBalance = accountsBalance + investmentsValue;
 
     setStats({
       tasksCompleted,

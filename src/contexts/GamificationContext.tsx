@@ -6,12 +6,15 @@ interface GamificationContextType {
   addXP: (amount: number, reason?: string) => Promise<void>;
   profile: ReturnType<typeof useProfile>['profile'];
   xpProgress: ReturnType<typeof useProfile>['xpProgress'];
+  recentActivity: ReturnType<typeof useProfile>['recentActivity'];
+  loading: ReturnType<typeof useProfile>['loading'];
+  refetch: ReturnType<typeof useProfile>['refetch'];
 }
 
 const GamificationContext = createContext<GamificationContextType | null>(null);
 
 export function GamificationProvider({ children }: { children: ReactNode }) {
-  const { profile, addXP: addXPBase, xpProgress, refetch } = useProfile();
+  const { profile, addXP: addXPBase, xpProgress, refetch, recentActivity, loading } = useProfile();
 
   const addXP = useCallback(async (amount: number, reason?: string) => {
     const result = await addXPBase(amount, reason);
@@ -32,11 +35,14 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
           });
         }, 500);
       }
+      
+      // Refetch to update recent activity
+      await refetch();
     }
-  }, [addXPBase]);
+  }, [addXPBase, refetch]);
 
   return (
-    <GamificationContext.Provider value={{ addXP, profile, xpProgress }}>
+    <GamificationContext.Provider value={{ addXP, profile, xpProgress, recentActivity, loading, refetch }}>
       {children}
     </GamificationContext.Provider>
   );
