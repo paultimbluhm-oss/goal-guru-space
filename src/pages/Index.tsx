@@ -65,6 +65,7 @@ export default function Index() {
           tasksPending={stats.tasksPending}
           averageGrade={stats.averageGrade}
           totalBalance={stats.totalBalance}
+          loadingPrices={stats.loadingPrices}
         />
 
         {/* Recent Activity */}

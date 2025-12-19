@@ -1,13 +1,14 @@
-import { CheckCircle2, ListTodo, Target, TrendingUp } from 'lucide-react';
+import { CheckCircle2, ListTodo, Target, TrendingUp, Loader2 } from 'lucide-react';
 
 interface QuickStatsProps {
   tasksCompleted: number;
   tasksPending: number;
   averageGrade: number | null;
   totalBalance: number;
+  loadingPrices?: boolean;
 }
 
-export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBalance }: QuickStatsProps) {
+export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBalance, loadingPrices }: QuickStatsProps) {
   const stats = [
     {
       icon: CheckCircle2,
@@ -15,6 +16,7 @@ export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBa
       value: tasksCompleted.toString(),
       color: 'text-success',
       bgColor: 'bg-success/20',
+      loading: false,
     },
     {
       icon: ListTodo,
@@ -22,6 +24,7 @@ export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBa
       value: tasksPending.toString(),
       color: 'text-warning',
       bgColor: 'bg-warning/20',
+      loading: false,
     },
     {
       icon: Target,
@@ -29,13 +32,15 @@ export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBa
       value: averageGrade !== null ? averageGrade.toFixed(1) + ' Pkt' : '—',
       color: 'text-accent',
       bgColor: 'bg-accent/20',
+      loading: false,
     },
     {
       icon: TrendingUp,
-      label: 'Konten & Bargeld',
+      label: 'Gesamtvermögen',
       value: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(totalBalance),
       color: 'text-primary',
       bgColor: 'bg-primary/20',
+      loading: loadingPrices,
     },
   ];
 
@@ -50,7 +55,10 @@ export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBa
           <div className={`p-1.5 md:p-2 rounded-lg ${stat.bgColor} w-fit mb-2 md:mb-3`}>
             <stat.icon className={`w-4 h-4 md:w-5 md:h-5 ${stat.color}`} />
           </div>
-          <p className="text-lg md:text-2xl font-bold font-mono truncate">{stat.value}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-lg md:text-2xl font-bold font-mono truncate">{stat.value}</p>
+            {stat.loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+          </div>
           <p className="text-xs text-muted-foreground truncate">{stat.label}</p>
         </div>
       ))}
