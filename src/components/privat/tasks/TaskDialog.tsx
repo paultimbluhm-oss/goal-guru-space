@@ -114,13 +114,18 @@ export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogPr
 
     let dueDate: string | null = null;
     if (selectedDate) {
-      // Format date as YYYY-MM-DD to avoid timezone issues
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      // Create a proper Date object with local time to avoid timezone issues
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      const day = selectedDate.getDate();
+      
+      let dueDateTime: Date;
       if (hasTime) {
-        dueDate = `${dateStr}T${hours}:${minutes}:00`;
+        dueDateTime = new Date(year, month, day, parseInt(hours), parseInt(minutes), 0);
       } else {
-        dueDate = `${dateStr}T23:59:00`;
+        dueDateTime = new Date(year, month, day, 23, 59, 0);
       }
+      dueDate = dueDateTime.toISOString();
     }
 
     if (isEditMode && task) {
