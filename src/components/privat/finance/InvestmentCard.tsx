@@ -32,10 +32,11 @@ export function InvestmentCard({
 }: InvestmentCardProps) {
   const [deleting, setDeleting] = useState(false);
 
-  const purchaseValue = investment.quantity * investment.purchase_price;
+  const purchaseValue = investment.purchase_price;
   const currentValue = currentPrice ? investment.quantity * currentPrice : null;
   const profitLoss = currentValue ? currentValue - purchaseValue : null;
-  const profitLossPercent = profitLoss ? (profitLoss / purchaseValue) * 100 : null;
+  const profitLossPercent = profitLoss && purchaseValue ? (profitLoss / purchaseValue) * 100 : null;
+  const isProfit = profitLoss !== null && profitLoss >= 0;
 
   const handleDelete = async () => {
     if (!confirm(`"${investment.name}" wirklich löschen?`)) return;
@@ -63,11 +64,12 @@ export function InvestmentCard({
   return (
     <Card className="glass-card border-border/50 group">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{investment.name}</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary">
+        <div className="flex items-start justify-between gap-4">
+          {/* Left: Name and details */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold truncate">{investment.name}</span>
+              <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary shrink-0">
                 {typeLabel}
               </span>
             </div>
@@ -75,43 +77,67 @@ export function InvestmentCard({
               <p className="text-xs text-muted-foreground uppercase">{investment.symbol}</p>
             )}
             <p className="text-sm text-muted-foreground mt-1">
-              {investment.quantity.toLocaleString('de-DE')} Stück
+              {investment.quantity.toLocaleString('de-DE', { maximumFractionDigits: 8 })} Stück
             </p>
           </div>
 
-          <div className="text-right">
+          {/* Right: Current value and change */}
+          <div className="text-right shrink-0">
             {loading ? (
-              <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
+              <div className="flex items-center justify-end gap-2">
+                <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
+                <span className="text-sm text-muted-foreground">Laden...</span>
+              </div>
             ) : currentValue !== null ? (
               <>
-                <div className="text-lg font-bold">
+                {/* Current value - prominent */}
+                <div className="text-xl font-bold">
                   {currentValue.toLocaleString('de-DE', {
                     style: 'currency',
                     currency: 'EUR',
                   })}
                 </div>
+                
+                {/* Profit/Loss percentage and amount */}
                 <div
                   className={cn(
-                    'flex items-center gap-1 text-sm',
-                    profitLoss && profitLoss >= 0 ? 'text-success' : 'text-destructive'
+                    'flex items-center justify-end gap-1 text-sm font-medium',
+                    isProfit ? 'text-success' : 'text-destructive'
                   )}
                 >
-                  {profitLoss && profitLoss >= 0 ? (
-                    <TrendingUp className="w-3 h-3" />
+                  {isProfit ? (
+                    <TrendingUp className="w-3.5 h-3.5" />
                   ) : (
-                    <TrendingDown className="w-3 h-3" />
+                    <TrendingDown className="w-3.5 h-3.5" />
                   )}
-                  {profitLoss?.toLocaleString('de-DE', {
+                  <span>
+                    {profitLossPercent !== null && (
+                      <>
+                        {profitLossPercent >= 0 ? '+' : ''}
+                        {profitLossPercent.toFixed(2)}%
+                      </>
+                    )}
+                  </span>
+                  <span className="text-muted-foreground">
+                    ({profitLoss?.toLocaleString('de-DE', {
+                      style: 'currency',
+                      currency: 'EUR',
+                      signDisplay: 'always',
+                    })})
+                  </span>
+                </div>
+                
+                {/* Purchase price - smaller */}
+                <div className="text-xs text-muted-foreground mt-1">
+                  Kaufpreis: {purchaseValue.toLocaleString('de-DE', {
                     style: 'currency',
                     currency: 'EUR',
-                    signDisplay: 'always',
-                  })}{' '}
-                  ({profitLossPercent?.toFixed(2)}%)
+                  })}
                 </div>
               </>
             ) : (
               <div className="text-sm text-muted-foreground">
-                Kaufwert:{' '}
+                Kaufpreis:{' '}
                 {purchaseValue.toLocaleString('de-DE', {
                   style: 'currency',
                   currency: 'EUR',
@@ -120,7 +146,8 @@ export function InvestmentCard({
             )}
           </div>
 
-          <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Actions */}
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <Button
               variant="ghost"
               size="icon"
