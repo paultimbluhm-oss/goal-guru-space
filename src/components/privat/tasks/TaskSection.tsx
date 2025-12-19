@@ -30,6 +30,8 @@ interface Homework {
   completed: boolean;
   subject_id: string;
   subject_name?: string;
+  priority?: string;
+  xp_reward?: number;
   type: 'homework';
 }
 
@@ -126,6 +128,9 @@ export function TaskSection({ onBack }: TaskSectionProps) {
 
     if (!error) {
       setHomework(homework.map(h => h.id === hw.id ? { ...h, completed: !h.completed } : h));
+      if (!hw.completed && hw.xp_reward) {
+        toast({ title: `+${hw.xp_reward} XP verdient!` });
+      }
     }
   };
 

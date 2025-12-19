@@ -268,9 +268,11 @@ export type Database = {
           description: string | null
           due_date: string
           id: string
+          priority: string | null
           subject_id: string
           title: string
           user_id: string
+          xp_reward: number | null
         }
         Insert: {
           completed?: boolean | null
@@ -278,9 +280,11 @@ export type Database = {
           description?: string | null
           due_date: string
           id?: string
+          priority?: string | null
           subject_id: string
           title: string
           user_id: string
+          xp_reward?: number | null
         }
         Update: {
           completed?: boolean | null
@@ -288,9 +292,11 @@ export type Database = {
           description?: string | null
           due_date?: string
           id?: string
+          priority?: string | null
           subject_id?: string
           title?: string
           user_id?: string
+          xp_reward?: number | null
         }
         Relationships: [
           {
