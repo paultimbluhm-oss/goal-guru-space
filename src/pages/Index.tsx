@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -12,18 +12,48 @@ import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { MotivationQuote } from '@/components/dashboard/MotivationQuote';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 export default function Index() {
   const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading, recentActivity, refetch } = useProfile();
   const { stats, loading: statsLoading } = useStats();
   const navigate = useNavigate();
+  const [todayTasksCompleted, setTodayTasksCompleted] = useState(0);
+  const [todayTasksTotal, setTodayTasksTotal] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
     }
   }, [user, authLoading, navigate]);
+
+  // Fetch today's tasks progress
+  useEffect(() => {
+    if (user) {
+      fetchTodayTasks();
+    }
+  }, [user]);
+
+  const fetchTodayTasks = async () => {
+    if (!user) return;
+    
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const todayStart = `${today}T00:00:00`;
+    const todayEnd = `${today}T23:59:59`;
+    
+    // Get tasks due today or created today
+    const { data: tasks } = await supabase
+      .from('tasks')
+      .select('id, completed, due_date, created_at')
+      .eq('user_id', user.id)
+      .or(`due_date.gte.${todayStart},due_date.lte.${todayEnd},and(due_date.is.null,created_at.gte.${todayStart})`);
+    
+    if (tasks) {
+      setTodayTasksTotal(tasks.length);
+      setTodayTasksCompleted(tasks.filter(t => t.completed).length);
+    }
+  };
 
   // Check achievements when profile/stats load
   useEffect(() => {
@@ -85,7 +115,9 @@ export default function Index() {
         <HeroStats 
           xp={profile?.xp || 0} 
           level={profile?.level || 1} 
-          streakDays={profile?.streak_days || 0} 
+          streakDays={profile?.streak_days || 0}
+          tasksCompleted={todayTasksCompleted}
+          tasksTotal={todayTasksTotal}
         />
 
         {/* Habits & Achievements Grid */}

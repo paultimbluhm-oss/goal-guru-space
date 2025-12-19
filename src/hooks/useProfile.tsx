@@ -92,7 +92,7 @@ export function useProfile() {
         setProfile(newProfile);
       }
     } else if (profileData) {
-      // Check and update streak
+      // Check and update streak based on habit completions
       const today = new Date().toISOString().split('T')[0];
       const lastActive = profileData.last_active_date;
       
@@ -105,12 +105,30 @@ export function useProfile() {
         
         let newStreak = profileData.streak_days || 0;
         
-        if (lastActive === yesterdayStr) {
-          // Continue streak
+        // Check if ALL habits were completed yesterday
+        const [habitsRes, completionsRes] = await Promise.all([
+          supabase
+            .from('habits')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('is_active', true),
+          supabase
+            .from('habit_completions')
+            .select('habit_id')
+            .eq('user_id', user.id)
+            .eq('completed_date', yesterdayStr)
+        ]);
+        
+        const totalHabits = habitsRes.data?.length || 0;
+        const completedHabits = completionsRes.data?.length || 0;
+        const allHabitsCompletedYesterday = totalHabits > 0 && completedHabits >= totalHabits;
+        
+        if (lastActive === yesterdayStr && allHabitsCompletedYesterday) {
+          // Continue streak only if all habits were completed yesterday
           newStreak += 1;
         } else if (lastActive !== today) {
-          // Streak broken (but not if we already visited today)
-          newStreak = 1;
+          // Streak broken - either not active yesterday or not all habits completed
+          newStreak = 0;
         }
         
         // Update last active and streak
