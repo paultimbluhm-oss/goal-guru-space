@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Soup, UtensilsCrossed, Cake, Wine, Candy, Cookie } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,10 +39,20 @@ interface AddRecipeDialogProps {
 
 const units = ['g', 'kg', 'ml', 'l', 'TL', 'EL', 'Stück', 'Prise', 'Tasse', 'Packung'];
 
+const categories = [
+  { value: 'vorspeise', label: 'Vorspeise', icon: Soup },
+  { value: 'hauptspeise', label: 'Hauptspeise', icon: UtensilsCrossed },
+  { value: 'nachspeise', label: 'Nachspeise', icon: Cake },
+  { value: 'getraenk', label: 'Getränk', icon: Wine },
+  { value: 'suessigkeit', label: 'Süßigkeit', icon: Candy },
+  { value: 'snack', label: 'Snack', icon: Cookie },
+];
+
 export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDialogProps) {
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('hauptspeise');
   const [servings, setServings] = useState('4');
   const [prepTime, setPrepTime] = useState('');
   const [cookTime, setCookTime] = useState('');
@@ -93,6 +103,7 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
           user_id: user.id,
           name: name.trim(),
           description: description.trim() || null,
+          category,
           servings: parseInt(servings) || 4,
           prep_time_minutes: prepTime ? parseInt(prepTime) : null,
           cook_time_minutes: cookTime ? parseInt(cookTime) : null,
@@ -152,6 +163,7 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
   const resetForm = () => {
     setName('');
     setDescription('');
+    setCategory('hauptspeise');
     setServings('4');
     setPrepTime('');
     setCookTime('');
@@ -187,6 +199,27 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
             />
+            <div>
+              <Label className="text-xs text-muted-foreground">Kategorie</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(cat => {
+                    const Icon = cat.icon;
+                    return (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-4 h-4" />
+                          {cat.label}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Time & Servings */}

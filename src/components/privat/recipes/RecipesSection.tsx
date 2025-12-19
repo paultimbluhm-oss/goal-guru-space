@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, ChefHat } from 'lucide-react';
+import { ArrowLeft, Plus, ChefHat, Soup, UtensilsCrossed, Cake, Wine, Candy, Cookie, Clock, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ interface Recipe {
   id: string;
   name: string;
   description: string | null;
+  category: string | null;
   servings: number | null;
   prep_time_minutes: number | null;
   cook_time_minutes: number | null;
@@ -24,6 +25,15 @@ interface RecipesSectionProps {
 }
 
 type SortOption = 'newest' | 'taste' | 'health';
+
+const categoryConfig: Record<string, { label: string; icon: typeof Soup }> = {
+  vorspeise: { label: 'Vorspeise', icon: Soup },
+  hauptspeise: { label: 'Hauptspeise', icon: UtensilsCrossed },
+  nachspeise: { label: 'Nachspeise', icon: Cake },
+  getraenk: { label: 'Getränk', icon: Wine },
+  suessigkeit: { label: 'Süßigkeit', icon: Candy },
+  snack: { label: 'Snack', icon: Cookie },
+};
 
 export function RecipesSection({ onBack }: RecipesSectionProps) {
   const { user } = useAuth();
@@ -58,14 +68,15 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
     return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
   });
 
-  const renderStars = (rating: number | null, type: 'taste' | 'health') => {
-    if (!rating) return null;
-    const emoji = type === 'taste' ? '😋' : '🥗';
-    return (
-      <span className="text-sm">
-        {emoji} {rating}/5
-      </span>
-    );
+  const getCategoryIcon = (category: string | null) => {
+    if (!category || !categoryConfig[category]) return null;
+    const Icon = categoryConfig[category].icon;
+    return <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />;
+  };
+
+  const getCategoryLabel = (category: string | null) => {
+    if (!category || !categoryConfig[category]) return null;
+    return categoryConfig[category].label;
   };
 
   if (loading) return null;
@@ -136,21 +147,33 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
               className="p-3 md:p-4 cursor-pointer hover:border-primary/50 transition-colors"
               onClick={() => setSelectedRecipe(recipe)}
             >
-              <h3 className="font-semibold text-sm md:text-base mb-1">{recipe.name}</h3>
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <h3 className="font-semibold text-sm md:text-base">{recipe.name}</h3>
+                {recipe.category && (
+                  <Badge variant="secondary" className="flex items-center gap-1 text-xs shrink-0">
+                    {getCategoryIcon(recipe.category)}
+                    <span className="hidden sm:inline">{getCategoryLabel(recipe.category)}</span>
+                  </Badge>
+                )}
+              </div>
               {recipe.description && (
                 <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 mb-2">
                   {recipe.description}
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground">
-                {recipe.servings && <span>👥 {recipe.servings}</span>}
-                {(recipe.prep_time_minutes || recipe.cook_time_minutes) && (
-                  <span>⏱️ {(recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0)} Min</span>
+                {recipe.servings && (
+                  <span className="flex items-center gap-1">
+                    <Users className="w-3 h-3" /> {recipe.servings}
+                  </span>
                 )}
-              </div>
-              <div className="flex items-center gap-3 md:gap-4 mt-2 text-xs md:text-sm">
-                {renderStars(recipe.taste_rating, 'taste')}
-                {renderStars(recipe.health_rating, 'health')}
+                {(recipe.prep_time_minutes || recipe.cook_time_minutes) && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> {(recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0)} Min
+                  </span>
+                )}
+                {recipe.taste_rating && <span>{recipe.taste_rating}/5 Geschmack</span>}
+                {recipe.health_rating && <span>{recipe.health_rating}/5 Gesund</span>}
               </div>
             </Card>
           ))}
