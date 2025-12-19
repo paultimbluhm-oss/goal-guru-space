@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { User, Wallet, ListChecks, Calendar, Sparkles } from 'lucide-react';
 import { FinanceSection } from '@/components/privat/finance/FinanceSection';
+import { ChecklistSection } from '@/components/privat/checklists';
 
 const sections = [
   { id: 'finanzen', icon: Wallet, label: 'Finanzen', desc: 'Konten, Ausgaben, Investments' },
@@ -28,6 +29,16 @@ export default function Privat() {
       <AppLayout>
         <div className="p-6 lg:p-8 max-w-7xl mx-auto">
           <FinanceSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'checklisten') {
+    return (
+      <AppLayout>
+        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+          <ChecklistSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
     );
