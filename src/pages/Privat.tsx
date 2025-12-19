@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, Wallet, ListChecks, Calendar, Sparkles, Lightbulb, ChefHat } from 'lucide-react';
+import { User, Wallet, ListChecks, Calendar, Sparkles, Lightbulb, ChefHat, BookOpen, Wrench } from 'lucide-react';
 import { FinanceSection } from '@/components/privat/finance/FinanceSection';
 import { ChecklistSection } from '@/components/privat/checklists';
 import { TaskSection } from '@/components/privat/tasks';
 import { BoredomSection } from '@/components/privat/boredom';
 import { IdeasSection } from '@/components/privat/ideas';
 import { RecipesSection } from '@/components/privat/recipes';
+import { TermsSection } from '@/components/privat/terms';
+import { OptimizationsSection } from '@/components/privat/optimizations';
 
 const sections = [
   { id: 'finanzen', icon: Wallet, label: 'Finanzen', desc: 'Konten, Ausgaben, Investments' },
@@ -17,6 +19,8 @@ const sections = [
   { id: 'langeweile', icon: Sparkles, label: 'Langeweile', desc: 'Projekte & Skills lernen' },
   { id: 'ideen', icon: Lightbulb, label: 'Ideen', desc: 'Gedanken & Einfälle festhalten' },
   { id: 'rezepte', icon: ChefHat, label: 'Rezepte', desc: 'Kochbuch mit Portionsrechner' },
+  { id: 'fachbegriffe', icon: BookOpen, label: 'Fachbegriffe', desc: 'Vokabeln & professionelle Sprache' },
+  { id: 'optimierungen', icon: Wrench, label: 'Optimierungen', desc: 'Probleme & Verbesserungen' },
 ];
 
 export default function Privat() {
@@ -85,6 +89,26 @@ export default function Privat() {
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <RecipesSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'fachbegriffe') {
+    return (
+      <AppLayout>
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+          <TermsSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'optimierungen') {
+    return (
+      <AppLayout>
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+          <OptimizationsSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
     );
