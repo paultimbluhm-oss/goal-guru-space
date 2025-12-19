@@ -39,15 +39,16 @@ export default function Index() {
     if (!user) return;
     
     const today = format(new Date(), 'yyyy-MM-dd');
-    const todayStart = `${today}T00:00:00`;
-    const todayEnd = `${today}T23:59:59`;
+    const todayStart = `${today}T00:00:00.000Z`;
+    const todayEnd = `${today}T23:59:59.999Z`;
     
-    // Get tasks due today or created today
+    // Get only tasks due today
     const { data: tasks } = await supabase
       .from('tasks')
-      .select('id, completed, due_date, created_at')
+      .select('id, completed, due_date')
       .eq('user_id', user.id)
-      .or(`due_date.gte.${todayStart},due_date.lte.${todayEnd},and(due_date.is.null,created_at.gte.${todayStart})`);
+      .gte('due_date', todayStart)
+      .lte('due_date', todayEnd);
     
     if (tasks) {
       setTodayTasksTotal(tasks.length);
