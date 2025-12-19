@@ -1,1 +1,7 @@
 project_id = "lvouslsscenuybhgxtef"
+
+[functions.get-stock-price]
+verify_jwt = false
+
+[functions.search-stocks]
+verify_jwt = false

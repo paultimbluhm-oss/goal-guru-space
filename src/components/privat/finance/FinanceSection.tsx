@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Wallet, TrendingUp, ArrowUpDown, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Wallet, TrendingUp, ArrowUpDown, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { AccountCard } from './AccountCard';
 import { AddAccountDialog } from './AddAccountDialog';
@@ -11,6 +11,8 @@ import { InvestmentCard } from './InvestmentCard';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Account {
   id: string;
@@ -118,22 +120,11 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       if (!inv.symbol) continue;
       setLoadingPrices((prev) => ({ ...prev, [inv.id]: true }));
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-stock-price`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({ symbol: inv.symbol }),
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data.price) {
-            setPrices((prev) => ({ ...prev, [inv.id]: data.price }));
-          }
+        const { data, error } = await supabase.functions.invoke('get-stock-price', {
+          body: { symbol: inv.symbol },
+        });
+        if (!error && data?.price) {
+          setPrices((prev) => ({ ...prev, [inv.id]: data.price }));
         }
       } catch (error) {
         console.error('Error fetching stock price:', error);
@@ -159,22 +150,11 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         }
       } else {
         // ETF/Stock via Edge Function
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-stock-price`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({ symbol: investment.symbol }),
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data.price) {
-            setPrices((prev) => ({ ...prev, [investment.id]: data.price }));
-          }
+        const { data, error } = await supabase.functions.invoke('get-stock-price', {
+          body: { symbol: investment.symbol },
+        });
+        if (!error && data?.price) {
+          setPrices((prev) => ({ ...prev, [investment.id]: data.price }));
         }
       }
     } catch (error) {
@@ -182,6 +162,20 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
     }
     
     setLoadingPrices((prev) => ({ ...prev, [investment.id]: false }));
+  };
+
+  const deleteTransaction = async (id: string) => {
+    if (!confirm('Transaktion wirklich löschen?')) return;
+    
+    const supabaseClient = getSupabase();
+    const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
+    
+    if (error) {
+      toast.error('Fehler beim Löschen');
+    } else {
+      toast.success('Transaktion gelöscht');
+      fetchData();
+    }
   };
 
   useEffect(() => {
@@ -402,8 +396,8 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                   const account = accounts.find((a) => a.id === tx.account_id);
                   const isIncome = tx.transaction_type === 'income';
                   return (
-                    <div key={tx.id} className="flex items-center justify-between p-4">
-                      <div>
+                    <div key={tx.id} className="flex items-center justify-between p-4 group">
+                      <div className="flex-1">
                         <div className="font-medium">
                           {tx.description || tx.category || 'Transaktion'}
                         </div>
@@ -411,17 +405,27 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                           {account?.name} • {format(new Date(tx.date), 'dd.MM.yyyy', { locale: de })}
                         </div>
                       </div>
-                      <div
-                        className={cn(
-                          'font-semibold',
-                          isIncome ? 'text-success' : 'text-destructive'
-                        )}
-                      >
-                        {isIncome ? '+' : '-'}
-                        {tx.amount.toLocaleString('de-DE', {
-                          style: 'currency',
-                          currency: 'EUR',
-                        })}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            'font-semibold',
+                            isIncome ? 'text-success' : 'text-destructive'
+                          )}
+                        >
+                          {isIncome ? '+' : '-'}
+                          {tx.amount.toLocaleString('de-DE', {
+                            style: 'currency',
+                            currency: 'EUR',
+                          })}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
+                          onClick={() => deleteTransaction(tx.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   );
