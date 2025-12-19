@@ -11,7 +11,7 @@ import { InvestmentCard } from './InvestmentCard';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+
 import { toast } from 'sonner';
 
 interface Account {
@@ -120,7 +120,8 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       if (!inv.symbol) continue;
       setLoadingPrices((prev) => ({ ...prev, [inv.id]: true }));
       try {
-        const { data, error } = await supabase.functions.invoke('get-stock-price', {
+        const supabaseClient = getSupabase();
+        const { data, error } = await supabaseClient.functions.invoke('get-stock-price', {
           body: { symbol: inv.symbol },
         });
         if (!error && data?.price) {
@@ -150,7 +151,8 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         }
       } else {
         // ETF/Stock via Edge Function
-        const { data, error } = await supabase.functions.invoke('get-stock-price', {
+        const supabaseClient = getSupabase();
+        const { data, error } = await supabaseClient.functions.invoke('get-stock-price', {
           body: { symbol: investment.symbol },
         });
         if (!error && data?.price) {
