@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { getSupabase } from '@/hooks/useAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+
 
 interface AddInvestmentDialogProps {
   onInvestmentAdded: () => void;
@@ -76,7 +76,8 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
           setSearchResults(results);
         } else {
           // Search stocks/ETFs via edge function
-          const { data, error } = await supabase.functions.invoke('search-stocks', {
+          const supabaseClient = getSupabase();
+          const { data, error } = await supabaseClient.functions.invoke('search-stocks', {
             body: { query: searchQuery },
           });
           if (!error && data?.results) {
@@ -109,7 +110,8 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
             setSelectedAsset((prev) => prev ? { ...prev, price } : null);
           }
         } else {
-          const { data, error } = await supabase.functions.invoke('get-stock-price', {
+          const supabaseClient = getSupabase();
+          const { data, error } = await supabaseClient.functions.invoke('get-stock-price', {
             body: { symbol: selectedAsset.symbol },
           });
           if (!error && data?.price) {
