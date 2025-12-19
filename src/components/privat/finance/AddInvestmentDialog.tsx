@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { getSupabase } from '@/hooks/useAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AddInvestmentDialogProps {
   onInvestmentAdded: () => void;
@@ -75,20 +76,11 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
           setSearchResults(results);
         } else {
           // Search stocks/ETFs via edge function
-          const res = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/search-stocks`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              },
-              body: JSON.stringify({ query: searchQuery }),
-            }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            setSearchResults(data.results || []);
+          const { data, error } = await supabase.functions.invoke('search-stocks', {
+            body: { query: searchQuery },
+          });
+          if (!error && data?.results) {
+            setSearchResults(data.results);
           }
         }
       } catch (error) {
@@ -117,22 +109,11 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
             setSelectedAsset((prev) => prev ? { ...prev, price } : null);
           }
         } else {
-          const res = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-stock-price`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              },
-              body: JSON.stringify({ symbol: selectedAsset.symbol }),
-            }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            if (data.price) {
-              setSelectedAsset((prev) => prev ? { ...prev, price: data.price } : null);
-            }
+          const { data, error } = await supabase.functions.invoke('get-stock-price', {
+            body: { symbol: selectedAsset.symbol },
+          });
+          if (!error && data?.price) {
+            setSelectedAsset((prev) => prev ? { ...prev, price: data.price } : null);
           }
         }
       } catch (error) {
@@ -154,9 +135,9 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
     if (!user || !selectedAsset || !investmentType || !quantity || !purchasePrice) return;
 
     setLoading(true);
-    const supabase = getSupabase();
+    const supabaseClient = getSupabase();
 
-    const { error } = await supabase.from('investments').insert({
+    const { error } = await supabaseClient.from('investments').insert({
       user_id: user.id,
       name: selectedAsset.name,
       symbol: selectedAsset.symbol,
