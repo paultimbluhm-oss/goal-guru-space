@@ -62,6 +62,7 @@ export function useProfile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
+  const [hassynced, setHasSynced] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!user) {
@@ -280,12 +281,13 @@ export function useProfile() {
     fetchRecentActivity();
   }, [fetchProfile, fetchRecentActivity]);
 
-  // Sync XP when profile is loaded
+  // Sync XP once when profile is loaded and XP is 0
   useEffect(() => {
-    if (profile && profile.xp === 0) {
+    if (profile && profile.xp === 0 && user && !hassynced) {
+      setHasSynced(true);
       syncXP();
     }
-  }, [profile?.id, syncXP]);
+  }, [profile, user, syncXP, hassynced]);
 
   return {
     profile,
