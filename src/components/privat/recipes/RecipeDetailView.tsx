@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Trash2, Clock, Users, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Trash2, Clock, Users, Minus, Plus, Soup, UtensilsCrossed, Cake, Wine, Candy, Cookie } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { getSupabase } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
@@ -17,10 +17,20 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+const categoryConfig: Record<string, { label: string; icon: typeof Soup }> = {
+  vorspeise: { label: 'Vorspeise', icon: Soup },
+  hauptspeise: { label: 'Hauptspeise', icon: UtensilsCrossed },
+  nachspeise: { label: 'Nachspeise', icon: Cake },
+  getraenk: { label: 'Getränk', icon: Wine },
+  suessigkeit: { label: 'Süßigkeit', icon: Candy },
+  snack: { label: 'Snack', icon: Cookie },
+};
+
 interface Recipe {
   id: string;
   name: string;
   description: string | null;
+  category: string | null;
   servings: number | null;
   prep_time_minutes: number | null;
   cook_time_minutes: number | null;
@@ -137,6 +147,16 @@ export function RecipeDetailView({ recipe, onBack, onUpdate }: RecipeDetailViewP
         </AlertDialog>
       </div>
 
+      {recipe.category && categoryConfig[recipe.category] && (
+        <Badge variant="secondary" className="flex items-center gap-1.5 w-fit">
+          {(() => {
+            const Icon = categoryConfig[recipe.category].icon;
+            return <Icon className="w-4 h-4" />;
+          })()}
+          {categoryConfig[recipe.category].label}
+        </Badge>
+      )}
+
       {recipe.description && (
         <p className="text-sm md:text-base text-muted-foreground">{recipe.description}</p>
       )}
@@ -155,8 +175,8 @@ export function RecipeDetailView({ recipe, onBack, onUpdate }: RecipeDetailViewP
           </div>
         )}
         <div className="flex items-center gap-2 md:gap-3">
-          {recipe.taste_rating && <span>😋 {recipe.taste_rating}/5</span>}
-          {recipe.health_rating && <span>🥗 {recipe.health_rating}/5</span>}
+          {recipe.taste_rating && <span>{recipe.taste_rating}/5 Geschmack</span>}
+          {recipe.health_rating && <span>{recipe.health_rating}/5 Gesund</span>}
         </div>
       </div>
 
