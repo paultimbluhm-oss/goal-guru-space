@@ -261,6 +261,47 @@ export type Database = {
           },
         ]
       }
+      homework: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          description: string | null
+          due_date: string
+          id: string
+          subject_id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          due_date: string
+          id?: string
+          subject_id: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string
+          id?: string
+          subject_id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investments: {
         Row: {
           created_at: string | null
@@ -409,6 +450,47 @@ export type Database = {
           xp?: number | null
         }
         Relationships: []
+      }
+      school_events: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          event_date: string
+          event_type: string | null
+          id: string
+          subject_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          event_date: string
+          event_type?: string | null
+          id?: string
+          subject_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          event_date?: string
+          event_type?: string | null
+          id?: string
+          subject_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_events_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subjects: {
         Row: {
