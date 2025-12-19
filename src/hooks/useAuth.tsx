@@ -15,15 +15,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create supabase client safely with fallbacks for development
-const createSupabaseClient = (): SupabaseClient<Database> | null => {
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  
-  if (!url || !key) {
-    console.warn('Supabase credentials not found. Waiting for environment to load...');
-    return null;
-  }
+// Fallback values for when env vars aren't loaded (Lovable Cloud)
+const FALLBACK_SUPABASE_URL = 'https://lvouslsscenuybhgxtef.supabase.co';
+const FALLBACK_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2b3VzbHNzY2VudXliaGd4dGVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMjk5NjQsImV4cCI6MjA4MTcwNTk2NH0.ZJSv3mhMjWfLH_zscOMli7Nxv7UUudRdz1KFQE-kVqY';
+
+// Create supabase client with fallbacks
+const createSupabaseClient = (): SupabaseClient<Database> => {
+  const url = import.meta.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || FALLBACK_SUPABASE_KEY;
   
   return createClient<Database>(url, key, {
     auth: {
@@ -36,7 +35,7 @@ const createSupabaseClient = (): SupabaseClient<Database> | null => {
 
 let supabaseInstance: SupabaseClient<Database> | null = null;
 
-export const getSupabase = (): SupabaseClient<Database> | null => {
+export const getSupabase = (): SupabaseClient<Database> => {
   if (!supabaseInstance) {
     supabaseInstance = createSupabaseClient();
   }
@@ -47,25 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isConfigured, setIsConfigured] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const [isConfigured, setIsConfigured] = useState(true);
 
   useEffect(() => {
     const supabase = getSupabase();
-    
-    if (!supabase) {
-      // Retry after a short delay if credentials not yet available
-      if (retryCount < 10) {
-        const timer = setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-        }, 500);
-        return () => clearTimeout(timer);
-      } else {
-        setLoading(false);
-        return;
-      }
-    }
-
     setIsConfigured(true);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -83,14 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [retryCount]);
+  }, []);
 
   const signUp = async (email: string, password: string, username?: string) => {
     const supabase = getSupabase();
-    if (!supabase) {
-      return { error: new Error('Supabase not configured') };
-    }
-    
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -106,10 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const supabase = getSupabase();
-    if (!supabase) {
-      return { error: new Error('Supabase not configured') };
-    }
-    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -119,9 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     const supabase = getSupabase();
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    await supabase.auth.signOut();
   };
 
   return (
