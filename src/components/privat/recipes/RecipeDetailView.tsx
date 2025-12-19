@@ -3,7 +3,7 @@ import { ArrowLeft, Trash2, Clock, Users, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -59,6 +59,7 @@ export function RecipeDetailView({ recipe, onBack, onUpdate }: RecipeDetailViewP
   }, [recipe.id]);
 
   const fetchDetails = async () => {
+    const supabase = getSupabase();
     const [ingredientsRes, stepsRes] = await Promise.all([
       supabase
         .from('recipe_ingredients')
@@ -77,6 +78,7 @@ export function RecipeDetailView({ recipe, onBack, onUpdate }: RecipeDetailViewP
   };
 
   const handleDelete = async () => {
+    const supabase = getSupabase();
     const { error } = await supabase.from('recipes').delete().eq('id', recipe.id);
     if (error) {
       toast.error('Fehler beim Löschen');

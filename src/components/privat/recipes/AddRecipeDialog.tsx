@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -84,6 +83,7 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
   const handleSubmit = async () => {
     if (!name.trim() || !user) return;
     setSaving(true);
+    const supabase = getSupabase();
 
     try {
       // Create recipe

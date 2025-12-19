@@ -3,8 +3,7 @@ import { ArrowLeft, Plus, ChefHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { AddRecipeDialog } from './AddRecipeDialog';
 import { RecipeDetailView } from './RecipeDetailView';
 
@@ -39,6 +38,7 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
   }, [user]);
 
   const fetchRecipes = async () => {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('recipes')
       .select('*')
