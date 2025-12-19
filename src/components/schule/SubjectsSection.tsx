@@ -342,7 +342,10 @@ export function SubjectsSection({ onBack }: SubjectsSectionProps) {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {subjects.map((subject) => {
-              const gradeData = subjectGrades[subject.id];
+              const gradeData = subjectGrades[subject.id] || null;
+              const finalGrade = gradeData?.finalGrade;
+              const oralAvg = gradeData?.oralAvg;
+              const writtenAvg = gradeData?.writtenAvg;
               return (
                 <Card 
                   key={subject.id}
@@ -363,19 +366,19 @@ export function SubjectsSection({ onBack }: SubjectsSectionProps) {
                       <Badge variant="secondary" className="text-xs">
                         Kl. {subject.grade_year}
                       </Badge>
-                      {gradeData?.finalGrade !== null && gradeData?.finalGrade !== undefined && (
-                        <span className={`text-lg font-bold ${getGradeColor(gradeData.finalGrade)}`}>
-                          {gradeData.finalGrade}P
+                      {finalGrade !== null && finalGrade !== undefined && (
+                        <span className={`text-lg font-bold ${getGradeColor(finalGrade)}`}>
+                          {finalGrade}P
                         </span>
                       )}
                     </div>
-                    {(gradeData?.oralAvg !== null || gradeData?.writtenAvg !== null) && (
+                    {(oralAvg !== null || writtenAvg !== null) && (
                       <div className="mt-2 pt-2 border-t border-border/50 flex gap-2 text-xs text-muted-foreground">
-                        {gradeData?.oralAvg !== null && (
-                          <span>M: {gradeData.oralAvg.toFixed(0)}</span>
+                        {oralAvg !== null && (
+                          <span>M: {oralAvg.toFixed(0)}</span>
                         )}
-                        {gradeData?.writtenAvg !== null && (
-                          <span>S: {gradeData.writtenAvg.toFixed(0)}</span>
+                        {writtenAvg !== null && (
+                          <span>S: {writtenAvg.toFixed(0)}</span>
                         )}
                       </div>
                     )}
