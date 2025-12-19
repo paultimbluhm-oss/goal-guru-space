@@ -5,8 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -45,6 +44,7 @@ export function IdeasSection({ onBack }: IdeasSectionProps) {
   }, [user]);
 
   const fetchIdeas = async () => {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('ideas')
       .select('*')
@@ -56,7 +56,7 @@ export function IdeasSection({ onBack }: IdeasSectionProps) {
 
   const handleSubmit = async () => {
     if (!title.trim() || !user) return;
-
+    const supabase = getSupabase();
     const { error } = await supabase.from('ideas').insert({
       user_id: user.id,
       title: title.trim(),
@@ -78,6 +78,7 @@ export function IdeasSection({ onBack }: IdeasSectionProps) {
   };
 
   const handleDelete = async (id: string) => {
+    const supabase = getSupabase();
     const { error } = await supabase.from('ideas').delete().eq('id', id);
     if (!error) {
       setIdeas(ideas.filter(i => i.id !== id));
