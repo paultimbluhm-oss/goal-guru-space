@@ -475,6 +475,39 @@ export type Database = {
         }
         Relationships: []
       }
+      optimizations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          location: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          location?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           amount: number | null
@@ -807,6 +840,33 @@ export type Database = {
           title?: string
           user_id?: string
           xp_reward?: number | null
+        }
+        Relationships: []
+      }
+      technical_terms: {
+        Row: {
+          created_at: string | null
+          explanation: string | null
+          id: string
+          simple_term: string | null
+          term: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          simple_term?: string | null
+          term: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          simple_term?: string | null
+          term?: string
+          user_id?: string
         }
         Relationships: []
       }
