@@ -9,6 +9,7 @@ import {
   LogOut,
   Menu,
   X,
+  Settings,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -154,6 +155,48 @@ export function Sidebar() {
 
         {/* User & Logout */}
         <div className="p-2 border-t border-sidebar-border space-y-1">
+          {/* Profile Link */}
+          {(() => {
+            const isProfileActive = location.pathname === '/profil';
+            const isMobileOrExpanded = mobileOpen || expanded;
+            const profileLink = (
+              <NavLink
+                to="/profil"
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
+                  isMobileOrExpanded ? '' : 'justify-center',
+                  isProfileActive
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                )}
+              >
+                <Settings
+                  className={cn(
+                    'w-5 h-5 shrink-0 transition-colors',
+                    isProfileActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                  )}
+                />
+                {isMobileOrExpanded && (
+                  <span className="font-medium truncate">Profil</span>
+                )}
+              </NavLink>
+            );
+
+            if (!isMobileOrExpanded) {
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {profileLink}
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    Profil
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+            return profileLink;
+          })()}
+
           {(mobileOpen || expanded) && user && (
             <div className="px-3 py-2 text-xs text-muted-foreground truncate">
               {user.email}
