@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Wallet, TrendingUp, ArrowUpDown, RefreshCw, Trash2 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ArrowLeft, Wallet, TrendingUp, ArrowUpDown, RefreshCw, Trash2, ChevronDown, Banknote, Coins, Bitcoin, BarChart3 } from 'lucide-react';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { AccountCard } from './AccountCard';
 import { AddAccountDialog } from './AddAccountDialog';
 import { AddInvestmentDialog } from './AddInvestmentDialog';
 import { AddTransactionDialog } from './AddTransactionDialog';
 import { InvestmentCard } from './InvestmentCard';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-
 import { toast } from 'sonner';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Account {
   id: string;
@@ -41,6 +42,13 @@ interface Transaction {
   date: string;
 }
 
+interface BalanceHistory {
+  date: string;
+  total_balance: number;
+  accounts_balance: number;
+  investments_balance: number;
+}
+
 interface FinanceSectionProps {
   onBack: () => void;
 }
@@ -50,14 +58,22 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [balanceHistory, setBalanceHistory] = useState<BalanceHistory[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({});
+  
+  // Collapsible states
+  const [bankOpen, setBankOpen] = useState(true);
+  const [cashBillsOpen, setCashBillsOpen] = useState(false);
+  const [cashCoinsOpen, setCashCoinsOpen] = useState(false);
+  const [stocksOpen, setStocksOpen] = useState(true);
+  const [cryptoOpen, setCryptoOpen] = useState(true);
 
   const fetchData = async () => {
     if (!user) return;
     const supabase = getSupabase();
 
-    const [accountsRes, investmentsRes, transactionsRes] = await Promise.all([
+    const [accountsRes, investmentsRes, transactionsRes, historyRes] = await Promise.all([
       supabase.from('accounts').select('*').eq('user_id', user.id).order('name'),
       supabase.from('investments').select('*').eq('user_id', user.id).order('name'),
       supabase
@@ -66,6 +82,11 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(20),
+      supabase
+        .from('balance_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: true }),
     ]);
 
     if (accountsRes.data) setAccounts(accountsRes.data);
@@ -74,13 +95,38 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       fetchPrices(investmentsRes.data);
     }
     if (transactionsRes.data) setTransactions(transactionsRes.data);
+    if (historyRes.data) setBalanceHistory(historyRes.data);
+  };
+
+  // Save today's balance to history
+  const saveBalanceHistory = async (accountsBalance: number, investmentsBalance: number) => {
+    if (!user) return;
+    const supabase = getSupabase();
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const totalBalance = accountsBalance + investmentsBalance;
+
+    await supabase
+      .from('balance_history')
+      .upsert({
+        user_id: user.id,
+        date: today,
+        total_balance: totalBalance,
+        accounts_balance: accountsBalance,
+        investments_balance: investmentsBalance,
+      }, { onConflict: 'user_id,date' });
+
+    // Refresh history
+    const { data } = await supabase
+      .from('balance_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('date', { ascending: true });
+    
+    if (data) setBalanceHistory(data);
   };
 
   const fetchPrices = async (invs: Investment[]) => {
-    // Fetch crypto prices from CoinGecko - group by currency
     const cryptoInvs = invs.filter((i) => i.investment_type === 'crypto' && i.symbol);
-    
-    // Group crypto by currency
     const cryptoByEur = cryptoInvs.filter(i => i.currency === 'EUR' || !i.currency);
     const cryptoByUsd = cryptoInvs.filter(i => i.currency === 'USD');
     
@@ -123,7 +169,6 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       fetchCryptoPrices(cryptoByUsd, 'usd'),
     ]);
 
-    // Fetch ETF/stock prices via Edge Function
     const stockInvs = invs.filter(
       (i) => (i.investment_type === 'etf' || i.investment_type === 'stock') && i.symbol
     );
@@ -148,7 +193,6 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
 
   const refreshPrice = async (investment: Investment) => {
     if (!investment.symbol) return;
-    
     const currency = investment.currency || 'EUR';
     const vsCurrency = currency.toLowerCase();
     
@@ -165,7 +209,6 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
           setPrices((prev) => ({ ...prev, [investment.id]: price }));
         }
       } else {
-        // ETF/Stock via Edge Function
         const supabaseClient = getSupabase();
         const { data, error } = await supabaseClient.functions.invoke('get-stock-price', {
           body: { symbol: investment.symbol, targetCurrency: currency },
@@ -205,253 +248,472 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
     return sum + inv.quantity * price;
   }, 0);
 
+  // Save balance when totals change
+  useEffect(() => {
+    if (accounts.length > 0 || investments.length > 0) {
+      saveBalanceHistory(totalBalance, totalInvestments);
+    }
+  }, [totalBalance, totalInvestments]);
+
   const bankAccounts = accounts.filter((a) => a.account_type === 'bank');
   const cashBills = accounts.filter((a) => a.account_type === 'cash_bills');
   const cashCoins = accounts.filter((a) => a.account_type === 'cash_coins');
-  const cryptoWallets = accounts.filter((a) => a.account_type === 'crypto');
-  const stockAccounts = accounts.filter((a) => a.account_type === 'stocks');
-
   const cryptoInvestments = investments.filter((i) => i.investment_type === 'crypto');
   const stockInvestments = investments.filter(
     (i) => i.investment_type === 'etf' || i.investment_type === 'stock'
   );
 
+  // Prepare chart data
+  const last90Days = balanceHistory.slice(-90);
+  const allTimeData = balanceHistory;
+
+  const formatCurrency = (value: number) => 
+    value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-card/95 backdrop-blur border border-border rounded-lg p-3 shadow-xl">
+          <p className="text-xs text-muted-foreground mb-1">
+            {format(new Date(label), 'dd. MMM yyyy', { locale: de })}
+          </p>
+          <p className="text-sm font-bold text-primary">
+            {formatCurrency(payload[0].value)}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CollapsibleSection = ({ 
+    title, 
+    icon: Icon, 
+    color,
+    open, 
+    onOpenChange, 
+    total,
+    children,
+    count
+  }: { 
+    title: string; 
+    icon: any; 
+    color: string;
+    open: boolean; 
+    onOpenChange: (open: boolean) => void;
+    total: number;
+    children: React.ReactNode;
+    count: number;
+  }) => (
+    <Collapsible open={open} onOpenChange={onOpenChange}>
+      <CollapsibleTrigger asChild>
+        <div className={`group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-4 cursor-pointer hover:border-primary/30 transition-all`}>
+          <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-5`} />
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${color}`}>
+                <Icon className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold">{title}</h3>
+                <p className="text-xs text-muted-foreground">{count} Einträge</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-lg">{formatCurrency(total)}</span>
+              <ChevronDown className={cn(
+                "w-5 h-5 text-muted-foreground transition-transform duration-200",
+                open && "rotate-180"
+              )} />
+            </div>
+          </div>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-2 md:gap-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-          </Button>
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="p-2 md:p-3 rounded-xl bg-primary/20">
-              <Wallet className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+    <div className="space-y-6">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-6">
+        <div className="absolute -top-32 -right-32 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl" />
+        <div className="absolute inset-0 industrial-grid opacity-20" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={onBack}>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/5 border border-amber-500/20">
+                <Wallet className="w-6 h-6 text-amber-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Finanzen</h1>
+                <p className="text-sm text-muted-foreground">Dein Vermögensüberblick</p>
+              </div>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold">Finanzen</h1>
+            <div className="hidden sm:flex gap-2">
+              <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
+              <AddInvestmentDialog onInvestmentAdded={fetchData} />
+              <AddAccountDialog onAccountAdded={fetchData} />
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
-          <AddInvestmentDialog onInvestmentAdded={fetchData} />
-          <AddAccountDialog onAccountAdded={fetchData} />
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl p-4 border border-primary/20">
+              <p className="text-xs text-muted-foreground mb-1">Gesamtvermögen</p>
+              <p className="text-2xl font-bold text-primary">{formatCurrency(totalBalance + totalInvestments)}</p>
+            </div>
+            <div className="bg-secondary/30 rounded-xl p-4 border border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Konten & Bargeld</p>
+              <p className="text-2xl font-bold">{formatCurrency(totalBalance)}</p>
+            </div>
+            <div className="bg-secondary/30 rounded-xl p-4 border border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Investments</p>
+              <p className="text-2xl font-bold">{formatCurrency(totalInvestments)}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
-        <Card className="glass-card border-border/50">
-          <CardHeader className="pb-1 md:pb-2 p-3 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5 md:gap-2">
-              <Wallet className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-              <span className="truncate">Gesamtvermögen</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
-            <div className="text-lg md:text-2xl font-bold text-primary truncate">
-              {(totalBalance + totalInvestments).toLocaleString('de-DE', {
-                style: 'currency',
-                currency: 'EUR',
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-border/50">
-          <CardHeader className="pb-1 md:pb-2 p-3 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5 md:gap-2">
-              <Wallet className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-              <span className="truncate">Konten & Bargeld</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
-            <div className="text-lg md:text-2xl font-bold truncate">
-              {totalBalance.toLocaleString('de-DE', {
-                style: 'currency',
-                currency: 'EUR',
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-border/50">
-          <CardHeader className="pb-1 md:pb-2 p-3 md:p-6">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5 md:gap-2">
-              <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
-              <span className="truncate">Investments</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
-            <div className="text-lg md:text-2xl font-bold truncate">
-              {totalInvestments.toLocaleString('de-DE', {
-                style: 'currency',
-                currency: 'EUR',
-              })}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Mobile buttons */}
+      <div className="flex gap-2 sm:hidden flex-wrap">
+        <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
+        <AddInvestmentDialog onInvestmentAdded={fetchData} />
+        <AddAccountDialog onAccountAdded={fetchData} />
       </div>
 
-      {/* Bank Accounts */}
-      {bankAccounts.length > 0 && (
-        <div className="space-y-2 md:space-y-3">
-          <h2 className="text-base md:text-lg font-semibold">Bankkonten</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
-            {bankAccounts.map((acc) => (
-              <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Cash Bills */}
-      {cashBills.length > 0 && (
-        <div className="space-y-2 md:space-y-3">
-          <h2 className="text-base md:text-lg font-semibold">Bargeld (Scheine)</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
-            {cashBills.map((acc) => (
-              <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Cash Coins */}
-      {cashCoins.length > 0 && (
-        <div className="space-y-2 md:space-y-3">
-          <h2 className="text-base md:text-lg font-semibold">Bargeld (Münzen)</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
-            {cashCoins.map((acc) => (
-              <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ETFs & Stocks */}
-      <div className="space-y-2 md:space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base md:text-lg font-semibold">Aktien & ETFs</h2>
-        </div>
-        {stockInvestments.length === 0 ? (
-          <Card className="glass-card border-border/50">
-            <CardContent className="py-6 md:py-8 text-center">
-              <TrendingUp className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground text-sm md:text-base">Keine Aktien oder ETFs vorhanden</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-2 md:gap-3">
-            {stockInvestments.map((inv) => (
-              <InvestmentCard
-                key={inv.id}
-                investment={inv}
-                currentPrice={prices[inv.id] || null}
-                loading={loadingPrices[inv.id] || false}
-                onDeleted={fetchData}
-                onRefresh={() => refreshPrice(inv)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Crypto */}
-      <div className="space-y-2 md:space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h2 className="text-base md:text-lg font-semibold">Kryptowährungen</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchPrices(cryptoInvestments)}
-            className="gap-2 w-full sm:w-auto text-xs md:text-sm"
-          >
-            <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            Kurse aktualisieren
-          </Button>
-        </div>
-        {cryptoInvestments.length === 0 ? (
-          <Card className="glass-card border-border/50">
-            <CardContent className="py-6 md:py-8 text-center">
-              <TrendingUp className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground text-sm md:text-base">Keine Kryptowährungen vorhanden</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-2 md:gap-3">
-            {cryptoInvestments.map((inv) => (
-              <InvestmentCard
-                key={inv.id}
-                investment={inv}
-                currentPrice={prices[inv.id] || null}
-                loading={loadingPrices[inv.id] || false}
-                onDeleted={fetchData}
-                onRefresh={() => refreshPrice(inv)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Recent Transactions */}
-      <div className="space-y-2 md:space-y-3">
-        <h2 className="text-base md:text-lg font-semibold flex items-center gap-2">
-          <ArrowUpDown className="w-4 h-4 md:w-5 md:h-5" />
-          Letzte Transaktionen
-        </h2>
-        {transactions.length === 0 ? (
-          <Card className="glass-card border-border/50">
-            <CardContent className="py-6 md:py-8 text-center">
-              <ArrowUpDown className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground text-sm md:text-base">Keine Transaktionen vorhanden</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="glass-card border-border/50">
-            <CardContent className="p-0">
-              <div className="divide-y divide-border/50">
-                {transactions.map((tx) => {
-                  const account = accounts.find((a) => a.id === tx.account_id);
-                  const isIncome = tx.transaction_type === 'income';
-                  return (
-                    <div key={tx.id} className="flex items-center justify-between gap-2 p-3 md:p-4 group">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm md:text-base truncate">
-                          {tx.description || tx.category || 'Transaktion'}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {account?.name} • {format(new Date(tx.date), 'dd.MM.yy', { locale: de })}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                        <div
-                          className={cn(
-                            'font-semibold text-sm md:text-base',
-                            isIncome ? 'text-success' : 'text-destructive'
-                          )}
-                        >
-                          {isIncome ? '+' : '-'}
-                          {tx.amount.toLocaleString('de-DE', {
-                            style: 'currency',
-                            currency: 'EUR',
-                          })}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 md:h-8 md:w-8 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
-                          onClick={() => deleteTransaction(tx.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
+      {/* Charts */}
+      {balanceHistory.length > 1 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* 90-Day Chart */}
+          <Card className="glass-card overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                Letzte 90 Tage
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 pb-4">
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={last90Days} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradient90" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => format(new Date(value), 'dd.MM', { locale: de })}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => `${(value/1000).toFixed(0)}k`}
+                      width={40}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="total_balance" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      fill="url(#gradient90)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+
+          {/* All-Time Chart */}
+          <Card className="glass-card overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-accent" />
+                Gesamtverlauf ({allTimeData.length} Tage)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 pb-4">
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={allTimeData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradientAll" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => format(new Date(value), 'MMM yy', { locale: de })}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => `${(value/1000).toFixed(0)}k`}
+                      width={40}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="total_balance" 
+                      stroke="hsl(var(--accent))" 
+                      strokeWidth={2}
+                      fill="url(#gradientAll)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Collapsible Account Sections */}
+      {bankAccounts.length > 0 && (
+        <CollapsibleSection
+          title="Bankkonten"
+          icon={Banknote}
+          color="from-blue-500 to-indigo-600"
+          open={bankOpen}
+          onOpenChange={setBankOpen}
+          total={bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0)}
+          count={bankAccounts.length}
+        >
+          {bankAccounts.map((acc) => (
+            <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {cashBills.length > 0 && (
+        <CollapsibleSection
+          title="Bargeld (Scheine)"
+          icon={Banknote}
+          color="from-green-500 to-emerald-600"
+          open={cashBillsOpen}
+          onOpenChange={setCashBillsOpen}
+          total={cashBills.reduce((sum, a) => sum + (a.balance || 0), 0)}
+          count={cashBills.length}
+        >
+          {cashBills.map((acc) => (
+            <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {cashCoins.length > 0 && (
+        <CollapsibleSection
+          title="Bargeld (Münzen)"
+          icon={Coins}
+          color="from-yellow-500 to-amber-600"
+          open={cashCoinsOpen}
+          onOpenChange={setCashCoinsOpen}
+          total={cashCoins.reduce((sum, a) => sum + (a.balance || 0), 0)}
+          count={cashCoins.length}
+        >
+          {cashCoins.map((acc) => (
+            <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
+          ))}
+        </CollapsibleSection>
+      )}
+
+      {/* Stocks & ETFs */}
+      <Collapsible open={stocksOpen} onOpenChange={setStocksOpen}>
+        <CollapsibleTrigger asChild>
+          <div className="group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-4 cursor-pointer hover:border-primary/30 transition-all">
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 opacity-5" />
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Aktien & ETFs</h3>
+                  <p className="text-xs text-muted-foreground">{stockInvestments.length} Positionen</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-lg">
+                  {formatCurrency(stockInvestments.reduce((sum, inv) => {
+                    const price = prices[inv.id] || inv.purchase_price;
+                    return sum + inv.quantity * price;
+                  }, 0))}
+                </span>
+                <ChevronDown className={cn(
+                  "w-5 h-5 text-muted-foreground transition-transform duration-200",
+                  stocksOpen && "rotate-180"
+                )} />
+              </div>
+            </div>
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3 space-y-2">
+          {stockInvestments.length === 0 ? (
+            <Card className="glass-card">
+              <CardContent className="py-6 text-center">
+                <TrendingUp className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-muted-foreground text-sm">Keine Aktien oder ETFs vorhanden</p>
+              </CardContent>
+            </Card>
+          ) : (
+            stockInvestments.map((inv) => (
+              <InvestmentCard
+                key={inv.id}
+                investment={inv}
+                currentPrice={prices[inv.id] || null}
+                loading={loadingPrices[inv.id] || false}
+                onDeleted={fetchData}
+                onRefresh={() => refreshPrice(inv)}
+              />
+            ))
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Crypto */}
+      <Collapsible open={cryptoOpen} onOpenChange={setCryptoOpen}>
+        <CollapsibleTrigger asChild>
+          <div className="group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-4 cursor-pointer hover:border-primary/30 transition-all">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-600 opacity-5" />
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600">
+                  <Bitcoin className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Kryptowährungen</h3>
+                  <p className="text-xs text-muted-foreground">{cryptoInvestments.length} Positionen</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-lg">
+                  {formatCurrency(cryptoInvestments.reduce((sum, inv) => {
+                    const price = prices[inv.id] || inv.purchase_price;
+                    return sum + inv.quantity * price;
+                  }, 0))}
+                </span>
+                <ChevronDown className={cn(
+                  "w-5 h-5 text-muted-foreground transition-transform duration-200",
+                  cryptoOpen && "rotate-180"
+                )} />
+              </div>
+            </div>
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3 space-y-2">
+          <div className="flex justify-end mb-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchPrices(cryptoInvestments)}
+              className="gap-2 text-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Kurse aktualisieren
+            </Button>
+          </div>
+          {cryptoInvestments.length === 0 ? (
+            <Card className="glass-card">
+              <CardContent className="py-6 text-center">
+                <Bitcoin className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-muted-foreground text-sm">Keine Kryptowährungen vorhanden</p>
+              </CardContent>
+            </Card>
+          ) : (
+            cryptoInvestments.map((inv) => (
+              <InvestmentCard
+                key={inv.id}
+                investment={inv}
+                currentPrice={prices[inv.id] || null}
+                loading={loadingPrices[inv.id] || false}
+                onDeleted={fetchData}
+                onRefresh={() => refreshPrice(inv)}
+              />
+            ))
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Recent Transactions */}
+      <Card className="glass-card overflow-hidden">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4" />
+            Letzte Transaktionen
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {transactions.length === 0 ? (
+            <div className="py-8 text-center">
+              <ArrowUpDown className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-muted-foreground text-sm">Keine Transaktionen vorhanden</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border/50">
+              {transactions.map((tx) => {
+                const account = accounts.find((a) => a.id === tx.account_id);
+                const isIncome = tx.transaction_type === 'income';
+                return (
+                  <div key={tx.id} className="flex items-center justify-between gap-2 p-3 md:p-4 group hover:bg-secondary/20 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {tx.description || tx.category || 'Transaktion'}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {account?.name} • {format(new Date(tx.date), 'dd.MM.yy', { locale: de })}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div
+                        className={cn(
+                          'font-semibold text-sm',
+                          isIncome ? 'text-success' : 'text-destructive'
+                        )}
+                      >
+                        {isIncome ? '+' : '-'}
+                        {tx.amount.toLocaleString('de-DE', {
+                          style: 'currency',
+                          currency: 'EUR',
+                        })}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
+                        onClick={() => deleteTransaction(tx.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
