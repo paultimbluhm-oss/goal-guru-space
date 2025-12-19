@@ -65,32 +65,88 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_skills: {
+        Row: {
+          activity_id: string
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          order_index: number | null
+          user_id: string
+          xp_reward: number | null
+        }
+        Insert: {
+          activity_id: string
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          order_index?: number | null
+          user_id: string
+          xp_reward?: number | null
+        }
+        Update: {
+          activity_id?: string
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          order_index?: number | null
+          user_id?: string
+          xp_reward?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_skills_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "boredom_activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       boredom_activities: {
         Row: {
           category: string | null
           created_at: string | null
+          description: string | null
           duration_minutes: number | null
+          icon: string | null
           id: string
           is_productive: boolean | null
           name: string
+          total_xp_earned: number | null
           user_id: string
         }
         Insert: {
           category?: string | null
           created_at?: string | null
+          description?: string | null
           duration_minutes?: number | null
+          icon?: string | null
           id?: string
           is_productive?: boolean | null
           name: string
+          total_xp_earned?: number | null
           user_id: string
         }
         Update: {
           category?: string | null
           created_at?: string | null
+          description?: string | null
           duration_minutes?: number | null
+          icon?: string | null
           id?: string
           is_productive?: boolean | null
           name?: string
+          total_xp_earned?: number | null
           user_id?: string
         }
         Relationships: []
