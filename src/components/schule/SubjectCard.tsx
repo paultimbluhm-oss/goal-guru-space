@@ -163,9 +163,7 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
 
   const getGradeColor = (grade: number) => {
     if (grade >= 13) return 'text-green-400';
-    if (grade >= 10) return 'text-emerald-400';
-    if (grade >= 7) return 'text-yellow-400';
-    if (grade >= 4) return 'text-orange-400';
+    if (grade >= 10) return 'text-yellow-400';
     return 'text-red-400';
   };
 
