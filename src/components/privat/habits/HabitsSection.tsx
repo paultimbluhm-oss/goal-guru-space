@@ -220,9 +220,10 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
             <h2 className="text-xl font-bold">Habit Tracker</h2>
           </div>
         </div>
+        {/* Desktop button */}
         <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setDialogOpen(open); }}>
           <DialogTrigger asChild>
-            <Button size="sm">
+            <Button size="sm" className="hidden sm:flex">
               <Plus className="w-4 h-4 mr-2" />
               Neuer Habit
             </Button>
@@ -348,6 +349,15 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
           })
         )}
       </div>
+
+      {/* Mobile button at bottom */}
+      <Button 
+        className="w-full sm:hidden" 
+        onClick={() => setDialogOpen(true)}
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        Neuer Habit
+      </Button>
     </div>
   );
 }

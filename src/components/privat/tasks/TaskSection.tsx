@@ -260,7 +260,8 @@ export function TaskSection({ onBack }: TaskSectionProps) {
           </div>
           <h2 className="text-2xl font-bold">Aufgaben</h2>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
+        {/* Desktop button */}
+        <Button onClick={() => setShowAddDialog(true)} className="hidden sm:flex">
           <Plus className="w-4 h-4 mr-2" />
           Neue Aufgabe
         </Button>
@@ -366,6 +367,15 @@ export function TaskSection({ onBack }: TaskSectionProps) {
           ))}
         </div>
       )}
+
+      {/* Mobile button at bottom */}
+      <Button 
+        className="w-full sm:hidden" 
+        onClick={() => setShowAddDialog(true)}
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        Neue Aufgabe
+      </Button>
 
       <TaskDialog
         open={showAddDialog}
