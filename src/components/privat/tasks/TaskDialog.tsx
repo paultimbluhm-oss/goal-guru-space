@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,17 +11,28 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { format, addDays } from 'date-fns';
+import { format, startOfDay, addDays, parse } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
-interface AddTaskDialogProps {
+interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  priority: string;
+  completed: boolean;
+  xp_reward: number;
+}
+
+interface TaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  task?: Task | null; // If provided, edit mode; otherwise, add mode
 }
 
-export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogProps) {
+export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [title, setTitle] = useState('');
@@ -35,11 +46,60 @@ export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogPr
   const [loading, setLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
+  const isEditMode = !!task;
+
+  // Initialize form when dialog opens or task changes
+  useEffect(() => {
+    if (open) {
+      if (task) {
+        setTitle(task.title);
+        setDescription(task.description || '');
+        setPriority(task.priority);
+        setXpReward(task.xp_reward?.toString() || '10');
+        
+        if (task.due_date) {
+          // Parse the due_date properly
+          const dueDate = new Date(task.due_date);
+          setSelectedDate(startOfDay(dueDate));
+          
+          // Check if it has a specific time (not 23:59)
+          const timeStr = format(dueDate, 'HH:mm');
+          if (timeStr !== '23:59') {
+            setHasTime(true);
+            setHours(format(dueDate, 'HH'));
+            setMinutes(format(dueDate, 'mm'));
+          } else {
+            setHasTime(false);
+            setHours('12');
+            setMinutes('00');
+          }
+        } else {
+          setSelectedDate(undefined);
+          setHasTime(false);
+          setHours('12');
+          setMinutes('00');
+        }
+      } else {
+        // Reset form for new task
+        setTitle('');
+        setDescription('');
+        setSelectedDate(undefined);
+        setHasTime(false);
+        setHours('12');
+        setMinutes('00');
+        setPriority('medium');
+        setXpReward('10');
+      }
+    }
+  }, [open, task]);
+
+  // Create quick dates using startOfDay to avoid timezone issues
+  const today = startOfDay(new Date());
   const quickDates = [
-    { label: 'Heute', date: new Date() },
-    { label: 'Morgen', date: addDays(new Date(), 1) },
-    { label: 'In 3 Tagen', date: addDays(new Date(), 3) },
-    { label: 'In 1 Woche', date: addDays(new Date(), 7) },
+    { label: 'Heute', date: today },
+    { label: 'Morgen', date: addDays(today, 1) },
+    { label: 'In 3 Tagen', date: addDays(today, 3) },
+    { label: 'In 1 Woche', date: addDays(today, 7) },
   ];
 
   const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -54,6 +114,7 @@ export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogPr
 
     let dueDate: string | null = null;
     if (selectedDate) {
+      // Format date as YYYY-MM-DD to avoid timezone issues
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       if (hasTime) {
         dueDate = `${dateStr}T${hours}:${minutes}:00`;
@@ -62,29 +123,45 @@ export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogPr
       }
     }
 
-    const { error } = await supabase.from('tasks').insert({
-      user_id: user.id,
-      title: title.trim(),
-      description: description.trim() || null,
-      due_date: dueDate,
-      priority,
-      xp_reward: parseInt(xpReward) || 10,
-      completed: false,
-    });
+    if (isEditMode && task) {
+      // Update existing task
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          title: title.trim(),
+          description: description.trim() || null,
+          due_date: dueDate,
+          priority,
+          xp_reward: parseInt(xpReward) || 10,
+        })
+        .eq('id', task.id);
 
-    if (error) {
-      toast({ title: 'Fehler', description: error.message, variant: 'destructive' });
+      if (error) {
+        toast({ title: 'Fehler', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Aufgabe aktualisiert' });
+        onOpenChange(false);
+        onSuccess();
+      }
     } else {
-      toast({ title: 'Aufgabe erstellt' });
-      setTitle('');
-      setDescription('');
-      setSelectedDate(undefined);
-      setHasTime(false);
-      setHours('12');
-      setMinutes('00');
-      setPriority('medium');
-      setXpReward('10');
-      onSuccess();
+      // Create new task
+      const { error } = await supabase.from('tasks').insert({
+        user_id: user.id,
+        title: title.trim(),
+        description: description.trim() || null,
+        due_date: dueDate,
+        priority,
+        xp_reward: parseInt(xpReward) || 10,
+        completed: false,
+      });
+
+      if (error) {
+        toast({ title: 'Fehler', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Aufgabe erstellt' });
+        onOpenChange(false);
+        onSuccess();
+      }
     }
     setLoading(false);
   };
@@ -98,7 +175,10 @@ export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Neue Aufgabe</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Aufgabe bearbeiten' : 'Neue Aufgabe'}</DialogTitle>
+          <DialogDescription>
+            {isEditMode ? 'Bearbeite die Details deiner Aufgabe.' : 'Erstelle eine neue Aufgabe.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -158,7 +238,9 @@ export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogPr
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => {
-                      setSelectedDate(date);
+                      if (date) {
+                        setSelectedDate(startOfDay(date));
+                      }
                       setCalendarOpen(false);
                     }}
                     initialFocus
@@ -263,7 +345,7 @@ export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogPr
               Abbrechen
             </Button>
             <Button type="submit" disabled={loading || !title.trim()}>
-              {loading ? 'Erstellen...' : 'Erstellen'}
+              {loading ? (isEditMode ? 'Speichern...' : 'Erstellen...') : (isEditMode ? 'Speichern' : 'Erstellen')}
             </Button>
           </div>
         </form>
