@@ -4,17 +4,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useStats } from '@/hooks/useStats';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { XPCard } from '@/components/dashboard/XPCard';
-import { StreakCard } from '@/components/dashboard/StreakCard';
-import { LevelCard } from '@/components/dashboard/LevelCard';
+import { HeroStats } from '@/components/dashboard/HeroStats';
+import { HabitsOverview } from '@/components/dashboard/HabitsOverview';
+import { AchievementsCard, checkAndUnlockAchievements } from '@/components/dashboard/AchievementsCard';
 import { QuickStats } from '@/components/dashboard/QuickStats';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { MotivationQuote } from '@/components/dashboard/MotivationQuote';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Index() {
   const { user, loading: authLoading } = useAuth();
-  const { profile, loading: profileLoading, recentActivity } = useProfile();
+  const { profile, loading: profileLoading, recentActivity, refetch } = useProfile();
   const { stats, loading: statsLoading } = useStats();
   const navigate = useNavigate();
 
@@ -23,6 +24,34 @@ export default function Index() {
       navigate('/auth');
     }
   }, [user, authLoading, navigate]);
+
+  // Check achievements when profile/stats load
+  useEffect(() => {
+    if (user && profile && !profileLoading && !statsLoading) {
+      checkAchievements();
+    }
+  }, [user, profile, profileLoading, statsLoading]);
+
+  const checkAchievements = async () => {
+    if (!user || !profile) return;
+
+    // Get additional stats for achievements
+    const [habitsRes, gradesRes, termsRes] = await Promise.all([
+      supabase.from('habits').select('id').eq('user_id', user.id).eq('is_active', true),
+      supabase.from('grades').select('id').eq('user_id', user.id),
+      supabase.from('technical_terms').select('id').eq('user_id', user.id),
+    ]);
+
+    await checkAndUnlockAchievements(user.id, {
+      level: profile.level,
+      xp: profile.xp,
+      streakDays: profile.streak_days,
+      tasksCompleted: stats.tasksCompleted,
+      habitsCreated: habitsRes.data?.length || 0,
+      gradesCount: gradesRes.data?.length || 0,
+      termsCount: termsRes.data?.length || 0,
+    });
+  };
 
   const isLoading = authLoading || profileLoading || statsLoading;
 
@@ -38,7 +67,7 @@ export default function Index() {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="fade-in">
           <h1 className="text-2xl md:text-3xl font-bold">
@@ -52,11 +81,17 @@ export default function Index() {
         {/* Motivation Quote */}
         <MotivationQuote />
 
-        {/* Gamification Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-          <XPCard xp={profile?.xp || 0} level={profile?.level || 1} />
-          <LevelCard level={profile?.level || 1} />
-          <StreakCard streakDays={profile?.streak_days || 0} />
+        {/* Hero Stats - Level, XP, Streak */}
+        <HeroStats 
+          xp={profile?.xp || 0} 
+          level={profile?.level || 1} 
+          streakDays={profile?.streak_days || 0} 
+        />
+
+        {/* Habits & Achievements Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <HabitsOverview />
+          <AchievementsCard />
         </div>
 
         {/* Quick Stats */}

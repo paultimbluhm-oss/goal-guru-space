@@ -134,6 +134,10 @@
     @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-lg;
   }
 
+  .bg-gradient-radial {
+    background: radial-gradient(ellipse at center, var(--tw-gradient-stops));
+  }
+
   .glow-primary {
     box-shadow: 0 0 30px hsl(var(--primary) / 0.3), 0 0 60px hsl(var(--primary) / 0.1);
   }
