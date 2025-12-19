@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, Wallet, ListChecks, Calendar, Sparkles, Lightbulb, ChefHat, BookOpen, Wrench } from 'lucide-react';
+import { User, Wallet, ListChecks, Calendar, Sparkles, Lightbulb, ChefHat, BookOpen, Wrench, Check, Target } from 'lucide-react';
 import { FinanceSection } from '@/components/privat/finance/FinanceSection';
 import { ChecklistSection } from '@/components/privat/checklists';
 import { TaskSection } from '@/components/privat/tasks';
@@ -11,8 +11,12 @@ import { IdeasSection } from '@/components/privat/ideas';
 import { RecipesSection } from '@/components/privat/recipes';
 import { TermsSection } from '@/components/privat/terms';
 import { OptimizationsSection } from '@/components/privat/optimizations';
+import { HabitsSection } from '@/components/privat/habits';
+import { MilestonesSection } from '@/components/privat/milestones';
 
 const sections = [
+  { id: 'habits', icon: Check, label: 'Habits', desc: 'Tägliche Gewohnheiten tracken' },
+  { id: 'meilensteine', icon: Target, label: 'Meilensteine', desc: 'Ziele mit Deadlines & Unterpunkten' },
   { id: 'finanzen', icon: Wallet, label: 'Finanzen', desc: 'Konten, Ausgaben, Investments' },
   { id: 'checklisten', icon: ListChecks, label: 'Checklisten', desc: 'Eigene Listen erstellen' },
   { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', desc: 'Planer & To-Dos' },
@@ -33,6 +37,26 @@ export default function Privat() {
   }, [user, loading, navigate]);
 
   if (loading || !user) return null;
+
+  if (activeSection === 'habits') {
+    return (
+      <AppLayout>
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+          <HabitsSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'meilensteine') {
+    return (
+      <AppLayout>
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+          <MilestonesSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (activeSection === 'finanzen') {
     return (
