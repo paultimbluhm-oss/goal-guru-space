@@ -48,13 +48,13 @@ export default function Index() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="fade-in">
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-2xl md:text-3xl font-bold">
             Willkommen zurück<span className="text-gradient-primary">!</span>
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground text-sm md:text-base mt-1">
             Hier ist dein persönliches Dashboard
           </p>
         </div>
@@ -63,7 +63,7 @@ export default function Index() {
         <MotivationQuote />
 
         {/* Gamification Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
           <XPCard xp={mockData.xp} level={mockData.level} />
           <LevelCard level={mockData.level} />
           <StreakCard streakDays={mockData.streakDays} />

@@ -10,7 +10,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,19 +29,63 @@ const navItems = [
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { signOut, user } = useAuth();
   const location = useLocation();
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
   return (
     <TooltipProvider delayDuration={0}>
+      {/* Mobile Header Bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="p-2"
+        >
+          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </Button>
+        <div className="flex items-center gap-2 ml-2">
+          <Warehouse className="w-5 h-5 text-primary" />
+          <span className="text-lg font-bold text-gradient-primary">LifeOS</span>
+        </div>
+      </div>
+
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
       <aside
         className={cn(
-          'h-screen sticky top-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300',
-          expanded ? 'w-56' : 'w-14'
+          'h-screen flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300',
+          // Desktop styles
+          'hidden md:flex md:sticky md:top-0',
+          expanded ? 'md:w-56' : 'md:w-14',
+          // Mobile styles
+          mobileOpen && 'fixed top-14 left-0 bottom-0 w-64 z-50 flex'
         )}
       >
-        {/* Logo & Toggle */}
-        <div className="p-2 border-b border-sidebar-border flex items-center justify-center">
+        {/* Desktop Logo & Toggle */}
+        <div className="hidden md:flex p-2 border-b border-sidebar-border items-center justify-center">
           <Button
             variant="ghost"
             size="sm"
@@ -63,16 +107,17 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-2 space-y-1">
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.to;
+            const isMobileOrExpanded = mobileOpen || expanded;
             const linkContent = (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
-                  expanded ? '' : 'justify-center',
+                  isMobileOrExpanded ? '' : 'justify-center',
                   isActive
                     ? 'bg-primary/20 text-primary'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -84,13 +129,13 @@ export function Sidebar() {
                     isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
                   )}
                 />
-                {expanded && (
+                {isMobileOrExpanded && (
                   <span className="font-medium truncate">{item.label}</span>
                 )}
               </NavLink>
             );
 
-            if (!expanded) {
+            if (!isMobileOrExpanded) {
               return (
                 <Tooltip key={item.to}>
                   <TooltipTrigger asChild>
@@ -109,7 +154,7 @@ export function Sidebar() {
 
         {/* User & Logout */}
         <div className="p-2 border-t border-sidebar-border space-y-1">
-          {expanded && user && (
+          {(mobileOpen || expanded) && user && (
             <div className="px-3 py-2 text-xs text-muted-foreground truncate">
               {user.email}
             </div>
@@ -122,14 +167,14 @@ export function Sidebar() {
                 onClick={() => signOut()}
                 className={cn(
                   'w-full text-muted-foreground hover:text-destructive',
-                  expanded ? 'justify-start gap-3' : 'justify-center px-0'
+                  (mobileOpen || expanded) ? 'justify-start gap-3' : 'justify-center px-0'
                 )}
               >
                 <LogOut className="w-4 h-4" />
-                {expanded && 'Abmelden'}
+                {(mobileOpen || expanded) && 'Abmelden'}
               </Button>
             </TooltipTrigger>
-            {!expanded && (
+            {!(mobileOpen || expanded) && (
               <TooltipContent side="right">
                 Abmelden
               </TooltipContent>
