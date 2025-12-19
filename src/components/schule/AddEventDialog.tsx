@@ -6,8 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { getSupabase, useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface AddEventDialogProps {
@@ -30,6 +29,12 @@ export function AddEventDialog({ subjectId, subjectName, onEventAdded }: AddEven
     if (!user || !title.trim() || !eventDate) return;
 
     setLoading(true);
+    const supabase = getSupabase();
+    if (!supabase) {
+      toast.error('Verbindungsfehler');
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.from('school_events').insert({
       user_id: user.id,
       subject_id: subjectId,
