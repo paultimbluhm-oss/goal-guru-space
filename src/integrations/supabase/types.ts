@@ -305,6 +305,7 @@ export type Database = {
       investments: {
         Row: {
           created_at: string | null
+          currency: string
           id: string
           investment_type: string
           name: string
@@ -316,6 +317,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          currency?: string
           id?: string
           investment_type: string
           name: string
@@ -327,6 +329,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          currency?: string
           id?: string
           investment_type?: string
           name?: string

@@ -22,7 +22,6 @@ import { getSupabase } from '@/hooks/useAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
-
 interface AddInvestmentDialogProps {
   onInvestmentAdded: () => void;
 }
@@ -40,10 +39,16 @@ const investmentTypes = [
   { value: 'crypto', label: 'Kryptowährung' },
 ];
 
+const currencies = [
+  { value: 'EUR', label: '€ Euro' },
+  { value: 'USD', label: '$ US-Dollar' },
+];
+
 export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [investmentType, setInvestmentType] = useState('');
+  const [currency, setCurrency] = useState('EUR');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<SearchResult | null>(null);
@@ -101,18 +106,20 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
     const fetchPrice = async () => {
       try {
         if (investmentType === 'crypto') {
+          // CoinGecko uses 'eur' or 'usd'
+          const vsCurrency = currency.toLowerCase();
           const res = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${selectedAsset.symbol}&vs_currencies=eur`
+            `https://api.coingecko.com/api/v3/simple/price?ids=${selectedAsset.symbol}&vs_currencies=${vsCurrency}`
           );
           const data = await res.json();
-          const price = data[selectedAsset.symbol]?.eur;
+          const price = data[selectedAsset.symbol]?.[vsCurrency];
           if (price) {
             setSelectedAsset((prev) => prev ? { ...prev, price } : null);
           }
         } else {
           const supabaseClient = getSupabase();
           const { data, error } = await supabaseClient.functions.invoke('get-stock-price', {
-            body: { symbol: selectedAsset.symbol },
+            body: { symbol: selectedAsset.symbol, targetCurrency: currency },
           });
           if (!error && data?.price) {
             setSelectedAsset((prev) => prev ? { ...prev, price: data.price } : null);
@@ -124,7 +131,7 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
     };
 
     fetchPrice();
-  }, [selectedAsset?.symbol, investmentType]);
+  }, [selectedAsset?.symbol, investmentType, currency]);
 
   const handleSelectAsset = (result: SearchResult) => {
     setSelectedAsset(result);
@@ -146,6 +153,7 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
       investment_type: investmentType,
       quantity: parseFloat(quantity),
       purchase_price: parseFloat(purchasePrice),
+      currency: currency,
     });
 
     if (error) {
@@ -162,12 +170,15 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
 
   const resetForm = () => {
     setInvestmentType('');
+    setCurrency('EUR');
     setSearchQuery('');
     setSearchResults([]);
     setSelectedAsset(null);
     setQuantity('');
     setPurchasePrice('');
   };
+
+  const currencySymbol = currency === 'EUR' ? '€' : '$';
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -185,25 +196,49 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
           <DialogTitle>Neues Investment</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Typ</Label>
-            <Select value={investmentType} onValueChange={(val) => {
-              setInvestmentType(val);
-              setSelectedAsset(null);
-              setSearchQuery('');
-              setSearchResults([]);
-            }} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Typ auswählen" />
-              </SelectTrigger>
-              <SelectContent>
-                {investmentTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Typ</Label>
+              <Select value={investmentType} onValueChange={(val) => {
+                setInvestmentType(val);
+                setSelectedAsset(null);
+                setSearchQuery('');
+                setSearchResults([]);
+              }} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Typ wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {investmentTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Währung</Label>
+              <Select value={currency} onValueChange={(val) => {
+                setCurrency(val);
+                // Re-fetch price when currency changes
+                if (selectedAsset) {
+                  setSelectedAsset({ ...selectedAsset, price: undefined });
+                }
+              }} required>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {investmentType && (
@@ -227,7 +262,7 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
                         <div className="text-sm font-medium text-primary mt-1">
                           Aktueller Kurs: {selectedAsset.price.toLocaleString('de-DE', {
                             style: 'currency',
-                            currency: 'EUR',
+                            currency: currency,
                           })}
                         </div>
                       )}
@@ -300,7 +335,7 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price">Kaufpreis gesamt (€)</Label>
+                  <Label htmlFor="price">Kaufpreis gesamt ({currencySymbol})</Label>
                   <Input
                     id="price"
                     type="number"
@@ -320,7 +355,7 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
                     <span className="font-medium">
                       {(parseFloat(quantity) * selectedAsset.price).toLocaleString('de-DE', {
                         style: 'currency',
-                        currency: 'EUR',
+                        currency: currency,
                       })}
                     </span>
                   </div>
@@ -334,7 +369,7 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
                     )}>
                       {(parseFloat(quantity) * selectedAsset.price - parseFloat(purchasePrice)).toLocaleString('de-DE', {
                         style: 'currency',
-                        currency: 'EUR',
+                        currency: currency,
                         signDisplay: 'always',
                       })}
                       {' '}

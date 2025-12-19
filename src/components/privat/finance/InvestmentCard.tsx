@@ -13,6 +13,7 @@ interface Investment {
   investment_type: string;
   quantity: number;
   purchase_price: number;
+  currency: string;
 }
 
 interface InvestmentCardProps {
@@ -32,6 +33,7 @@ export function InvestmentCard({
 }: InvestmentCardProps) {
   const [deleting, setDeleting] = useState(false);
 
+  const currency = investment.currency || 'EUR';
   const purchaseValue = investment.purchase_price;
   const currentValue = currentPrice ? investment.quantity * currentPrice : null;
   const profitLoss = currentValue ? currentValue - purchaseValue : null;
@@ -61,6 +63,8 @@ export function InvestmentCard({
       ? 'ETF'
       : 'Aktie';
 
+  const currencyLabel = currency === 'USD' ? '($)' : '';
+
   return (
     <Card className="glass-card border-border/50 group">
       <CardContent className="p-4">
@@ -72,6 +76,11 @@ export function InvestmentCard({
               <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary shrink-0">
                 {typeLabel}
               </span>
+              {currency === 'USD' && (
+                <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                  USD
+                </span>
+              )}
             </div>
             {investment.symbol && (
               <p className="text-xs text-muted-foreground uppercase">{investment.symbol}</p>
@@ -94,7 +103,7 @@ export function InvestmentCard({
                 <div className="text-xl font-bold">
                   {currentValue.toLocaleString('de-DE', {
                     style: 'currency',
-                    currency: 'EUR',
+                    currency: currency,
                   })}
                 </div>
                 
@@ -121,7 +130,7 @@ export function InvestmentCard({
                   <span className="text-muted-foreground">
                     ({profitLoss?.toLocaleString('de-DE', {
                       style: 'currency',
-                      currency: 'EUR',
+                      currency: currency,
                       signDisplay: 'always',
                     })})
                   </span>
@@ -131,7 +140,7 @@ export function InvestmentCard({
                 <div className="text-xs text-muted-foreground mt-1">
                   Kaufpreis: {purchaseValue.toLocaleString('de-DE', {
                     style: 'currency',
-                    currency: 'EUR',
+                    currency: currency,
                   })}
                 </div>
               </>
@@ -140,7 +149,7 @@ export function InvestmentCard({
                 Kaufpreis:{' '}
                 {purchaseValue.toLocaleString('de-DE', {
                   style: 'currency',
-                  currency: 'EUR',
+                  currency: currency,
                 })}
               </div>
             )}

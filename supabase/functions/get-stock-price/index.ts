@@ -5,13 +5,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fetch current EUR/USD exchange rate
+async function getExchangeRate(): Promise<number> {
+  try {
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=1d&range=1d';
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+    const data = await response.json();
+    const rate = data.chart?.result?.[0]?.meta?.regularMarketPrice;
+    console.log('EUR/USD rate:', rate);
+    return rate || 1.08; // Fallback rate
+  } catch (error) {
+    console.error('Error fetching exchange rate:', error);
+    return 1.08; // Fallback rate
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { symbol } = await req.json();
+    const { symbol, targetCurrency = 'EUR' } = await req.json();
     
     if (!symbol) {
       return new Response(
@@ -20,7 +39,9 @@ serve(async (req) => {
       );
     }
 
-    // Use Yahoo Finance API via a free endpoint
+    console.log(`Fetching price for ${symbol}, target currency: ${targetCurrency}`);
+
+    // Use Yahoo Finance API
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
     
     const response = await fetch(url, {
@@ -49,25 +70,43 @@ serve(async (req) => {
 
     const meta = result.meta;
     const price = meta.regularMarketPrice;
-    const currency = meta.currency;
+    const sourceCurrency = meta.currency;
     const previousClose = meta.chartPreviousClose || meta.previousClose;
     
-    // Convert to EUR if needed (approximate)
-    let priceInEur = price;
-    if (currency === 'USD') {
-      // Approximate USD to EUR conversion
-      priceInEur = price * 0.92;
-    } else if (currency === 'GBP') {
-      priceInEur = price * 1.17;
+    // Get exchange rate if conversion needed
+    let convertedPrice = price;
+    let exchangeRate = 1;
+    
+    if (sourceCurrency !== targetCurrency) {
+      const eurUsdRate = await getExchangeRate();
+      
+      if (sourceCurrency === 'USD' && targetCurrency === 'EUR') {
+        exchangeRate = 1 / eurUsdRate;
+        convertedPrice = price * exchangeRate;
+      } else if (sourceCurrency === 'EUR' && targetCurrency === 'USD') {
+        exchangeRate = eurUsdRate;
+        convertedPrice = price * exchangeRate;
+      } else if (sourceCurrency === 'GBP') {
+        // Approximate GBP conversion
+        if (targetCurrency === 'EUR') {
+          exchangeRate = 1.17;
+        } else if (targetCurrency === 'USD') {
+          exchangeRate = 1.27;
+        }
+        convertedPrice = price * exchangeRate;
+      }
     }
-    // If already EUR or unknown, keep the price
+
+    console.log(`Price: ${price} ${sourceCurrency} -> ${convertedPrice.toFixed(4)} ${targetCurrency}`);
 
     return new Response(
       JSON.stringify({
         symbol: symbol,
-        price: priceInEur,
+        price: convertedPrice,
         originalPrice: price,
-        currency: currency,
+        sourceCurrency: sourceCurrency,
+        targetCurrency: targetCurrency,
+        exchangeRate: exchangeRate,
         previousClose: previousClose,
         change: price - previousClose,
         changePercent: ((price - previousClose) / previousClose) * 100,
