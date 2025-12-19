@@ -217,20 +217,20 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-primary/20">
-              <Wallet className="w-6 h-6 text-primary" />
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-2 md:p-3 rounded-xl bg-primary/20">
+              <Wallet className="w-5 h-5 md:w-6 md:h-6 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold">Finanzen</h1>
+            <h1 className="text-xl md:text-2xl font-bold">Finanzen</h1>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
           <AddInvestmentDialog onInvestmentAdded={fetchData} />
           <AddAccountDialog onAccountAdded={fetchData} />
@@ -238,16 +238,16 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
         <Card className="glass-card border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Gesamtvermögen
+          <CardHeader className="pb-1 md:pb-2 p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5 md:gap-2">
+              <Wallet className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+              <span className="truncate">Gesamtvermögen</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold text-primary truncate">
               {(totalBalance + totalInvestments).toLocaleString('de-DE', {
                 style: 'currency',
                 currency: 'EUR',
@@ -257,14 +257,14 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         </Card>
 
         <Card className="glass-card border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Konten & Bargeld
+          <CardHeader className="pb-1 md:pb-2 p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5 md:gap-2">
+              <Wallet className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+              <span className="truncate">Konten & Bargeld</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold truncate">
               {totalBalance.toLocaleString('de-DE', {
                 style: 'currency',
                 currency: 'EUR',
@@ -274,14 +274,14 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         </Card>
 
         <Card className="glass-card border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Investments
+          <CardHeader className="pb-1 md:pb-2 p-3 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5 md:gap-2">
+              <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
+              <span className="truncate">Investments</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+            <div className="text-lg md:text-2xl font-bold truncate">
               {totalInvestments.toLocaleString('de-DE', {
                 style: 'currency',
                 currency: 'EUR',
@@ -293,9 +293,9 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
 
       {/* Bank Accounts */}
       {bankAccounts.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold">Bankkonten</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-2 md:space-y-3">
+          <h2 className="text-base md:text-lg font-semibold">Bankkonten</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
             {bankAccounts.map((acc) => (
               <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
             ))}
@@ -305,9 +305,9 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
 
       {/* Cash Bills */}
       {cashBills.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold">Bargeld (Scheine)</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-2 md:space-y-3">
+          <h2 className="text-base md:text-lg font-semibold">Bargeld (Scheine)</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
             {cashBills.map((acc) => (
               <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
             ))}
@@ -317,9 +317,9 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
 
       {/* Cash Coins */}
       {cashCoins.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold">Bargeld (Münzen)</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-2 md:space-y-3">
+          <h2 className="text-base md:text-lg font-semibold">Bargeld (Münzen)</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
             {cashCoins.map((acc) => (
               <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
             ))}
@@ -328,19 +328,19 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       )}
 
       {/* ETFs & Stocks */}
-      <div className="space-y-3">
+      <div className="space-y-2 md:space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Aktien & ETFs</h2>
+          <h2 className="text-base md:text-lg font-semibold">Aktien & ETFs</h2>
         </div>
         {stockInvestments.length === 0 ? (
           <Card className="glass-card border-border/50">
-            <CardContent className="py-8 text-center">
-              <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Keine Aktien oder ETFs vorhanden</p>
+            <CardContent className="py-6 md:py-8 text-center">
+              <TrendingUp className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground text-sm md:text-base">Keine Aktien oder ETFs vorhanden</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-2 md:gap-3">
             {stockInvestments.map((inv) => (
               <InvestmentCard
                 key={inv.id}
@@ -356,28 +356,28 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       </div>
 
       {/* Crypto */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Kryptowährungen</h2>
+      <div className="space-y-2 md:space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h2 className="text-base md:text-lg font-semibold">Kryptowährungen</h2>
           <Button
             variant="outline"
             size="sm"
             onClick={() => fetchPrices(cryptoInvestments)}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto text-xs md:text-sm"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
             Kurse aktualisieren
           </Button>
         </div>
         {cryptoInvestments.length === 0 ? (
           <Card className="glass-card border-border/50">
-            <CardContent className="py-8 text-center">
-              <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Keine Kryptowährungen vorhanden</p>
+            <CardContent className="py-6 md:py-8 text-center">
+              <TrendingUp className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground text-sm md:text-base">Keine Kryptowährungen vorhanden</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-2 md:gap-3">
             {cryptoInvestments.map((inv) => (
               <InvestmentCard
                 key={inv.id}
@@ -393,16 +393,16 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       </div>
 
       {/* Recent Transactions */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <ArrowUpDown className="w-5 h-5" />
+      <div className="space-y-2 md:space-y-3">
+        <h2 className="text-base md:text-lg font-semibold flex items-center gap-2">
+          <ArrowUpDown className="w-4 h-4 md:w-5 md:h-5" />
           Letzte Transaktionen
         </h2>
         {transactions.length === 0 ? (
           <Card className="glass-card border-border/50">
-            <CardContent className="py-8 text-center">
-              <ArrowUpDown className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Keine Transaktionen vorhanden</p>
+            <CardContent className="py-6 md:py-8 text-center">
+              <ArrowUpDown className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground text-sm md:text-base">Keine Transaktionen vorhanden</p>
             </CardContent>
           </Card>
         ) : (
@@ -413,19 +413,19 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                   const account = accounts.find((a) => a.id === tx.account_id);
                   const isIncome = tx.transaction_type === 'income';
                   return (
-                    <div key={tx.id} className="flex items-center justify-between p-4 group">
-                      <div className="flex-1">
-                        <div className="font-medium">
+                    <div key={tx.id} className="flex items-center justify-between gap-2 p-3 md:p-4 group">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm md:text-base truncate">
                           {tx.description || tx.category || 'Transaktion'}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {account?.name} • {format(new Date(tx.date), 'dd.MM.yyyy', { locale: de })}
+                        <div className="text-xs text-muted-foreground truncate">
+                          {account?.name} • {format(new Date(tx.date), 'dd.MM.yy', { locale: de })}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 md:gap-3 shrink-0">
                         <div
                           className={cn(
-                            'font-semibold',
+                            'font-semibold text-sm md:text-base',
                             isIncome ? 'text-success' : 'text-destructive'
                           )}
                         >
@@ -438,10 +438,10 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
+                          className="h-7 w-7 md:h-8 md:w-8 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
                           onClick={() => deleteTransaction(tx.id)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </Button>
                       </div>
                     </div>

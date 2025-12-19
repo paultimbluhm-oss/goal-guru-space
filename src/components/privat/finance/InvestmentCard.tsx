@@ -63,21 +63,19 @@ export function InvestmentCard({
       ? 'ETF'
       : 'Aktie';
 
-  const currencyLabel = currency === 'USD' ? '($)' : '';
-
   return (
     <Card className="glass-card border-border/50 group">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
+      <CardContent className="p-3 md:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4">
           {/* Left: Name and details */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold truncate">{investment.name}</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary shrink-0">
+            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+              <span className="font-semibold text-sm md:text-base truncate">{investment.name}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary shrink-0">
                 {typeLabel}
               </span>
               {currency === 'USD' && (
-                <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
                   USD
                 </span>
               )}
@@ -85,96 +83,98 @@ export function InvestmentCard({
             {investment.symbol && (
               <p className="text-xs text-muted-foreground uppercase">{investment.symbol}</p>
             )}
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1">
               {investment.quantity.toLocaleString('de-DE', { maximumFractionDigits: 8 })} Stück
             </p>
           </div>
 
           {/* Right: Current value and change */}
-          <div className="text-right shrink-0">
-            {loading ? (
-              <div className="flex items-center justify-end gap-2">
-                <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
-                <span className="text-sm text-muted-foreground">Laden...</span>
-              </div>
-            ) : currentValue !== null ? (
-              <>
-                {/* Current value - prominent */}
-                <div className="text-xl font-bold">
-                  {currentValue.toLocaleString('de-DE', {
-                    style: 'currency',
-                    currency: currency,
-                  })}
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
+            <div className="text-left sm:text-right">
+              {loading ? (
+                <div className="flex items-center gap-1.5 md:gap-2">
+                  <div className="animate-spin w-3.5 h-3.5 md:w-4 md:h-4 border-2 border-primary border-t-transparent rounded-full" />
+                  <span className="text-xs md:text-sm text-muted-foreground">Laden...</span>
                 </div>
-                
-                {/* Profit/Loss percentage and amount */}
-                <div
-                  className={cn(
-                    'flex items-center justify-end gap-1 text-sm font-medium',
-                    isProfit ? 'text-success' : 'text-destructive'
-                  )}
-                >
-                  {isProfit ? (
-                    <TrendingUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <TrendingDown className="w-3.5 h-3.5" />
-                  )}
-                  <span>
-                    {profitLossPercent !== null && (
-                      <>
-                        {profitLossPercent >= 0 ? '+' : ''}
-                        {profitLossPercent.toFixed(2)}%
-                      </>
-                    )}
-                  </span>
-                  <span className="text-muted-foreground">
-                    ({profitLoss?.toLocaleString('de-DE', {
+              ) : currentValue !== null ? (
+                <>
+                  {/* Current value - prominent */}
+                  <div className="text-base md:text-xl font-bold">
+                    {currentValue.toLocaleString('de-DE', {
                       style: 'currency',
                       currency: currency,
-                      signDisplay: 'always',
-                    })})
-                  </span>
-                </div>
-                
-                {/* Purchase price - smaller */}
-                <div className="text-xs text-muted-foreground mt-1">
-                  Kaufpreis: {purchaseValue.toLocaleString('de-DE', {
+                    })}
+                  </div>
+                  
+                  {/* Profit/Loss percentage and amount */}
+                  <div
+                    className={cn(
+                      'flex flex-wrap items-center gap-0.5 md:gap-1 text-xs md:text-sm font-medium',
+                      isProfit ? 'text-success' : 'text-destructive'
+                    )}
+                  >
+                    {isProfit ? (
+                      <TrendingUp className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                    ) : (
+                      <TrendingDown className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                    )}
+                    <span>
+                      {profitLossPercent !== null && (
+                        <>
+                          {profitLossPercent >= 0 ? '+' : ''}
+                          {profitLossPercent.toFixed(1)}%
+                        </>
+                      )}
+                    </span>
+                    <span className="text-muted-foreground text-xs hidden sm:inline">
+                      ({profitLoss?.toLocaleString('de-DE', {
+                        style: 'currency',
+                        currency: currency,
+                        signDisplay: 'always',
+                      })})
+                    </span>
+                  </div>
+                  
+                  {/* Purchase price - smaller */}
+                  <div className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
+                    Kaufpreis: {purchaseValue.toLocaleString('de-DE', {
+                      style: 'currency',
+                      currency: currency,
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs md:text-sm text-muted-foreground">
+                  Kaufpreis:{' '}
+                  {purchaseValue.toLocaleString('de-DE', {
                     style: 'currency',
                     currency: currency,
                   })}
                 </div>
-              </>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                Kaufpreis:{' '}
-                {purchaseValue.toLocaleString('de-DE', {
-                  style: 'currency',
-                  currency: currency,
-                })}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Actions */}
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onRefresh}
-              disabled={loading}
-            >
-              <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            {/* Actions */}
+            <div className="flex gap-0.5 md:gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 md:h-8 md:w-8"
+                onClick={onRefresh}
+                disabled={loading}
+              >
+                <RefreshCw className={cn('w-3.5 h-3.5 md:w-4 md:h-4', loading && 'animate-spin')} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 md:h-8 md:w-8 text-destructive"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
