@@ -2,17 +2,21 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, Wallet, ListChecks, Calendar, Sparkles } from 'lucide-react';
+import { User, Wallet, ListChecks, Calendar, Sparkles, Lightbulb, ChefHat } from 'lucide-react';
 import { FinanceSection } from '@/components/privat/finance/FinanceSection';
 import { ChecklistSection } from '@/components/privat/checklists';
 import { TaskSection } from '@/components/privat/tasks';
 import { BoredomSection } from '@/components/privat/boredom';
+import { IdeasSection } from '@/components/privat/ideas';
+import { RecipesSection } from '@/components/privat/recipes';
 
 const sections = [
   { id: 'finanzen', icon: Wallet, label: 'Finanzen', desc: 'Konten, Ausgaben, Investments' },
   { id: 'checklisten', icon: ListChecks, label: 'Checklisten', desc: 'Eigene Listen erstellen' },
   { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', desc: 'Planer & To-Dos' },
   { id: 'langeweile', icon: Sparkles, label: 'Langeweile', desc: 'Projekte & Skills lernen' },
+  { id: 'ideen', icon: Lightbulb, label: 'Ideen', desc: 'Gedanken & Einfälle festhalten' },
+  { id: 'rezepte', icon: ChefHat, label: 'Rezepte', desc: 'Kochbuch mit Portionsrechner' },
 ];
 
 export default function Privat() {
@@ -61,6 +65,26 @@ export default function Privat() {
       <AppLayout>
         <div className="p-6 lg:p-8 max-w-7xl mx-auto">
           <BoredomSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'ideen') {
+    return (
+      <AppLayout>
+        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+          <IdeasSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'rezepte') {
+    return (
+      <AppLayout>
+        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+          <RecipesSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
     );
