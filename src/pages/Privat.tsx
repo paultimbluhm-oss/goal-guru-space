@@ -33,7 +33,7 @@ export default function Privat() {
   if (activeSection === 'finanzen') {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <FinanceSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
@@ -43,7 +43,7 @@ export default function Privat() {
   if (activeSection === 'checklisten') {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <ChecklistSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
@@ -53,7 +53,7 @@ export default function Privat() {
   if (activeSection === 'aufgaben') {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <TaskSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
@@ -63,7 +63,7 @@ export default function Privat() {
   if (activeSection === 'langeweile') {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <BoredomSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
@@ -73,7 +73,7 @@ export default function Privat() {
   if (activeSection === 'ideen') {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <IdeasSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
@@ -83,7 +83,7 @@ export default function Privat() {
   if (activeSection === 'rezepte') {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <RecipesSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
@@ -92,29 +92,29 @@ export default function Privat() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-accent/20">
-            <User className="w-6 h-6 text-accent" />
+          <div className="p-2.5 md:p-3 rounded-xl bg-accent/20">
+            <User className="w-5 h-5 md:w-6 md:h-6 text-accent" />
           </div>
-          <h1 className="text-2xl font-bold">Privat</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Privat</h1>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           {sections.map((s, i) => (
             <div
               key={s.id}
               onClick={() => setActiveSection(s.id)}
-              className="glass-card p-6 hover:border-primary/50 transition-colors cursor-pointer fade-in"
+              className="glass-card p-3 md:p-6 hover:border-primary/50 transition-colors cursor-pointer fade-in"
               style={{ animationDelay: `${i * 0.1}s` }}
             >
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary/20">
-                  <s.icon className="w-6 h-6 text-primary" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                <div className="p-2 md:p-3 rounded-xl bg-primary/20 shrink-0">
+                  <s.icon className="w-5 h-5 md:w-6 md:h-6 text-primary" />
                 </div>
-                <div>
-                  <h3 className="font-semibold">{s.label}</h3>
-                  <p className="text-sm text-muted-foreground">{s.desc}</p>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-sm md:text-base">{s.label}</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">{s.desc}</p>
                 </div>
               </div>
             </div>

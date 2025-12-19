@@ -93,25 +93,25 @@ export function IdeasSection({ onBack }: IdeasSectionProps) {
   if (loading) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
-          <div className="p-3 rounded-xl bg-yellow-500/20">
-            <Lightbulb className="w-6 h-6 text-yellow-500" />
+          <div className="p-2 md:p-3 rounded-xl bg-yellow-500/20">
+            <Lightbulb className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" />
           </div>
-          <h1 className="text-2xl font-bold">Ideen</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Ideen</h1>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button size="sm" className="w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Neue Idee
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Neue Idee festhalten</DialogTitle>
             </DialogHeader>
@@ -129,7 +129,7 @@ export function IdeasSection({ onBack }: IdeasSectionProps) {
                 rows={3}
               />
               <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-muted-foreground" />
+                <Tag className="w-4 h-4 text-muted-foreground shrink-0" />
                 <Input
                   placeholder="Thema/Kategorie (optional)"
                   value={topic}
@@ -167,39 +167,39 @@ export function IdeasSection({ onBack }: IdeasSectionProps) {
       )}
 
       {filteredIdeas.length === 0 ? (
-        <Card className="p-8 text-center">
-          <Lightbulb className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">
+        <Card className="p-6 md:p-8 text-center">
+          <Lightbulb className="w-10 h-10 md:w-12 md:h-12 mx-auto text-muted-foreground mb-3 md:mb-4" />
+          <p className="text-muted-foreground text-sm md:text-base">
             {filterTopic ? 'Keine Ideen zu diesem Thema' : 'Noch keine Ideen festgehalten'}
           </p>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 md:gap-4">
           {filteredIdeas.map((idea) => (
-            <Card key={idea.id} className="p-4 hover:border-primary/30 transition-colors">
-              <div className="flex items-start justify-between gap-4">
+            <Card key={idea.id} className="p-3 md:p-4 hover:border-primary/30 transition-colors">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold truncate">{idea.title}</h3>
+                  <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-1">
+                    <h3 className="font-semibold text-sm md:text-base truncate">{idea.title}</h3>
                     {idea.topic && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs shrink-0">
                         {idea.topic}
                       </Badge>
                     )}
                   </div>
                   {idea.content && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">
                       {idea.content}
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-xs text-muted-foreground mt-1.5 md:mt-2">
                     {idea.created_at && new Date(idea.created_at).toLocaleDateString('de-DE')}
                   </p>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-destructive hover:text-destructive"
+                  className="text-destructive hover:text-destructive h-8 w-8 shrink-0"
                   onClick={() => handleDelete(idea.id)}
                 >
                   <Trash2 className="w-4 h-4" />

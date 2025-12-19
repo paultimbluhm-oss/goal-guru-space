@@ -40,18 +40,18 @@ export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBa
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
       {stats.map((stat, i) => (
         <div
           key={stat.label}
-          className="glass-card p-4 fade-in"
+          className="glass-card p-3 md:p-4 fade-in"
           style={{ animationDelay: `${i * 0.1}s` }}
         >
-          <div className={`p-2 rounded-lg ${stat.bgColor} w-fit mb-3`}>
-            <stat.icon className={`w-5 h-5 ${stat.color}`} />
+          <div className={`p-1.5 md:p-2 rounded-lg ${stat.bgColor} w-fit mb-2 md:mb-3`}>
+            <stat.icon className={`w-4 h-4 md:w-5 md:h-5 ${stat.color}`} />
           </div>
-          <p className="text-2xl font-bold font-mono">{stat.value}</p>
-          <p className="text-xs text-muted-foreground">{stat.label}</p>
+          <p className="text-lg md:text-2xl font-bold font-mono truncate">{stat.value}</p>
+          <p className="text-xs text-muted-foreground truncate">{stat.label}</p>
         </div>
       ))}
     </div>

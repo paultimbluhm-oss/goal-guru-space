@@ -81,38 +81,38 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
-          <div className="p-3 rounded-xl bg-orange-500/20">
-            <ChefHat className="w-6 h-6 text-orange-500" />
+          <div className="p-2 md:p-3 rounded-xl bg-orange-500/20">
+            <ChefHat className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
           </div>
-          <h1 className="text-2xl font-bold">Rezepte</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Rezepte</h1>
         </div>
         <AddRecipeDialog open={dialogOpen} onOpenChange={setDialogOpen} onSuccess={fetchRecipes} />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Badge
           variant={sortBy === 'newest' ? 'default' : 'outline'}
-          className="cursor-pointer"
+          className="cursor-pointer text-xs md:text-sm"
           onClick={() => setSortBy('newest')}
         >
           Neueste
         </Badge>
         <Badge
           variant={sortBy === 'taste' ? 'default' : 'outline'}
-          className="cursor-pointer"
+          className="cursor-pointer text-xs md:text-sm"
           onClick={() => setSortBy('taste')}
         >
           😋 Leckerste
         </Badge>
         <Badge
           variant={sortBy === 'health' ? 'default' : 'outline'}
-          className="cursor-pointer"
+          className="cursor-pointer text-xs md:text-sm"
           onClick={() => setSortBy('health')}
         >
           🥗 Gesündeste
@@ -120,35 +120,35 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
       </div>
 
       {sortedRecipes.length === 0 ? (
-        <Card className="p-8 text-center">
-          <ChefHat className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">Noch keine Rezepte erstellt</p>
-          <Button className="mt-4" onClick={() => setDialogOpen(true)}>
+        <Card className="p-6 md:p-8 text-center">
+          <ChefHat className="w-10 h-10 md:w-12 md:h-12 mx-auto text-muted-foreground mb-3 md:mb-4" />
+          <p className="text-muted-foreground text-sm md:text-base">Noch keine Rezepte erstellt</p>
+          <Button className="mt-4" size="sm" onClick={() => setDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Erstes Rezept erstellen
           </Button>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:gap-4 sm:grid-cols-2">
           {sortedRecipes.map((recipe) => (
             <Card
               key={recipe.id}
-              className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
+              className="p-3 md:p-4 cursor-pointer hover:border-primary/50 transition-colors"
               onClick={() => setSelectedRecipe(recipe)}
             >
-              <h3 className="font-semibold mb-1">{recipe.name}</h3>
+              <h3 className="font-semibold text-sm md:text-base mb-1">{recipe.name}</h3>
               {recipe.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 mb-2">
                   {recipe.description}
                 </p>
               )}
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                {recipe.servings && <span>👥 {recipe.servings} Portionen</span>}
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm text-muted-foreground">
+                {recipe.servings && <span>👥 {recipe.servings}</span>}
                 {(recipe.prep_time_minutes || recipe.cook_time_minutes) && (
                   <span>⏱️ {(recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0)} Min</span>
                 )}
               </div>
-              <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-3 md:gap-4 mt-2 text-xs md:text-sm">
                 {renderStars(recipe.taste_rating, 'taste')}
                 {renderStars(recipe.health_rating, 'health')}
               </div>
