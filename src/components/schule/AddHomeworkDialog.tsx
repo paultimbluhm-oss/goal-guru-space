@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { BookOpen } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { getSupabase, useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface AddHomeworkDialogProps {
@@ -28,6 +27,12 @@ export function AddHomeworkDialog({ subjectId, subjectName, onHomeworkAdded }: A
     if (!user || !title.trim() || !dueDate) return;
 
     setLoading(true);
+    const supabase = getSupabase();
+    if (!supabase) {
+      toast.error('Verbindungsfehler');
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.from('homework').insert({
       user_id: user.id,
       subject_id: subjectId,

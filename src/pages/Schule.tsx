@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AddSubjectDialog } from '@/components/schule/AddSubjectDialog';
 import { SubjectCard } from '@/components/schule/SubjectCard';
@@ -50,8 +49,9 @@ export default function Schule() {
 
   const fetchData = async () => {
     if (!user) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
 
-    // Fetch subjects
     const { data: subjectsData } = await supabase
       .from('subjects')
       .select('*')
@@ -60,7 +60,6 @@ export default function Schule() {
     
     if (subjectsData) setSubjects(subjectsData);
 
-    // Fetch upcoming homework (not completed, due in future)
     const today = new Date().toISOString().split('T')[0];
     const { data: homeworkData } = await supabase
       .from('homework')
@@ -73,7 +72,6 @@ export default function Schule() {
     
     if (homeworkData) setUpcomingHomework(homeworkData as Homework[]);
 
-    // Fetch upcoming events
     const { data: eventsData } = await supabase
       .from('school_events')
       .select('id, title, event_date, event_type, subjects(name)')
@@ -84,7 +82,6 @@ export default function Schule() {
     
     if (eventsData) setUpcomingEvents(eventsData as SchoolEvent[]);
 
-    // Calculate average grade across all subjects
     const { data: gradesData } = await supabase
       .from('grades')
       .select('points, grade_type, subject_id')
@@ -156,7 +153,6 @@ export default function Schule() {
           <AddSubjectDialog onSubjectAdded={fetchData} />
         </div>
 
-        {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="glass-card border-border/50">
             <CardHeader className="pb-2">
@@ -209,9 +205,7 @@ export default function Schule() {
           </Card>
         </div>
 
-        {/* Upcoming Items */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Upcoming Homework */}
           <Card className="glass-card border-border/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -240,7 +234,6 @@ export default function Schule() {
             </CardContent>
           </Card>
 
-          {/* Upcoming Events */}
           <Card className="glass-card border-border/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -270,7 +263,6 @@ export default function Schule() {
           </Card>
         </div>
 
-        {/* Subject List */}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Deine Fächer</h2>
           {subjects.length === 0 ? (

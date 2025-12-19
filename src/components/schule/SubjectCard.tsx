@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, ChevronDown, ChevronUp, BookOpen, Calendar, CheckCircle2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { getSupabase, useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { AddGradeDialog } from './AddGradeDialog';
 import { AddHomeworkDialog } from './AddHomeworkDialog';
@@ -59,6 +58,8 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
 
   const fetchData = async () => {
     if (!user) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
 
     const [gradesRes, homeworkRes, eventsRes] = await Promise.all([
       supabase.from('grades').select('*').eq('subject_id', subject.id).order('date', { ascending: false }),
@@ -100,6 +101,9 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
   };
 
   const handleDelete = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
     const { error } = await supabase.from('subjects').delete().eq('id', subject.id);
     if (error) {
       toast.error('Fehler beim Löschen');
@@ -110,6 +114,9 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
   };
 
   const toggleHomework = async (hw: Homework) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
     const { error } = await supabase
       .from('homework')
       .update({ completed: !hw.completed })
@@ -121,17 +128,26 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
   };
 
   const deleteGrade = async (id: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
     await supabase.from('grades').delete().eq('id', id);
     fetchData();
     onDataChanged();
   };
 
   const deleteHomework = async (id: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
     await supabase.from('homework').delete().eq('id', id);
     fetchData();
   };
 
   const deleteEvent = async (id: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
     await supabase.from('school_events').delete().eq('id', id);
     fetchData();
   };
@@ -171,7 +187,6 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
 
       {expanded && (
         <CardContent className="space-y-4">
-          {/* Actions */}
           <div className="flex flex-wrap gap-2">
             <AddGradeDialog 
               subjectId={subject.id} 
@@ -194,7 +209,6 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
             </Button>
           </div>
 
-          {/* Grades */}
           {grades.length > 0 && (
             <div className="space-y-2">
               <h4 className="font-medium text-sm text-muted-foreground">Noten</h4>
@@ -217,7 +231,6 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
             </div>
           )}
 
-          {/* Homework */}
           {homework.length > 0 && (
             <div className="space-y-2">
               <h4 className="font-medium text-sm text-muted-foreground flex items-center gap-2">
@@ -246,7 +259,6 @@ export function SubjectCard({ subject, onDeleted, onDataChanged }: SubjectCardPr
             </div>
           )}
 
-          {/* Events */}
           {events.length > 0 && (
             <div className="space-y-2">
               <h4 className="font-medium text-sm text-muted-foreground flex items-center gap-2">

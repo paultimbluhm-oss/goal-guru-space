@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { getSupabase, useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface AddSubjectDialogProps {
@@ -32,6 +31,12 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
     if (!user || !name.trim()) return;
 
     setLoading(true);
+    const supabase = getSupabase();
+    if (!supabase) {
+      toast.error('Verbindungsfehler');
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.from('subjects').insert({
       user_id: user.id,
       name: name.trim(),

@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { getSupabase, useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface AddGradeDialogProps {
@@ -29,6 +28,12 @@ export function AddGradeDialog({ subjectId, subjectName, onGradeAdded }: AddGrad
     e.preventDefault();
     if (!user) return;
 
+    const supabase = getSupabase();
+    if (!supabase) {
+      toast.error('Verbindungsfehler');
+      return;
+    }
+
     const pointsNum = parseInt(points);
     if (isNaN(pointsNum) || pointsNum < 0 || pointsNum > 15) {
       toast.error('Punkte müssen zwischen 0 und 15 liegen');
@@ -45,7 +50,6 @@ export function AddGradeDialog({ subjectId, subjectName, onGradeAdded }: AddGrad
         return;
       }
       
-      // Insert both exams
       const { error: error1 } = await supabase.from('grades').insert({
         user_id: user.id,
         subject_id: subjectId,
