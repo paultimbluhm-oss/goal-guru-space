@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useGamification } from '@/contexts/GamificationContext';
 import { TaskCard } from './TaskCard';
 import { HomeworkCard } from './HomeworkCard';
-import { AddTaskDialog } from './AddTaskDialog';
+import { TaskDialog } from './TaskDialog';
 import { format, isToday, isTomorrow, isPast, isThisWeek, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -367,13 +367,10 @@ export function TaskSection({ onBack }: TaskSectionProps) {
         </div>
       )}
 
-      <AddTaskDialog
+      <TaskDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        onSuccess={() => {
-          setShowAddDialog(false);
-          fetchData();
-        }}
+        onSuccess={fetchData}
       />
     </div>
   );

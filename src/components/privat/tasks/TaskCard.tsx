@@ -3,15 +3,9 @@ import { Pencil, Trash2, Star, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { getSupabase } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
+import { TaskDialog } from './TaskDialog';
 
 interface Task {
   id: string;
@@ -31,13 +25,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onToggle, onDelete, onUpdate }: TaskCardProps) {
-  const { toast } = useToast();
   const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description || '');
-  const [dueDate, setDueDate] = useState(task.due_date || '');
-  const [priority, setPriority] = useState(task.priority);
-  const [saving, setSaving] = useState(false);
 
   const isOverdue = task.due_date && isPast(parseISO(task.due_date)) && !task.completed;
   const isDueToday = task.due_date && isToday(parseISO(task.due_date));
@@ -46,30 +34,6 @@ export function TaskCard({ task, onToggle, onDelete, onUpdate }: TaskCardProps) 
     high: 'bg-destructive/20 text-destructive',
     medium: 'bg-yellow-500/20 text-yellow-600',
     low: 'bg-green-500/20 text-green-600',
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    const supabase = getSupabase();
-
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        title,
-        description: description || null,
-        due_date: dueDate || null,
-        priority,
-      })
-      .eq('id', task.id);
-
-    if (error) {
-      toast({ title: 'Fehler', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Aufgabe aktualisiert' });
-      setEditing(false);
-      onUpdate();
-    }
-    setSaving(false);
   };
 
   return (
@@ -123,50 +87,12 @@ export function TaskCard({ task, onToggle, onDelete, onUpdate }: TaskCardProps) 
         </div>
       </div>
 
-      <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Aufgabe bearbeiten</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Titel</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Beschreibung</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Fällig am</Label>
-              <Input
-                type="datetime-local"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Priorität</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="high">Hoch</SelectItem>
-                  <SelectItem value="medium">Mittel</SelectItem>
-                  <SelectItem value="low">Niedrig</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditing(false)}>Abbrechen</Button>
-              <Button onClick={handleSave} disabled={saving || !title.trim()}>
-                {saving ? 'Speichern...' : 'Speichern'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <TaskDialog
+        open={editing}
+        onOpenChange={setEditing}
+        onSuccess={onUpdate}
+        task={task}
+      />
     </>
   );
 }
