@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useGamification } from '@/contexts/GamificationContext';
+import { useProfile } from '@/hooks/useProfile';
 import { useStats } from '@/hooks/useStats';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { XPCard } from '@/components/dashboard/XPCard';
@@ -14,7 +14,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function Index() {
   const { user, loading: authLoading } = useAuth();
-  const { profile, recentActivity, loading: profileLoading } = useGamification();
+  const { profile, loading: profileLoading, recentActivity } = useProfile();
   const { stats, loading: statsLoading } = useStats();
   const navigate = useNavigate();
 
