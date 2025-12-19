@@ -98,16 +98,6 @@ export default function Index() {
   return (
     <AppLayout>
       <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="fade-in">
-          <h1 className="text-2xl md:text-3xl font-bold">
-            Willkommen zurück<span className="text-gradient-primary">!</span>
-          </h1>
-          <p className="text-muted-foreground text-sm md:text-base mt-1">
-            Hier ist dein persönliches Dashboard
-          </p>
-        </div>
-
         {/* Motivation Quote */}
         <MotivationQuote />
 
