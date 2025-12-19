@@ -364,6 +364,33 @@ export type Database = {
           },
         ]
       }
+      ideas: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: string
+          title: string
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          title: string
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          title?: string
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       investments: {
         Row: {
           created_at: string | null
@@ -513,6 +540,118 @@ export type Database = {
           user_id?: string
           username?: string | null
           xp?: number | null
+        }
+        Relationships: []
+      }
+      recipe_ingredients: {
+        Row: {
+          amount: number | null
+          id: string
+          name: string
+          order_index: number | null
+          recipe_id: string
+          unit: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          id?: string
+          name: string
+          order_index?: number | null
+          recipe_id: string
+          unit?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          id?: string
+          name?: string
+          order_index?: number | null
+          recipe_id?: string
+          unit?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_ingredients_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipe_steps: {
+        Row: {
+          id: string
+          instruction: string
+          recipe_id: string
+          step_number: number
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          instruction: string
+          recipe_id: string
+          step_number: number
+          user_id: string
+        }
+        Update: {
+          id?: string
+          instruction?: string
+          recipe_id?: string
+          step_number?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_steps_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipes: {
+        Row: {
+          cook_time_minutes: number | null
+          created_at: string | null
+          description: string | null
+          health_rating: number | null
+          id: string
+          name: string
+          prep_time_minutes: number | null
+          servings: number | null
+          taste_rating: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cook_time_minutes?: number | null
+          created_at?: string | null
+          description?: string | null
+          health_rating?: number | null
+          id?: string
+          name: string
+          prep_time_minutes?: number | null
+          servings?: number | null
+          taste_rating?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cook_time_minutes?: number | null
+          created_at?: string | null
+          description?: string | null
+          health_rating?: number | null
+          id?: string
+          name?: string
+          prep_time_minutes?: number | null
+          servings?: number | null
+          taste_rating?: number | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
