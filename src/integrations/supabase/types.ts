@@ -192,6 +192,7 @@ export type Database = {
           created_at: string | null
           id: string
           order_index: number | null
+          section_id: string | null
           user_id: string
         }
         Insert: {
@@ -201,6 +202,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           order_index?: number | null
+          section_id?: string | null
           user_id: string
         }
         Update: {
@@ -210,11 +212,54 @@ export type Database = {
           created_at?: string | null
           id?: string
           order_index?: number | null
+          section_id?: string | null
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "checklist_items_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_items_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_sections: {
+        Row: {
+          checklist_id: string
+          created_at: string | null
+          id: string
+          name: string
+          order_index: number | null
+          user_id: string
+        }
+        Insert: {
+          checklist_id: string
+          created_at?: string | null
+          id?: string
+          name: string
+          order_index?: number | null
+          user_id: string
+        }
+        Update: {
+          checklist_id?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          order_index?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_sections_checklist_id_fkey"
             columns: ["checklist_id"]
             isOneToOne: false
             referencedRelation: "checklists"
