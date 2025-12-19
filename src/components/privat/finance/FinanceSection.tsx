@@ -28,6 +28,7 @@ interface Investment {
   investment_type: string;
   quantity: number;
   purchase_price: number;
+  currency: string;
 }
 
 interface Transaction {
@@ -76,27 +77,33 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
   };
 
   const fetchPrices = async (invs: Investment[]) => {
-    // Fetch crypto prices from CoinGecko
+    // Fetch crypto prices from CoinGecko - group by currency
     const cryptoInvs = invs.filter((i) => i.investment_type === 'crypto' && i.symbol);
-    if (cryptoInvs.length > 0) {
-      const ids = cryptoInvs.map((i) => i.symbol?.toLowerCase()).join(',');
+    
+    // Group crypto by currency
+    const cryptoByEur = cryptoInvs.filter(i => i.currency === 'EUR' || !i.currency);
+    const cryptoByUsd = cryptoInvs.filter(i => i.currency === 'USD');
+    
+    const fetchCryptoPrices = async (invList: Investment[], vsCurrency: string) => {
+      if (invList.length === 0) return;
+      const ids = invList.map((i) => i.symbol?.toLowerCase()).join(',');
       setLoadingPrices((prev) => {
         const newState = { ...prev };
-        cryptoInvs.forEach((i) => (newState[i.id] = true));
+        invList.forEach((i) => (newState[i.id] = true));
         return newState;
       });
 
       try {
         const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=eur`
+          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=${vsCurrency}`
         );
         const data = await res.json();
 
         const newPrices: Record<string, number> = {};
-        cryptoInvs.forEach((inv) => {
+        invList.forEach((inv) => {
           const symbol = inv.symbol?.toLowerCase();
-          if (symbol && data[symbol]?.eur) {
-            newPrices[inv.id] = data[symbol].eur;
+          if (symbol && data[symbol]?.[vsCurrency]) {
+            newPrices[inv.id] = data[symbol][vsCurrency];
           }
         });
         setPrices((prev) => ({ ...prev, ...newPrices }));
@@ -106,10 +113,15 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
 
       setLoadingPrices((prev) => {
         const newState = { ...prev };
-        cryptoInvs.forEach((i) => (newState[i.id] = false));
+        invList.forEach((i) => (newState[i.id] = false));
         return newState;
       });
-    }
+    };
+
+    await Promise.all([
+      fetchCryptoPrices(cryptoByEur, 'eur'),
+      fetchCryptoPrices(cryptoByUsd, 'usd'),
+    ]);
 
     // Fetch ETF/stock prices via Edge Function
     const stockInvs = invs.filter(
@@ -122,7 +134,7 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       try {
         const supabaseClient = getSupabase();
         const { data, error } = await supabaseClient.functions.invoke('get-stock-price', {
-          body: { symbol: inv.symbol },
+          body: { symbol: inv.symbol, targetCurrency: inv.currency || 'EUR' },
         });
         if (!error && data?.price) {
           setPrices((prev) => ({ ...prev, [inv.id]: data.price }));
@@ -137,15 +149,18 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
   const refreshPrice = async (investment: Investment) => {
     if (!investment.symbol) return;
     
+    const currency = investment.currency || 'EUR';
+    const vsCurrency = currency.toLowerCase();
+    
     setLoadingPrices((prev) => ({ ...prev, [investment.id]: true }));
     
     try {
       if (investment.investment_type === 'crypto') {
         const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${investment.symbol.toLowerCase()}&vs_currencies=eur`
+          `https://api.coingecko.com/api/v3/simple/price?ids=${investment.symbol.toLowerCase()}&vs_currencies=${vsCurrency}`
         );
         const data = await res.json();
-        const price = data[investment.symbol.toLowerCase()]?.eur;
+        const price = data[investment.symbol.toLowerCase()]?.[vsCurrency];
         if (price) {
           setPrices((prev) => ({ ...prev, [investment.id]: price }));
         }
@@ -153,7 +168,7 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         // ETF/Stock via Edge Function
         const supabaseClient = getSupabase();
         const { data, error } = await supabaseClient.functions.invoke('get-stock-price', {
-          body: { symbol: investment.symbol },
+          body: { symbol: investment.symbol, targetCurrency: currency },
         });
         if (!error && data?.price) {
           setPrices((prev) => ({ ...prev, [investment.id]: data.price }));
