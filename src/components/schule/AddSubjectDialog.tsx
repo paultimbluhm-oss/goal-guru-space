@@ -15,6 +15,7 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [shortName, setShortName] = useState('');
   const [gradeYear, setGradeYear] = useState('11');
   const [writtenWeight, setWrittenWeight] = useState('50');
   const [oralWeight, setOralWeight] = useState('50');
@@ -40,6 +41,7 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
     const { error } = await supabase.from('subjects').insert({
       user_id: user.id,
       name: name.trim(),
+      short_name: shortName.trim() || null,
       grade_year: parseInt(gradeYear),
       written_weight: parseInt(writtenWeight),
       oral_weight: parseInt(oralWeight),
@@ -50,6 +52,7 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
     } else {
       toast.success('Fach hinzugefügt');
       setName('');
+      setShortName('');
       setGradeYear('11');
       setWrittenWeight('50');
       setOralWeight('50');
@@ -72,15 +75,27 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
           <DialogTitle>Neues Fach hinzufügen</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Fachname</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="z.B. Mathematik"
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Fachname</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="z.B. Mathematik"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shortName">Kürzel</Label>
+              <Input
+                id="shortName"
+                value={shortName}
+                onChange={(e) => setShortName(e.target.value)}
+                placeholder="z.B. M"
+                maxLength={5}
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="gradeYear">Jahrgangsstufe</Label>
