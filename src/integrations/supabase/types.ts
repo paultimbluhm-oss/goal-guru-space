@@ -1101,6 +1101,7 @@ export type Database = {
           id: string
           name: string
           oral_weight: number | null
+          short_name: string | null
           user_id: string
           written_weight: number | null
         }
@@ -1110,6 +1111,7 @@ export type Database = {
           id?: string
           name: string
           oral_weight?: number | null
+          short_name?: string | null
           user_id: string
           written_weight?: number | null
         }
@@ -1119,6 +1121,7 @@ export type Database = {
           id?: string
           name?: string
           oral_weight?: number | null
+          short_name?: string | null
           user_id?: string
           written_weight?: number | null
         }

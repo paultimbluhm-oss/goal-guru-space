@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addWeeks, subWeeks, startOfWeek, addDays, getISOWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -16,6 +16,7 @@ import { de } from 'date-fns/locale';
 interface Subject {
   id: string;
   name: string;
+  short_name: string | null;
 }
 
 interface TimetableEntry {
@@ -98,13 +99,13 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     const [entriesRes, subjectsRes, absencesRes, homeworkRes] = await Promise.all([
       supabase
         .from('timetable_entries')
-        .select('*, subjects(id, name)')
+        .select('*, subjects(id, name, short_name)')
         .eq('user_id', user.id)
         .order('day_of_week')
         .order('period'),
       supabase
         .from('subjects')
-        .select('id, name')
+        .select('id, name, short_name')
         .eq('user_id', user.id)
         .order('name'),
       supabase
@@ -422,7 +423,9 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                     </SelectTrigger>
                     <SelectContent>
                       {subjects.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}{s.short_name ? ` (${s.short_name})` : ''}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -449,9 +452,24 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                     />
                   </div>
                 </div>
-                <Button onClick={handleSubmit} className="w-full">
-                  Speichern
-                </Button>
+                
+                <div className="flex gap-2">
+                  <Button onClick={handleSubmit} className="flex-1">
+                    Speichern
+                  </Button>
+                  {editingEntry && (
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => {
+                        handleDelete(editingEntry.id);
+                        setDialogOpen(false);
+                        resetForm();
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -592,7 +610,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                             )}
                             <div className="flex flex-col items-center gap-1">
                               <span className="font-semibold text-sm truncate block">
-                                {entry.subjects?.name || 'Kein Fach'}
+                                {entry.subjects?.short_name || entry.subjects?.name || 'Kein Fach'}
                               </span>
                               <span className="text-xs opacity-70">{entry.teacher_short}</span>
                               {entry.room && <span className="text-xs opacity-50">{entry.room}</span>}
@@ -631,7 +649,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                           )}
                           <div>
                             <span className="font-medium text-xs truncate block">
-                              {entry.subjects?.name || 'Kein Fach'}
+                              {entry.subjects?.short_name || entry.subjects?.name || 'Kein Fach'}
                             </span>
                             <span className="text-xs opacity-70">{entry.teacher_short}</span>
                             {entry.week_type !== 'both' && (
@@ -669,47 +687,6 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
         </div>
       </div>
 
-      {/* Entry List */}
-      {entries.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-lg">Stundenplan-Einträge bearbeiten</h3>
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-            {entries.map(entry => (
-              <Card key={entry.id} className="p-3 bg-card/80 backdrop-blur-sm border-border/50 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">
-                      {DAYS[entry.day_of_week - 1]}, {entry.period}. Std
-                    </span>
-                    {entry.week_type !== 'both' && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">
-                        {entry.week_type === 'odd' ? 'A' : 'B'}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {entry.subjects?.name || 'Kein Fach'} • {entry.teacher_short}
-                    {entry.room && ` • ${entry.room}`}
-                  </p>
-                </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(entry)}>
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleDelete(entry.id)}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
