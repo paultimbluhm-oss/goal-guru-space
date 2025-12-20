@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed, CheckCircle2, XCircle, LayoutGrid, Columns3, GraduationCap, TrendingUp, Calendar, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed, CheckCircle2, XCircle, LayoutGrid, Columns3, GraduationCap, TrendingUp, Calendar, Edit2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addWeeks, subWeeks, startOfWeek, addDays, getISOWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -44,7 +44,7 @@ interface TimetableEntry {
 interface LessonAbsence {
   id: string;
   date: string;
-  reason: 'sick' | 'doctor' | 'school_project' | 'other';
+  reason: 'sick' | 'doctor' | 'school_project' | 'other' | 'efa';
   excused: boolean;
   timetable_entry_id: string;
 }
@@ -96,6 +96,8 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
   
   // Subject detail view
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [selectedSlotEntry, setSelectedSlotEntry] = useState<TimetableEntry | null>(null);
+  const [selectedSlotDate, setSelectedSlotDate] = useState<Date | null>(null);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [subjectSheetOpen, setSubjectSheetOpen] = useState(false);
   
@@ -248,9 +250,11 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
     setDialogOpen(true);
   };
 
-  const openSubjectDetail = (entry: TimetableEntry) => {
+  const openSubjectDetail = (entry: TimetableEntry, date: Date) => {
     if (entry.subjects) {
       setSelectedSubject(entry.subjects);
+      setSelectedSlotEntry(entry);
+      setSelectedSlotDate(date);
       setSubjectSheetOpen(true);
     }
   };
@@ -374,10 +378,64 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
 
   const getSlotColor = (absence: LessonAbsence | null) => {
     if (!absence) return 'bg-green-500/20 border-green-500/30 text-green-700 dark:text-green-300';
+    if (absence.reason === 'efa') {
+      return 'bg-cyan-500/20 border-cyan-500/30 text-cyan-700 dark:text-cyan-300';
+    }
     if (absence.reason === 'school_project') {
       return 'bg-yellow-500/20 border-yellow-500/30 text-yellow-700 dark:text-yellow-300';
     }
     return 'bg-red-500/20 border-red-500/30 text-red-700 dark:text-red-300';
+  };
+
+  // Toggle EFA status for a slot
+  const toggleEFA = async (entry: TimetableEntry, date: Date) => {
+    if (!user) return;
+    
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const existingAbsence = absences.find(a => a.date === dateStr && a.timetable_entry_id === entry.id);
+    
+    if (existingAbsence?.reason === 'efa') {
+      // Remove EFA
+      const { error } = await supabase
+        .from('lesson_absences')
+        .delete()
+        .eq('id', existingAbsence.id);
+      
+      if (error) {
+        toast.error('Fehler beim Entfernen');
+      } else {
+        toast.success('EFA entfernt');
+        fetchData();
+      }
+    } else if (!existingAbsence) {
+      // Add EFA
+      const { error } = await supabase
+        .from('lesson_absences')
+        .insert({
+          user_id: user.id,
+          timetable_entry_id: entry.id,
+          date: dateStr,
+          reason: 'efa',
+          excused: true,
+          description: 'Eigenverantwortliches Arbeiten'
+        });
+      
+      if (error) {
+        toast.error('Fehler beim Markieren');
+        console.error(error);
+      } else {
+        toast.success('Als EFA markiert');
+        fetchData();
+      }
+    } else {
+      toast.error('Diese Stunde hat bereits eine andere Abwesenheit');
+    }
+  };
+
+  const getEfaStatusForSlot = (entry: TimetableEntry, date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const absence = absences.find(a => a.date === dateStr && a.timetable_entry_id === entry.id);
+    return absence?.reason === 'efa';
   };
 
   const getGradeColor = (grade: number | null) => {
@@ -701,6 +759,10 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
           <span>Anwesend</span>
         </div>
         <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-cyan-500/20 border border-cyan-500/30" />
+          <span>EFA</span>
+        </div>
+        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-yellow-500/20 border border-yellow-500/30" />
           <span>Schulprojekt</span>
         </div>
@@ -777,13 +839,14 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                         const totalHomework = [...dayHomework, ...nextHomework.filter(h => !dayHomework.some(d => d.id === h.id))];
                         const worstAbsence = absence || nextAbsence;
                         const isExcused = worstAbsence?.excused;
+                        const isEfa = worstAbsence?.reason === 'efa';
                         
                         return (
                           <Card
                             key={`${dayIndex}-${periodInfo.period}`}
                             className={`p-1 md:p-2 min-h-[90px] md:min-h-[120px] flex flex-col justify-center text-center cursor-pointer transition-all hover:scale-[1.02] border row-span-2 relative ${getSlotColor(worstAbsence)}`}
                             style={{ gridRow: 'span 2' }}
-                            onClick={() => openSubjectDetail(entry)}
+                            onClick={() => openSubjectDetail(entry, date)}
                           >
                             {/* Grade indicator top-left */}
                             {finalGrade !== null && (
@@ -801,12 +864,18 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                                 )}
                               </div>
                             )}
-                            <div className="flex flex-col items-center gap-0.5">
-                              <span className="font-semibold text-[10px] md:text-sm truncate block max-w-full">
+                            <div className={`flex flex-col items-center gap-0.5 ${isEfa ? 'opacity-50' : ''}`}>
+                              <span className={`font-semibold text-[10px] md:text-sm truncate block max-w-full ${isEfa ? 'line-through' : ''}`}>
                                 {entry.subjects?.short_name || entry.subjects?.name?.slice(0, 4) || '-'}
                               </span>
-                              <span className="text-[9px] md:text-xs opacity-70">{entry.teacher_short}</span>
-                              {viewMode === 'full' && entry.room && <span className="text-[9px] md:text-xs opacity-50">{entry.room}</span>}
+                              {isEfa ? (
+                                <span className="text-[9px] md:text-xs font-medium text-cyan-600">EFA</span>
+                              ) : (
+                                <>
+                                  <span className="text-[9px] md:text-xs opacity-70">{entry.teacher_short}</span>
+                                  {viewMode === 'full' && entry.room && <span className="text-[9px] md:text-xs opacity-50">{entry.room}</span>}
+                                </>
+                              )}
                               {entry.week_type !== 'both' && (
                                 <span className="text-[8px] md:text-[10px] px-1 py-0.5 rounded bg-primary/20 text-primary">
                                   {entry.week_type === 'odd' ? 'A' : 'B'}
@@ -824,11 +893,13 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                       }
 
                       // Single lesson
+                      const isEfaSingle = absence?.reason === 'efa';
+                      
                       return (
                         <Card
                           key={`${dayIndex}-${periodInfo.period}`}
                           className={`p-1 md:p-2 min-h-[45px] md:min-h-[60px] flex flex-col justify-between text-center cursor-pointer transition-all hover:scale-[1.02] border relative ${getSlotColor(absence)}`}
-                          onClick={() => openSubjectDetail(entry)}
+                          onClick={() => openSubjectDetail(entry, date)}
                         >
                           {/* Grade indicator top-left */}
                           {finalGrade !== null && (
@@ -836,8 +907,8 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                               {finalGrade}
                             </div>
                           )}
-                          {/* Excused/Not excused indicator top-right */}
-                          {absence && (
+                          {/* Excused/Not excused indicator top-right (not for EFA) */}
+                          {absence && !isEfaSingle && (
                             <div className="absolute top-0.5 right-0.5 md:top-1 md:right-1">
                               {absence.excused ? (
                                 <CheckCircle2 className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-green-500" />
@@ -846,11 +917,21 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                               )}
                             </div>
                           )}
-                          <div>
-                            <span className="font-medium text-[10px] md:text-xs truncate block">
+                          {/* EFA indicator */}
+                          {isEfaSingle && (
+                            <div className="absolute top-0.5 right-0.5 md:top-1 md:right-1">
+                              <Clock className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-cyan-500" />
+                            </div>
+                          )}
+                          <div className={isEfaSingle ? 'opacity-50' : ''}>
+                            <span className={`font-medium text-[10px] md:text-xs truncate block ${isEfaSingle ? 'line-through' : ''}`}>
                               {entry.subjects?.short_name || entry.subjects?.name?.slice(0, 4) || '-'}
                             </span>
-                            <span className="text-[9px] md:text-xs opacity-70">{entry.teacher_short}</span>
+                            {isEfaSingle ? (
+                              <span className="text-[9px] md:text-xs font-medium text-cyan-600">EFA</span>
+                            ) : (
+                              <span className="text-[9px] md:text-xs opacity-70">{entry.teacher_short}</span>
+                            )}
                             {entry.week_type !== 'both' && (
                               <span className="text-[8px] md:text-[10px] ml-0.5 px-0.5 py-0.5 rounded bg-primary/20 text-primary">
                                 {entry.week_type === 'odd' ? 'A' : 'B'}
@@ -887,15 +968,27 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
       <Sheet open={subjectSheetOpen} onOpenChange={setSubjectSheetOpen}>
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <div className="flex items-center justify-between">
-              <SheetTitle className="flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-blue-400" />
-                {selectedSubject?.name}
+            <div className="flex items-center justify-between gap-2">
+              <SheetTitle className="flex items-center gap-2 flex-1 min-w-0">
+                <GraduationCap className="w-5 h-5 text-blue-400 shrink-0" />
+                <span className="truncate">{selectedSubject?.name}</span>
                 {selectedSubject?.short_name && (
-                  <span className="text-muted-foreground font-normal">({selectedSubject.short_name})</span>
+                  <span className="text-muted-foreground font-normal shrink-0">({selectedSubject.short_name})</span>
                 )}
               </SheetTitle>
-              <div className="flex gap-1">
+              <div className="flex gap-1 shrink-0">
+                {/* EFA Toggle Button */}
+                {selectedSlotEntry && selectedSlotDate && (
+                  <Button 
+                    variant={getEfaStatusForSlot(selectedSlotEntry, selectedSlotDate) ? 'default' : 'outline'}
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={() => toggleEFA(selectedSlotEntry, selectedSlotDate)}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    EFA
+                  </Button>
+                )}
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -906,12 +999,23 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  onClick={() => openEdit(entries.find(e => e.subject_id === selectedSubject?.id)!)}
+                  onClick={() => selectedSlotEntry && openEdit(selectedSlotEntry)}
                 >
                   <Calendar className="w-4 h-4" />
                 </Button>
               </div>
             </div>
+            {/* Show which slot/date this is for */}
+            {selectedSlotDate && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {format(selectedSlotDate, 'EEEE, dd. MMMM yyyy', { locale: de })}
+                {getEfaStatusForSlot(selectedSlotEntry!, selectedSlotDate) && (
+                  <Badge variant="secondary" className="ml-2 text-xs bg-cyan-500/20 text-cyan-600">
+                    EFA - Freistunde
+                  </Badge>
+                )}
+              </p>
+            )}
           </SheetHeader>
           <div className="mt-4">
             {selectedSubject && (

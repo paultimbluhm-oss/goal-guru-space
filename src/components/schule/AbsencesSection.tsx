@@ -23,7 +23,7 @@ interface TimetableEntry {
 interface LessonAbsence {
   id: string;
   date: string;
-  reason: 'sick' | 'doctor' | 'school_project' | 'other';
+  reason: 'sick' | 'doctor' | 'school_project' | 'other' | 'efa';
   excused: boolean;
   description: string | null;
   timetable_entry_id: string;
@@ -42,6 +42,7 @@ const REASONS = [
   { value: 'sick', label: 'Krank', icon: Thermometer, color: 'bg-red-500' },
   { value: 'doctor', label: 'Arzt', icon: Stethoscope, color: 'bg-blue-500' },
   { value: 'school_project', label: 'Schulprojekt', icon: FolderKanban, color: 'bg-yellow-500' },
+  { value: 'efa', label: 'EFA (Freistunde)', icon: Clock, color: 'bg-cyan-500' },
   { value: 'other', label: 'Sonstiges', icon: HelpCircle, color: 'bg-gray-500' },
 ] as const;
 
