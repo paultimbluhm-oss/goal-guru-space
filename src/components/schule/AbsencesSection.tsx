@@ -15,7 +15,7 @@ interface TimetableEntry {
   teacher_short: string;
   week_type: string;
   subject_id: string | null;
-  subjects: { id: string; name: string } | null;
+  subjects: { id: string; name: string; short_name: string | null } | null;
 }
 
 interface LessonAbsence {
@@ -74,13 +74,13 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     const [absencesRes, timetableRes] = await Promise.all([
       supabase
         .from('lesson_absences')
-        .select('*, timetable_entries(id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name))')
+        .select('*, timetable_entries(id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name, short_name))')
         .eq('user_id', user.id)
         .gte('date', weekStartStr)
         .lte('date', weekEndStr),
       supabase
         .from('timetable_entries')
-        .select('id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name)')
+        .select('id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name, short_name)')
         .eq('user_id', user.id)
         .order('period'),
     ]);
@@ -444,7 +444,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
                           {slot.period}.{slot.isDouble && `-${slot.period + 1}.`} Std
                         </span>
                         <span className="text-xs font-medium truncate max-w-full">
-                          {slot.entry.subjects?.name?.slice(0, 6) || '-'}
+                          {slot.entry.subjects?.short_name || slot.entry.subjects?.name?.slice(0, 6) || '-'}
                         </span>
                         <span className="text-[10px] text-muted-foreground">
                           {slot.entry.teacher_short}
@@ -579,7 +579,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
                         {format(new Date(absence.date), 'EEE dd.MM', { locale: de })}
                       </span>
                       <span className="text-sm text-muted-foreground ml-2">
-                        {isDouble ? `${entry.period}.-${secondPeriod}. Std` : `${entry.period}. Std`} - {entry.subjects?.name || '-'}
+                        {isDouble ? `${entry.period}.-${secondPeriod}. Std` : `${entry.period}. Std`} - {entry.subjects?.short_name || entry.subjects?.name || '-'}
                       </span>
                       {isDouble && (
                         <span className="text-xs text-primary ml-1">(Doppelstd.)</span>
