@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, TouchEvent } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -471,8 +471,42 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
   const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
   const goToCurrentWeek = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
-  const goToPreviousDays = () => setMobileViewStart(Math.max(0, mobileViewStart - 2));
-  const goToNextDays = () => setMobileViewStart(Math.min(2, mobileViewStart + 2));
+  const goToPreviousDay = () => setMobileViewStart(Math.max(0, mobileViewStart - 1));
+  const goToNextDay = () => setMobileViewStart(Math.min(2, mobileViewStart + 1));
+
+  // Swipe gesture handling
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = null;
+  };
+
+  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (viewMode === 'compact') {
+      if (isLeftSwipe && mobileViewStart < 2) {
+        setMobileViewStart(mobileViewStart + 1);
+      }
+      if (isRightSwipe && mobileViewStart > 0) {
+        setMobileViewStart(mobileViewStart - 1);
+      }
+    }
+
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
 
   const getVisibleDays = () => {
     if (viewMode === 'full') {
@@ -739,13 +773,13 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
 
         {viewMode === 'compact' && (
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={goToPreviousDays} disabled={mobileViewStart === 0}>
+            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={goToPreviousDay} disabled={mobileViewStart === 0}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <span className="text-xs font-medium min-w-[60px] text-center">
               {DAYS_SHORT[visibleDayIndices[0]]} - {DAYS_SHORT[visibleDayIndices[visibleDayIndices.length - 1]]}
             </span>
-            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={goToNextDays} disabled={mobileViewStart >= 2}>
+            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={goToNextDay} disabled={mobileViewStart >= 2}>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -779,7 +813,12 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
       </div>
 
       {/* Calendar Grid */}
-      <div className={viewMode === 'full' ? 'overflow-x-auto' : ''}>
+      <div 
+        className={viewMode === 'full' ? 'overflow-x-auto' : 'touch-pan-y'}
+        onTouchStart={viewMode === 'compact' ? handleTouchStart : undefined}
+        onTouchMove={viewMode === 'compact' ? handleTouchMove : undefined}
+        onTouchEnd={viewMode === 'compact' ? handleTouchEnd : undefined}
+      >
         <div className={viewMode === 'full' ? 'min-w-[700px]' : ''}>
           <div className={`grid gap-1 ${viewMode === 'full' ? 'grid-cols-6' : 'grid-cols-4'}`}>
             {/* Header row */}
