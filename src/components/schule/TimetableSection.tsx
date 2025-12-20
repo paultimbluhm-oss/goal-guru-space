@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay, getISOWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 interface Subject {
@@ -25,6 +25,7 @@ interface TimetableEntry {
   subject_id: string | null;
   teacher_short: string;
   room: string | null;
+  week_type: string;
   subjects?: Subject | null;
 }
 
@@ -84,6 +85,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
   const [teacherShort, setTeacherShort] = useState('');
   const [room, setRoom] = useState('');
   const [isDoubleLesson, setIsDoubleLesson] = useState(false);
+  const [weekType, setWeekType] = useState<string>('both');
 
   // Absence dialog state
   const [absenceDialogOpen, setAbsenceDialogOpen] = useState(false);
@@ -150,6 +152,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     setTeacherShort('');
     setRoom('');
     setIsDoubleLesson(false);
+    setWeekType('both');
     setEditingEntry(null);
   };
 
@@ -160,6 +163,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     setSubjectId(entry.subject_id || '');
     setTeacherShort(entry.teacher_short);
     setRoom(entry.room || '');
+    setWeekType(entry.week_type || 'both');
     setIsDoubleLesson(false);
     setDialogOpen(true);
   };
@@ -195,12 +199,13 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
       subject_id: subjectId || null,
       teacher_short: teacherShort.trim(),
       room: room.trim() || null,
+      week_type: weekType,
     };
 
     if (editingEntry) {
       const { error } = await supabase
         .from('timetable_entries')
-        .update({ ...baseData, period: periodNum })
+        .update({ ...baseData, period: periodNum, week_type: weekType })
         .eq('id', editingEntry.id);
 
       if (error) {
@@ -348,7 +353,16 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
   };
 
   const getEntryForSlot = (day: number, periodNum: number) => {
-    return entries.find(e => e.day_of_week === day && e.period === periodNum);
+    const currentWeekNum = getISOWeek(currentWeekStart);
+    const isOddWeek = currentWeekNum % 2 === 1;
+    
+    return entries.find(e => {
+      if (e.day_of_week !== day || e.period !== periodNum) return false;
+      if (e.week_type === 'both') return true;
+      if (e.week_type === 'odd' && isOddWeek) return true;
+      if (e.week_type === 'even' && !isOddWeek) return true;
+      return false;
+    });
   };
 
   const getAbsenceForSlot = (date: Date, entry: TimetableEntry | undefined) => {
@@ -371,13 +385,25 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     return 'bg-red-500/20 border-red-500/30 text-red-700 dark:text-red-300';
   };
 
-  // Check if current entry is part of a double lesson (same subject/teacher as previous period)
-  const isPartOfDouble = (day: number, periodNum: number) => {
+  // Check if current entry is the START of a double lesson (same subject/teacher as next period)
+  const isStartOfDouble = (day: number, periodNum: number) => {
+    const current = getEntryForSlot(day, periodNum);
+    const next = getEntryForSlot(day, periodNum + 1);
+    if (!current || !next) return false;
+    return current.subject_id === next.subject_id && 
+           current.teacher_short === next.teacher_short &&
+           current.week_type === next.week_type &&
+           periodNum !== 6 && periodNum + 1 !== 7; // Can't span lunch
+  };
+
+  // Check if current entry is the SECOND part of a double lesson
+  const isSecondOfDouble = (day: number, periodNum: number) => {
     const current = getEntryForSlot(day, periodNum);
     const prev = getEntryForSlot(day, periodNum - 1);
     if (!current || !prev) return false;
     return current.subject_id === prev.subject_id && 
            current.teacher_short === prev.teacher_short &&
+           current.week_type === prev.week_type &&
            periodNum !== 7 && periodNum - 1 !== 7;
   };
 
@@ -558,6 +584,20 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                 )}
 
                 <div className="space-y-2">
+                  <Label>Wochenrhythmus</Label>
+                  <Select value={weekType} onValueChange={setWeekType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="both">Jede Woche</SelectItem>
+                      <SelectItem value="odd">Nur A-Woche (ungerade KW)</SelectItem>
+                      <SelectItem value="even">Nur B-Woche (gerade KW)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Fach</Label>
                   <Select value={subjectId} onValueChange={setSubjectId}>
                     <SelectTrigger>
@@ -610,6 +650,14 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
           <p className="font-medium">
             {format(currentWeekStart, 'dd. MMM', { locale: de })} - {format(addDays(currentWeekStart, 4), 'dd. MMM yyyy', { locale: de })}
           </p>
+          <div className="flex items-center justify-center gap-2">
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${getISOWeek(currentWeekStart) % 2 === 1 ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+              {getISOWeek(currentWeekStart) % 2 === 1 ? 'A-Woche' : 'B-Woche'}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              (KW {getISOWeek(currentWeekStart)})
+            </span>
+          </div>
           <Button variant="link" size="sm" onClick={goToCurrentWeek} className="text-muted-foreground">
             Zur aktuellen Woche
           </Button>
@@ -676,7 +724,13 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                       const entry = getEntryForSlot(dayIndex + 1, periodInfo.period);
                       const absence = getAbsenceForSlot(date, entry);
                       const dayHomework = entry ? getHomeworkForDay(date, entry.subject_id) : [];
-                      const partOfDouble = isPartOfDouble(dayIndex + 1, periodInfo.period);
+                      const isDoubleStart = isStartOfDouble(dayIndex + 1, periodInfo.period);
+                      const isDoubleSecond = isSecondOfDouble(dayIndex + 1, periodInfo.period);
+                      
+                      // Skip rendering the second period of a double lesson
+                      if (isDoubleSecond) {
+                        return null;
+                      }
                       
                       if (!entry) {
                         return (
@@ -694,12 +748,47 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                         );
                       }
 
+                      // Double lesson - merged cell with rowspan effect
+                      if (isDoubleStart) {
+                        const nextAbsence = getAbsenceForSlot(date, getEntryForSlot(dayIndex + 1, periodInfo.period + 1));
+                        const nextHomework = getHomeworkForDay(date, entry.subject_id);
+                        const totalHomework = [...dayHomework, ...nextHomework.filter(h => !dayHomework.some(d => d.id === h.id))];
+                        const worstAbsence = absence || nextAbsence;
+                        
+                        return (
+                          <Card
+                            key={`${dayIndex}-${periodInfo.period}`}
+                            className={`p-2 min-h-[120px] flex flex-col justify-center text-center cursor-pointer transition-all hover:scale-[1.02] border row-span-2 ${getSlotColor(worstAbsence)}`}
+                            style={{ gridRow: 'span 2' }}
+                            onClick={() => openEdit(entry)}
+                          >
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="font-semibold text-sm truncate block">
+                                {entry.subjects?.name || 'Kein Fach'}
+                              </span>
+                              <span className="text-xs opacity-70">{entry.teacher_short}</span>
+                              {entry.room && <span className="text-xs opacity-50">{entry.room}</span>}
+                              {entry.week_type !== 'both' && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">
+                                  {entry.week_type === 'odd' ? 'A-Woche' : 'B-Woche'}
+                                </span>
+                              )}
+                            </div>
+                            {totalHomework.length > 0 && (
+                              <div className="flex items-center justify-center gap-1 mt-2">
+                                <BookOpen className="w-3.5 h-3.5 text-blue-500" />
+                                <span className="text-xs text-blue-500">{totalHomework.length}</span>
+                              </div>
+                            )}
+                          </Card>
+                        );
+                      }
+
+                      // Single lesson
                       return (
                         <Card
                           key={`${dayIndex}-${periodInfo.period}`}
-                          className={`p-2 min-h-[60px] flex flex-col justify-between text-center cursor-pointer transition-all hover:scale-[1.02] border ${getSlotColor(absence)} ${
-                            partOfDouble ? 'rounded-t-none border-t-0 -mt-1' : ''
-                          }`}
+                          className={`p-2 min-h-[60px] flex flex-col justify-between text-center cursor-pointer transition-all hover:scale-[1.02] border ${getSlotColor(absence)}`}
                           onClick={() => openEdit(entry)}
                         >
                           <div>
@@ -707,6 +796,11 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                               {entry.subjects?.name || 'Kein Fach'}
                             </span>
                             <span className="text-xs opacity-70">{entry.teacher_short}</span>
+                            {entry.week_type !== 'both' && (
+                              <span className="text-[10px] ml-1 px-1 py-0.5 rounded bg-primary/20 text-primary">
+                                {entry.week_type === 'odd' ? 'A' : 'B'}
+                              </span>
+                            )}
                           </div>
                           {dayHomework.length > 0 && (
                             <div className="flex items-center justify-center gap-1 mt-1">
@@ -749,6 +843,11 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                     <span className="font-medium text-sm">
                       {DAYS[entry.day_of_week - 1]}, {entry.period}. Std
                     </span>
+                    {entry.week_type !== 'both' && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">
+                        {entry.week_type === 'odd' ? 'A' : 'B'}
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">
                     {entry.subjects?.name || 'Kein Fach'} • {entry.teacher_short}

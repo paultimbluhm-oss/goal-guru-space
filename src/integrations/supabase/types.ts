@@ -1197,6 +1197,7 @@ export type Database = {
           subject_id: string | null
           teacher_short: string
           user_id: string
+          week_type: string | null
         }
         Insert: {
           created_at?: string
@@ -1207,6 +1208,7 @@ export type Database = {
           subject_id?: string | null
           teacher_short: string
           user_id: string
+          week_type?: string | null
         }
         Update: {
           created_at?: string
@@ -1217,6 +1219,7 @@ export type Database = {
           subject_id?: string | null
           teacher_short?: string
           user_id?: string
+          week_type?: string | null
         }
         Relationships: [
           {
