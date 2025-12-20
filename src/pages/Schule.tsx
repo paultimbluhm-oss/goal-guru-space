@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { GraduationCap, FolderKanban, Users, BookMarked, ChevronRight } from 'lucide-react';
+import { GraduationCap, FolderKanban, Users, BookMarked, CalendarX, ChevronRight } from 'lucide-react';
 import { SubjectsSection } from '@/components/schule/SubjectsSection';
 import { ProjectsSection } from '@/components/schule/ProjectsSection';
 import { SchoolTasksSection } from '@/components/schule/SchoolTasksSection';
+import { AbsencesSection } from '@/components/schule/AbsencesSection';
 
 const sections = [
   { id: 'faecher', icon: GraduationCap, label: 'Fächer', desc: 'Noten, Hausaufgaben & Termine', color: 'from-blue-500 to-indigo-600' },
   { id: 'projekte', icon: FolderKanban, label: 'Projekte', desc: 'Schulische Projekte verwalten', color: 'from-purple-500 to-violet-600' },
+  { id: 'fehltage', icon: CalendarX, label: 'Fehltage', desc: 'Abwesenheiten verwalten', color: 'from-rose-500 to-red-600' },
   { id: 'mitschueler', icon: Users, label: 'Für Mitschüler', desc: 'Aufgaben für Klassenkameraden', color: 'from-orange-500 to-amber-600' },
   { id: 'lehrer', icon: BookMarked, label: 'Für Lehrer', desc: 'Aufgaben von Lehrern', color: 'from-red-500 to-rose-600' },
 ];
@@ -42,6 +44,16 @@ export default function Schule() {
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <ProjectsSection onBack={() => setActiveSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'fehltage') {
+    return (
+      <AppLayout>
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+          <AbsencesSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
     );

@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      absences: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          hours: number
+          id: string
+          reason: Database["public"]["Enums"]["absence_reason"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          hours: number
+          id?: string
+          reason?: Database["public"]["Enums"]["absence_reason"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          hours?: number
+          id?: string
+          reason?: Database["public"]["Enums"]["absence_reason"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           account_type: string
@@ -1201,7 +1231,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      absence_reason: "sick" | "doctor" | "school_project" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1328,6 +1358,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      absence_reason: ["sick", "doctor", "school_project", "other"],
+    },
   },
 } as const
