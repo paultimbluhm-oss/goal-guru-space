@@ -216,12 +216,31 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     }
   };
 
-  // Toggle excused status
-  const toggleExcused = async (id: string, currentExcused: boolean) => {
+  // Toggle excused status - also updates double lessons together
+  const toggleExcused = async (absence: LessonAbsence, currentExcused: boolean) => {
+    const idsToUpdate = [absence.id];
+    
+    // Check if this is part of a double lesson
+    const entry = absence.timetable_entries;
+    const nextEntry = getEntryForSlot(entry.day_of_week, entry.period + 1);
+    const prevEntry = getEntryForSlot(entry.day_of_week, entry.period - 1);
+    
+    // Check if next period is part of double lesson
+    if (nextEntry && nextEntry.subject_id === entry.subject_id && nextEntry.teacher_short === entry.teacher_short) {
+      const nextAbsence = getAbsenceForSlot(new Date(absence.date), nextEntry.id);
+      if (nextAbsence) idsToUpdate.push(nextAbsence.id);
+    }
+    
+    // Check if prev period is part of double lesson
+    if (prevEntry && prevEntry.subject_id === entry.subject_id && prevEntry.teacher_short === entry.teacher_short) {
+      const prevAbsence = getAbsenceForSlot(new Date(absence.date), prevEntry.id);
+      if (prevAbsence) idsToUpdate.push(prevAbsence.id);
+    }
+
     const { error } = await supabase
       .from('lesson_absences')
       .update({ excused: !currentExcused })
-      .eq('id', id);
+      .in('id', idsToUpdate);
 
     if (error) {
       toast.error('Fehler beim Aktualisieren');
@@ -507,50 +526,85 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
         </Card>
       </div>
 
-      {/* This Week's Absences List */}
+      {/* This Week's Absences List - grouped by double lessons */}
       {absences.length > 0 && (
         <div className="space-y-2">
           <h3 className="font-semibold">Fehlzeiten dieser Woche</h3>
           <div className="space-y-1">
-            {absences.map(absence => {
-              const reason = REASONS.find(r => r.value === absence.reason);
-              const Icon = reason?.icon || HelpCircle;
+            {(() => {
+              // Group absences by date and teacher to detect double lessons
+              const grouped: { absence: LessonAbsence; isDouble: boolean; secondPeriod?: number }[] = [];
+              const processedIds = new Set<string>();
               
-              return (
-                <div
-                  key={absence.id}
-                  className={`flex items-center gap-3 p-2 rounded-lg bg-card/80 border ${
-                    absence.excused ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-orange-500'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${reason?.color.replace('bg-', 'text-')}`} />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium">
-                      {format(new Date(absence.date), 'EEE dd.MM', { locale: de })}
-                    </span>
-                    <span className="text-sm text-muted-foreground ml-2">
-                      {absence.timetable_entries.period}. Std - {absence.timetable_entries.subjects?.name || '-'}
-                    </span>
+              for (const absence of absences) {
+                if (processedIds.has(absence.id)) continue;
+                
+                const entry = absence.timetable_entries;
+                const nextEntry = getEntryForSlot(entry.day_of_week, entry.period + 1);
+                
+                // Check if next period is a double lesson partner
+                let isDouble = false;
+                let secondPeriod: number | undefined;
+                
+                if (nextEntry && nextEntry.subject_id === entry.subject_id && nextEntry.teacher_short === entry.teacher_short) {
+                  const nextAbsence = absences.find(
+                    a => a.date === absence.date && a.timetable_entry_id === nextEntry.id
+                  );
+                  if (nextAbsence) {
+                    isDouble = true;
+                    secondPeriod = entry.period + 1;
+                    processedIds.add(nextAbsence.id);
+                  }
+                }
+                
+                processedIds.add(absence.id);
+                grouped.push({ absence, isDouble, secondPeriod });
+              }
+              
+              return grouped.map(({ absence, isDouble, secondPeriod }) => {
+                const reason = REASONS.find(r => r.value === absence.reason);
+                const Icon = reason?.icon || HelpCircle;
+                const entry = absence.timetable_entries;
+                
+                return (
+                  <div
+                    key={absence.id}
+                    className={`flex items-center gap-3 p-2 rounded-lg bg-card/80 border ${
+                      absence.excused ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-orange-500'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${reason?.color.replace('bg-', 'text-')}`} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium">
+                        {format(new Date(absence.date), 'EEE dd.MM', { locale: de })}
+                      </span>
+                      <span className="text-sm text-muted-foreground ml-2">
+                        {isDouble ? `${entry.period}.-${secondPeriod}. Std` : `${entry.period}. Std`} - {entry.subjects?.name || '-'}
+                      </span>
+                      {isDouble && (
+                        <span className="text-xs text-primary ml-1">(Doppelstd.)</span>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={absence.excused ? 'text-green-500' : 'text-orange-500'}
+                      onClick={() => toggleExcused(absence, absence.excused)}
+                    >
+                      {absence.excused ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive h-8 w-8"
+                      onClick={() => handleDeleteAbsence(absence.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={absence.excused ? 'text-green-500' : 'text-orange-500'}
-                    onClick={() => toggleExcused(absence.id, absence.excused)}
-                  >
-                    {absence.excused ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-destructive h-8 w-8"
-                    onClick={() => handleDeleteAbsence(absence.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         </div>
       )}
