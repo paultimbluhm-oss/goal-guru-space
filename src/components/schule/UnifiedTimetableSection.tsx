@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed, CheckCircle2, XCircle, LayoutGrid, Columns3, GraduationCap, TrendingUp, Calendar, Edit2, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed, CheckCircle2, XCircle, LayoutGrid, Columns3, GraduationCap, TrendingUp, Calendar, Edit2, Clock, Palmtree } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, addWeeks, subWeeks, startOfWeek, addDays, getISOWeek } from 'date-fns';
+import { format, addWeeks, subWeeks, startOfWeek, addDays, getISOWeek, isWithinInterval, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SubjectCard } from './SubjectCard';
@@ -64,6 +64,14 @@ interface SubjectGradeData {
   writtenAvg: number | null;
 }
 
+interface SchoolHoliday {
+  name: string;
+  start: string;
+  end: string;
+  year: number;
+  stateCode: string;
+}
+
 interface UnifiedTimetableSectionProps {
   onBack: () => void;
 }
@@ -90,6 +98,7 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
   const [subjectGrades, setSubjectGrades] = useState<Record<string, SubjectGradeData>>({});
   const [absences, setAbsences] = useState<LessonAbsence[]>([]);
   const [homework, setHomework] = useState<Homework[]>([]);
+  const [holidays, setHolidays] = useState<SchoolHoliday[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimetableEntry | null>(null);
@@ -222,6 +231,31 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
 
     setLoading(false);
   };
+
+  // Fetch holidays once on mount
+  useEffect(() => {
+    const fetchHolidays = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-school-holidays', {
+          body: { stateCode: 'NI' }, // Niedersachsen
+        });
+        
+        if (error) {
+          console.error('Error fetching holidays:', error);
+          return;
+        }
+        
+        if (data?.success && data?.holidays) {
+          setHolidays(data.holidays);
+          console.log('Loaded holidays:', data.holidays.length);
+        }
+      } catch (err) {
+        console.error('Failed to fetch holidays:', err);
+      }
+    };
+    
+    fetchHolidays();
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -385,6 +419,21 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
       return 'bg-yellow-500/20 border-yellow-500/30 text-yellow-700 dark:text-yellow-300';
     }
     return 'bg-red-500/20 border-red-500/30 text-red-700 dark:text-red-300';
+  };
+
+  // Check if a date is during school holidays
+  const getHolidayForDate = (date: Date): SchoolHoliday | null => {
+    const dateToCheck = date;
+    
+    for (const holiday of holidays) {
+      const start = parseISO(holiday.start);
+      const end = parseISO(holiday.end);
+      
+      if (isWithinInterval(dateToCheck, { start, end })) {
+        return holiday;
+      }
+    }
+    return null;
   };
 
   // Toggle EFA status for a slot
@@ -807,6 +856,10 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
           <span>Abwesend</span>
         </div>
         <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-teal-500/20 border border-teal-500/30" />
+          <span>Ferien</span>
+        </div>
+        <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-primary flex items-center justify-center text-[8px] md:text-[10px] text-primary-foreground font-bold">P</div>
           <span>Notenpunkte</span>
         </div>
@@ -847,6 +900,23 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                     </div>
                     {visibleDayIndices.map((dayIndex) => {
                       const date = weekDates[dayIndex];
+                      const holiday = getHolidayForDate(date);
+                      
+                      // If it's a holiday, show holiday card
+                      if (holiday) {
+                        return (
+                          <Card
+                            key={`${dayIndex}-${periodInfo.period}`}
+                            className="p-1 md:p-2 min-h-[45px] md:min-h-[60px] flex flex-col justify-center items-center text-center bg-teal-500/20 border border-teal-500/30"
+                          >
+                            <Palmtree className="w-3 h-3 md:w-4 md:h-4 text-teal-600 mb-0.5" />
+                            <span className="text-[8px] md:text-[10px] font-medium text-teal-700 dark:text-teal-300 line-clamp-2">
+                              {holiday.name}
+                            </span>
+                          </Card>
+                        );
+                      }
+                      
                       const entry = getEntryForSlot(dayIndex + 1, periodInfo.period);
                       const absence = getAbsenceForSlot(date, entry);
                       const dayHomework = entry ? getHomeworkForDay(date, entry.subject_id) : [];
