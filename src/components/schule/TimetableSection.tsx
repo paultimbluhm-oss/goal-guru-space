@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay, getISOWeek } from 'date-fns';
+import { format, addWeeks, subWeeks, startOfWeek, addDays, getISOWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 interface Subject {
@@ -87,14 +87,6 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
   const [isDoubleLesson, setIsDoubleLesson] = useState(false);
   const [weekType, setWeekType] = useState<string>('both');
 
-  // Absence dialog state
-  const [absenceDialogOpen, setAbsenceDialogOpen] = useState(false);
-  const [absenceFromDate, setAbsenceFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [absenceFromPeriod, setAbsenceFromPeriod] = useState('1');
-  const [absenceToDate, setAbsenceToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [absenceToPeriod, setAbsenceToPeriod] = useState('9');
-  const [absenceReason, setAbsenceReason] = useState<'sick' | 'doctor' | 'school_project' | 'other'>('sick');
-  const [absenceDescription, setAbsenceDescription] = useState('');
 
   const fetchData = async () => {
     if (!user) return;
@@ -264,94 +256,6 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     }
   };
 
-  const handleAbsenceSubmit = async () => {
-    if (!user) return;
-
-    const fromDate = new Date(absenceFromDate);
-    const toDate = new Date(absenceToDate);
-    const fromPeriod = parseInt(absenceFromPeriod);
-    const toPeriod = parseInt(absenceToPeriod);
-
-    if (fromDate > toDate) {
-      toast.error('Das Startdatum muss vor dem Enddatum liegen');
-      return;
-    }
-
-    const absenceEntries: { 
-      user_id: string; 
-      date: string; 
-      timetable_entry_id: string; 
-      reason: typeof absenceReason;
-      description: string | null;
-      excused: boolean;
-    }[] = [];
-
-    let currentDate = new Date(fromDate);
-    while (currentDate <= toDate) {
-      const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-        const dateStr = format(currentDate, 'yyyy-MM-dd');
-        const isFirstDay = isSameDay(currentDate, fromDate);
-        const isLastDay = isSameDay(currentDate, toDate);
-        
-        let startPeriod = 1;
-        let endPeriod = 9;
-        
-        if (isFirstDay && isLastDay) {
-          startPeriod = fromPeriod;
-          endPeriod = toPeriod;
-        } else if (isFirstDay) {
-          startPeriod = fromPeriod;
-        } else if (isLastDay) {
-          endPeriod = toPeriod;
-        }
-
-        const dayEntries = entries.filter(
-          e => e.day_of_week === dayOfWeek && e.period >= startPeriod && e.period <= endPeriod && e.period !== 7
-        );
-
-        for (const entry of dayEntries) {
-          absenceEntries.push({
-            user_id: user.id,
-            date: dateStr,
-            timetable_entry_id: entry.id,
-            reason: absenceReason,
-            description: absenceDescription || null,
-            excused: false,
-          });
-        }
-      }
-      currentDate = addDays(currentDate, 1);
-    }
-
-    if (absenceEntries.length === 0) {
-      toast.error('Keine Stunden im gewählten Zeitraum gefunden');
-      return;
-    }
-
-    const { error } = await supabase
-      .from('lesson_absences')
-      .upsert(absenceEntries, { 
-        onConflict: 'user_id,date,timetable_entry_id',
-        ignoreDuplicates: true 
-      });
-
-    if (error) {
-      toast.error('Fehler beim Speichern');
-      console.error(error);
-    } else {
-      toast.success(`${absenceEntries.length} Fehlstunde(n) eingetragen`);
-      setAbsenceDialogOpen(false);
-      setAbsenceFromDate(format(new Date(), 'yyyy-MM-dd'));
-      setAbsenceToDate(format(new Date(), 'yyyy-MM-dd'));
-      setAbsenceFromPeriod('1');
-      setAbsenceToPeriod('9');
-      setAbsenceReason('sick');
-      setAbsenceDescription('');
-      fetchData();
-    }
-  };
-
   const getEntryForSlot = (day: number, periodNum: number) => {
     const currentWeekNum = getISOWeek(currentWeekStart);
     const isOddWeek = currentWeekNum % 2 === 1;
@@ -439,93 +343,6 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
         </div>
 
         <div className="flex gap-2">
-          <Dialog open={absenceDialogOpen} onOpenChange={setAbsenceDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Fehltag</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Fehltage eintragen</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Von Datum</Label>
-                    <Input
-                      type="date"
-                      value={absenceFromDate}
-                      onChange={(e) => setAbsenceFromDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Von Stunde</Label>
-                    <Select value={absenceFromPeriod} onValueChange={setAbsenceFromPeriod}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePeriods.map(p => (
-                          <SelectItem key={p} value={p.toString()}>{p}. Stunde</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Bis Datum</Label>
-                    <Input
-                      type="date"
-                      value={absenceToDate}
-                      onChange={(e) => setAbsenceToDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Bis Stunde</Label>
-                    <Select value={absenceToPeriod} onValueChange={setAbsenceToPeriod}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePeriods.map(p => (
-                          <SelectItem key={p} value={p.toString()}>{p}. Stunde</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Grund</Label>
-                  <Select value={absenceReason} onValueChange={(v) => setAbsenceReason(v as typeof absenceReason)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sick">Krank</SelectItem>
-                      <SelectItem value="doctor">Arztbesuch</SelectItem>
-                      <SelectItem value="school_project">Schulprojekt</SelectItem>
-                      <SelectItem value="other">Sonstiges</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Beschreibung (optional)</Label>
-                  <Input
-                    value={absenceDescription}
-                    onChange={(e) => setAbsenceDescription(e.target.value)}
-                    placeholder="z.B. Grippe, Zahnarzt..."
-                  />
-                </div>
-                <Button onClick={handleAbsenceSubmit} className="w-full">
-                  Fehltage eintragen
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
