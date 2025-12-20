@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ArrowLeft, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -48,7 +49,18 @@ interface TimetableSectionProps {
 }
 
 const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+// Periods with break info: period 7 is lunch
+const PERIOD_STRUCTURE = [
+  { period: 1, showBreakAfter: false },
+  { period: 2, showBreakAfter: true, breakDuration: '20 Min' },
+  { period: 3, showBreakAfter: false },
+  { period: 4, showBreakAfter: true, breakDuration: '20 Min' },
+  { period: 5, showBreakAfter: false },
+  { period: 6, showBreakAfter: false },
+  { period: 7, isLunch: true, lunchDuration: '65 Min' },
+  { period: 8, showBreakAfter: false },
+  { period: 9, showBreakAfter: false },
+];
 
 export function TimetableSection({ onBack }: TimetableSectionProps) {
   const { user } = useAuth();
@@ -71,6 +83,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
   const [subjectId, setSubjectId] = useState<string>('');
   const [teacherShort, setTeacherShort] = useState('');
   const [room, setRoom] = useState('');
+  const [isDoubleLesson, setIsDoubleLesson] = useState(false);
 
   // Absence dialog state
   const [absenceDialogOpen, setAbsenceDialogOpen] = useState(false);
@@ -84,7 +97,6 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
   const fetchData = async () => {
     if (!user) return;
 
-    // Get current week's dates for filtering absences and homework
     const weekEnd = addDays(currentWeekStart, 6);
     const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd');
     const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
@@ -137,6 +149,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     setSubjectId('');
     setTeacherShort('');
     setRoom('');
+    setIsDoubleLesson(false);
     setEditingEntry(null);
   };
 
@@ -147,6 +160,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     setSubjectId(entry.subject_id || '');
     setTeacherShort(entry.teacher_short);
     setRoom(entry.room || '');
+    setIsDoubleLesson(false);
     setDialogOpen(true);
   };
 
@@ -157,10 +171,27 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
       return;
     }
 
-    const data = {
+    const periodNum = parseInt(period);
+    const dayNum = parseInt(dayOfWeek);
+
+    // Check if it's lunch period
+    if (periodNum === 7) {
+      toast.error('Die 7. Stunde ist Mittagspause');
+      return;
+    }
+
+    // For double lessons, check if next period is valid
+    if (isDoubleLesson) {
+      const nextPeriod = periodNum + 1;
+      if (nextPeriod > 9 || nextPeriod === 7) {
+        toast.error('Doppelstunde kann hier nicht eingetragen werden');
+        return;
+      }
+    }
+
+    const baseData = {
       user_id: user.id,
-      day_of_week: parseInt(dayOfWeek),
-      period: parseInt(period),
+      day_of_week: dayNum,
       subject_id: subjectId || null,
       teacher_short: teacherShort.trim(),
       room: room.trim() || null,
@@ -169,7 +200,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     if (editingEntry) {
       const { error } = await supabase
         .from('timetable_entries')
-        .update(data)
+        .update({ ...baseData, period: periodNum })
         .eq('id', editingEntry.id);
 
       if (error) {
@@ -182,23 +213,35 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
         fetchData();
       }
     } else {
-      const { error } = await supabase
+      // Insert first period
+      const { error: error1 } = await supabase
         .from('timetable_entries')
-        .insert(data);
+        .upsert({ ...baseData, period: periodNum }, { onConflict: 'user_id,day_of_week,period' });
 
-      if (error) {
-        if (error.code === '23505') {
-          toast.error('Diese Stunde ist bereits belegt');
-        } else {
-          toast.error('Fehler beim Speichern');
-          console.error(error);
-        }
-      } else {
-        toast.success('Stunde hinzugefügt');
-        setDialogOpen(false);
-        resetForm();
-        fetchData();
+      if (error1) {
+        toast.error('Fehler beim Speichern');
+        console.error(error1);
+        return;
       }
+
+      // Insert second period if double lesson
+      if (isDoubleLesson) {
+        const nextPeriod = periodNum + 1;
+        const { error: error2 } = await supabase
+          .from('timetable_entries')
+          .upsert({ ...baseData, period: nextPeriod }, { onConflict: 'user_id,day_of_week,period' });
+
+        if (error2) {
+          toast.error('Fehler beim Speichern der zweiten Stunde');
+          console.error(error2);
+          return;
+        }
+      }
+
+      toast.success(isDoubleLesson ? 'Doppelstunde hinzugefügt' : 'Stunde hinzugefügt');
+      setDialogOpen(false);
+      resetForm();
+      fetchData();
     }
   };
 
@@ -229,7 +272,6 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
       return;
     }
 
-    // Generate all absence entries
     const absenceEntries: { 
       user_id: string; 
       date: string; 
@@ -242,13 +284,11 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     let currentDate = new Date(fromDate);
     while (currentDate <= toDate) {
       const dayOfWeek = currentDate.getDay();
-      // Skip weekends (0 = Sunday, 6 = Saturday)
       if (dayOfWeek >= 1 && dayOfWeek <= 5) {
         const dateStr = format(currentDate, 'yyyy-MM-dd');
         const isFirstDay = isSameDay(currentDate, fromDate);
         const isLastDay = isSameDay(currentDate, toDate);
         
-        // Determine which periods to include
         let startPeriod = 1;
         let endPeriod = 9;
         
@@ -261,9 +301,8 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
           endPeriod = toPeriod;
         }
 
-        // Find timetable entries for this day and period range
         const dayEntries = entries.filter(
-          e => e.day_of_week === dayOfWeek && e.period >= startPeriod && e.period <= endPeriod
+          e => e.day_of_week === dayOfWeek && e.period >= startPeriod && e.period <= endPeriod && e.period !== 7
         );
 
         for (const entry of dayEntries) {
@@ -285,7 +324,6 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
       return;
     }
 
-    // Insert absences, ignoring duplicates
     const { error } = await supabase
       .from('lesson_absences')
       .upsert(absenceEntries, { 
@@ -333,12 +371,24 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     return 'bg-red-500/20 border-red-500/30 text-red-700 dark:text-red-300';
   };
 
-  // Generate week dates
+  // Check if current entry is part of a double lesson (same subject/teacher as previous period)
+  const isPartOfDouble = (day: number, periodNum: number) => {
+    const current = getEntryForSlot(day, periodNum);
+    const prev = getEntryForSlot(day, periodNum - 1);
+    if (!current || !prev) return false;
+    return current.subject_id === prev.subject_id && 
+           current.teacher_short === prev.teacher_short &&
+           periodNum !== 7 && periodNum - 1 !== 7;
+  };
+
   const weekDates = DAYS.map((_, i) => addDays(currentWeekStart, i));
 
   const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
   const goToCurrentWeek = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+
+  // Get available periods for selection (exclude lunch)
+  const availablePeriods = PERIOD_STRUCTURE.filter(p => !p.isLunch).map(p => p.period);
 
   if (loading) {
     return (
@@ -391,7 +441,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {PERIODS.map(p => (
+                        {availablePeriods.map(p => (
                           <SelectItem key={p} value={p.toString()}>{p}. Stunde</SelectItem>
                         ))}
                       </SelectContent>
@@ -414,7 +464,7 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {PERIODS.map(p => (
+                        {availablePeriods.map(p => (
                           <SelectItem key={p} value={p.toString()}>{p}. Stunde</SelectItem>
                         ))}
                       </SelectContent>
@@ -483,13 +533,30 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {PERIODS.map(p => (
+                        {availablePeriods.map(p => (
                           <SelectItem key={p} value={p.toString()}>{p}. Stunde</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+                
+                {!editingEntry && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="doubleLesson"
+                      checked={isDoubleLesson}
+                      onCheckedChange={(checked) => setIsDoubleLesson(checked as boolean)}
+                    />
+                    <label
+                      htmlFor="doubleLesson"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Doppelstunde (belegt auch die nächste Stunde)
+                    </label>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label>Fach</Label>
                   <Select value={subjectId} onValueChange={setSubjectId}>
@@ -585,54 +652,85 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
               </div>
             ))}
 
-            {/* Period rows */}
-            {PERIODS.map(periodNum => (
+            {/* Period rows with breaks */}
+            {PERIOD_STRUCTURE.map((periodInfo, idx) => (
               <>
-                <div key={`period-${periodNum}`} className="p-2 text-center text-muted-foreground text-sm flex items-center justify-center">
-                  {periodNum}.
-                </div>
-                {weekDates.map((date, dayIndex) => {
-                  const entry = getEntryForSlot(dayIndex + 1, periodNum);
-                  const absence = getAbsenceForSlot(date, entry);
-                  const dayHomework = entry ? getHomeworkForDay(date, entry.subject_id) : [];
-                  
-                  if (!entry) {
-                    return (
-                      <Card
-                        key={`${dayIndex}-${periodNum}`}
-                        className="p-2 min-h-[70px] flex flex-col justify-center items-center text-center bg-card/30 border-dashed cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => {
-                          setDayOfWeek((dayIndex + 1).toString());
-                          setPeriod(periodNum.toString());
-                          setDialogOpen(true);
-                        }}
-                      >
-                        <Plus className="w-4 h-4 text-muted-foreground/30" />
-                      </Card>
-                    );
-                  }
+                {/* Lunch break row */}
+                {periodInfo.isLunch ? (
+                  <div key={`lunch-${idx}`} className="col-span-6 py-2">
+                    <div className="flex items-center justify-center gap-2 py-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                      <UtensilsCrossed className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                        Mittagspause ({periodInfo.lunchDuration})
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Period label */}
+                    <div key={`period-${periodInfo.period}`} className="p-2 text-center text-muted-foreground text-sm flex items-center justify-center">
+                      {periodInfo.period}.
+                    </div>
+                    {/* Day cells */}
+                    {weekDates.map((date, dayIndex) => {
+                      const entry = getEntryForSlot(dayIndex + 1, periodInfo.period);
+                      const absence = getAbsenceForSlot(date, entry);
+                      const dayHomework = entry ? getHomeworkForDay(date, entry.subject_id) : [];
+                      const partOfDouble = isPartOfDouble(dayIndex + 1, periodInfo.period);
+                      
+                      if (!entry) {
+                        return (
+                          <Card
+                            key={`${dayIndex}-${periodInfo.period}`}
+                            className="p-2 min-h-[60px] flex flex-col justify-center items-center text-center bg-card/30 border-dashed cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => {
+                              setDayOfWeek((dayIndex + 1).toString());
+                              setPeriod(periodInfo.period.toString());
+                              setDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="w-4 h-4 text-muted-foreground/30" />
+                          </Card>
+                        );
+                      }
 
-                  return (
-                    <Card
-                      key={`${dayIndex}-${periodNum}`}
-                      className={`p-2 min-h-[70px] flex flex-col justify-between text-center cursor-pointer transition-all hover:scale-[1.02] border ${getSlotColor(absence)}`}
-                      onClick={() => openEdit(entry)}
-                    >
-                      <div>
-                        <span className="font-medium text-xs truncate block">
-                          {entry.subjects?.name || 'Kein Fach'}
-                        </span>
-                        <span className="text-xs opacity-70">{entry.teacher_short}</span>
-                      </div>
-                      {dayHomework.length > 0 && (
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <BookOpen className="w-3 h-3 text-blue-500" />
-                          <span className="text-xs text-blue-500">{dayHomework.length}</span>
+                      return (
+                        <Card
+                          key={`${dayIndex}-${periodInfo.period}`}
+                          className={`p-2 min-h-[60px] flex flex-col justify-between text-center cursor-pointer transition-all hover:scale-[1.02] border ${getSlotColor(absence)} ${
+                            partOfDouble ? 'rounded-t-none border-t-0 -mt-1' : ''
+                          }`}
+                          onClick={() => openEdit(entry)}
+                        >
+                          <div>
+                            <span className="font-medium text-xs truncate block">
+                              {entry.subjects?.name || 'Kein Fach'}
+                            </span>
+                            <span className="text-xs opacity-70">{entry.teacher_short}</span>
+                          </div>
+                          {dayHomework.length > 0 && (
+                            <div className="flex items-center justify-center gap-1 mt-1">
+                              <BookOpen className="w-3 h-3 text-blue-500" />
+                              <span className="text-xs text-blue-500">{dayHomework.length}</span>
+                            </div>
+                          )}
+                        </Card>
+                      );
+                    })}
+
+                    {/* Break row after certain periods */}
+                    {periodInfo.showBreakAfter && (
+                      <div key={`break-${periodInfo.period}`} className="col-span-6 py-1">
+                        <div className="flex items-center justify-center gap-2 py-1.5 bg-muted/50 rounded border border-border/30">
+                          <Coffee className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Pause ({periodInfo.breakDuration})
+                          </span>
                         </div>
-                      )}
-                    </Card>
-                  );
-                })}
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             ))}
           </div>
