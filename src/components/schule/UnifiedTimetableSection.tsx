@@ -18,6 +18,14 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { SubjectCard } from './SubjectCard';
 import { AddSubjectDialog } from './AddSubjectDialog';
 import { EditSubjectDialog } from './EditSubjectDialog';
+import { AddHolidayDialog } from './AddHolidayDialog';
+
+interface CustomHoliday {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+}
 
 interface Subject {
   id: string;
@@ -99,6 +107,7 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
   const [absences, setAbsences] = useState<LessonAbsence[]>([]);
   const [homework, setHomework] = useState<Homework[]>([]);
   const [holidays, setHolidays] = useState<SchoolHoliday[]>([]);
+  const [customHolidays, setCustomHolidays] = useState<CustomHoliday[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimetableEntry | null>(null);
@@ -232,30 +241,44 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
     setLoading(false);
   };
 
-  // Fetch holidays once on mount
-  useEffect(() => {
-    const fetchHolidays = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-school-holidays', {
-          body: { stateCode: 'NI' }, // Niedersachsen
-        });
-        
-        if (error) {
-          console.error('Error fetching holidays:', error);
-          return;
-        }
-        
-        if (data?.success && data?.holidays) {
-          setHolidays(data.holidays);
-          console.log('Loaded holidays:', data.holidays.length);
-        }
-      } catch (err) {
-        console.error('Failed to fetch holidays:', err);
-      }
-    };
+  // Fetch holidays (API + custom)
+  const fetchHolidays = async () => {
+    if (!user) return;
     
+    try {
+      // Fetch from API
+      const { data, error } = await supabase.functions.invoke('get-school-holidays', {
+        body: { stateCode: 'NI' },
+      });
+      
+      if (error) {
+        console.error('Error fetching API holidays:', error);
+      } else if (data?.success && data?.holidays) {
+        setHolidays(data.holidays);
+        console.log('Loaded API holidays:', data.holidays.length);
+      }
+      
+      // Fetch custom holidays from database
+      const { data: customData, error: customError } = await supabase
+        .from('custom_holidays')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('start_date');
+      
+      if (customError) {
+        console.error('Error fetching custom holidays:', customError);
+      } else if (customData) {
+        setCustomHolidays(customData);
+        console.log('Loaded custom holidays:', customData.length);
+      }
+    } catch (err) {
+      console.error('Failed to fetch holidays:', err);
+    }
+  };
+
+  useEffect(() => {
     fetchHolidays();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchData();
@@ -421,18 +444,30 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
     return 'bg-red-500/20 border-red-500/30 text-red-700 dark:text-red-300';
   };
 
-  // Check if a date is during school holidays
-  const getHolidayForDate = (date: Date): SchoolHoliday | null => {
+  // Check if a date is during school holidays (API or custom)
+  const getHolidayForDate = (date: Date): { name: string; isCustom?: boolean } | null => {
     const dateToCheck = date;
     
+    // Check API holidays
     for (const holiday of holidays) {
       const start = parseISO(holiday.start);
       const end = parseISO(holiday.end);
       
       if (isWithinInterval(dateToCheck, { start, end })) {
-        return holiday;
+        return { name: holiday.name };
       }
     }
+    
+    // Check custom holidays
+    for (const holiday of customHolidays) {
+      const start = parseISO(holiday.start_date);
+      const end = parseISO(holiday.end_date);
+      
+      if (isWithinInterval(dateToCheck, { start, end })) {
+        return { name: holiday.name, isCustom: true };
+      }
+    }
+    
     return null;
   };
 
@@ -597,6 +632,7 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
         </div>
 
         <div className="flex gap-2">
+          <AddHolidayDialog onHolidayAdded={fetchHolidays} />
           <AddSubjectDialog onSubjectAdded={fetchData} />
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
