@@ -584,100 +584,86 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
             {visibleDayIndices.map((dayIndex) => {
               const date = weekDates[dayIndex];
               return (
-              <div key={dayIndex} className="space-y-1">
-                {getDisplaySlots(dayIndex).map(slot => {
-                  if (!slot.entry) {
+                <div key={dayIndex} className="space-y-1">
+                  {getDisplaySlots(dayIndex).map(slot => {
+                    if (!slot.entry) {
+                      return (
+                        <div 
+                          key={slot.period} 
+                          className={`p-1 md:p-2 text-center text-[10px] md:text-xs text-muted-foreground/40 border border-dashed border-border/30 rounded ${slot.isDouble ? 'min-h-[50px] md:min-h-[70px]' : 'min-h-[32px] md:min-h-[40px]'}`}
+                        >
+                          {slot.period}.{slot.isDouble && `+${slot.period + 1}.`}
+                        </div>
+                      );
+                    }
+
+                    const absence = getAbsenceForSlot(date, slot.entry.id);
+                    const dateStr = format(date, 'yyyy-MM-dd');
+                    const isSelected = selectedSlots.has(`${dateStr}:${slot.entry.id}`);
+                    
+                    // Check if double lesson has absence
+                    let doubleHasAbsence = false;
+                    let doubleAbsence: LessonAbsence | undefined;
+                    if (slot.isDouble) {
+                      const nextEntry = getEntryForSlot(slot.entry.day_of_week, slot.entry.period + 1);
+                      if (nextEntry) {
+                        doubleAbsence = getAbsenceForSlot(date, nextEntry.id);
+                        doubleHasAbsence = !!(absence || doubleAbsence);
+                      }
+                    }
+
+                    const hasAbsence = absence || doubleHasAbsence;
+                    const displayAbsence = absence || doubleAbsence;
+
+                    // Get color based on absence reason
+                    const getSlotBg = () => {
+                      if (isSelected) return 'bg-primary/30 border-primary ring-2 ring-primary';
+                      if (hasAbsence) {
+                        const reason = displayAbsence?.reason || 'sick';
+                        if (reason === 'school_project') return 'bg-yellow-500/20 border-yellow-500/50';
+                        return 'bg-red-500/20 border-red-500/50';
+                      }
+                      return 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20';
+                    };
+
                     return (
-                      <div 
-                        key={slot.period} 
-                        className={`p-1 md:p-2 text-center text-[10px] md:text-xs text-muted-foreground/40 border border-dashed border-border/30 rounded ${slot.isDouble ? 'min-h-[50px] md:min-h-[70px]' : 'min-h-[32px] md:min-h-[40px]'}`}
+                      <div
+                        key={slot.period}
+                        className={`p-2 rounded border cursor-pointer transition-all ${getSlotBg()} ${slot.isDouble ? 'min-h-[70px]' : 'min-h-[40px]'}`}
+                        onClick={() => {
+                          if (hasAbsence) {
+                            handleDeleteSlot(date, slot.entry!, slot.isDouble);
+                          } else {
+                            toggleSlotSelection(date, slot.entry!, slot.isDouble);
+                          }
+                        }}
                       >
-                        {slot.period}.{slot.isDouble && `+${slot.period + 1}.`}
+                        <div className="flex flex-col items-center justify-center h-full gap-0.5">
+                          <span className="text-[10px] text-muted-foreground">
+                            {slot.period}.{slot.isDouble && `-${slot.period + 1}.`} Std
+                          </span>
+                          <span className="text-xs font-medium truncate max-w-full">
+                            {slot.entry.subjects?.short_name || slot.entry.subjects?.name?.slice(0, 6) || '-'}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {slot.entry.teacher_short}
+                          </span>
+                          {hasAbsence && displayAbsence && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              {displayAbsence.excused ? (
+                                <CheckCircle2 className="w-3 h-3 text-green-500" />
+                              ) : (
+                                <XCircle className="w-3 h-3 text-orange-500" />
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
-                  }
-
-                  const absence = getAbsenceForSlot(date, slot.entry.id);
-                  const dateStr = format(date, 'yyyy-MM-dd');
-                  const isSelected = selectedSlots.has(`${dateStr}:${slot.entry.id}`);
-                {getDisplaySlots(dayIndex).map(slot => {
-                  if (!slot.entry) {
-                    return (
-                      <div 
-                        key={slot.period} 
-                        className={`p-2 text-center text-xs text-muted-foreground/40 border border-dashed border-border/30 rounded ${slot.isDouble ? 'min-h-[70px]' : 'min-h-[40px]'}`}
-                      >
-                        {slot.period}.{slot.isDouble && `+${slot.period + 1}.`}
-                      </div>
-                    );
-                  }
-
-                  const absence = getAbsenceForSlot(date, slot.entry.id);
-                  const dateStr = format(date, 'yyyy-MM-dd');
-                  const isSelected = selectedSlots.has(`${dateStr}:${slot.entry.id}`);
-                  
-                  // Check if double lesson has absence
-                  let doubleHasAbsence = false;
-                  let doubleAbsence: LessonAbsence | undefined;
-                  if (slot.isDouble) {
-                    const nextEntry = getEntryForSlot(slot.entry.day_of_week, slot.entry.period + 1);
-                    if (nextEntry) {
-                      doubleAbsence = getAbsenceForSlot(date, nextEntry.id);
-                      doubleHasAbsence = !!(absence || doubleAbsence);
-                    }
-                  }
-
-                  const hasAbsence = absence || doubleHasAbsence;
-                  const displayAbsence = absence || doubleAbsence;
-
-                  // Get color based on absence reason
-                  const getSlotBg = () => {
-                    if (isSelected) return 'bg-primary/30 border-primary ring-2 ring-primary';
-                    if (hasAbsence) {
-                      const reason = displayAbsence?.reason || 'sick';
-                      if (reason === 'school_project') return 'bg-yellow-500/20 border-yellow-500/50';
-                      return 'bg-red-500/20 border-red-500/50';
-                    }
-                    return 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20';
-                  };
-
-                  return (
-                    <div
-                      key={slot.period}
-                      className={`p-2 rounded border cursor-pointer transition-all ${getSlotBg()} ${slot.isDouble ? 'min-h-[70px]' : 'min-h-[40px]'}`}
-                      onClick={() => {
-                        if (hasAbsence) {
-                          handleDeleteSlot(date, slot.entry!, slot.isDouble);
-                        } else {
-                          toggleSlotSelection(date, slot.entry!, slot.isDouble);
-                        }
-                      }}
-                    >
-                      <div className="flex flex-col items-center justify-center h-full gap-0.5">
-                        <span className="text-[10px] text-muted-foreground">
-                          {slot.period}.{slot.isDouble && `-${slot.period + 1}.`} Std
-                        </span>
-                        <span className="text-xs font-medium truncate max-w-full">
-                          {slot.entry.subjects?.short_name || slot.entry.subjects?.name?.slice(0, 6) || '-'}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {slot.entry.teacher_short}
-                        </span>
-                        {hasAbsence && displayAbsence && (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            {displayAbsence.excused ? (
-                              <CheckCircle2 className="w-3 h-3 text-green-500" />
-                            ) : (
-                              <XCircle className="w-3 h-3 text-orange-500" />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+                  })}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
