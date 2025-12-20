@@ -74,13 +74,16 @@ Deno.serve(async (req) => {
 });
 
 function formatHolidayName(name: string): string {
-  const nameMap: Record<string, string> = {
-    'winterferien': 'Winterferien',
-    'osterferien': 'Osterferien',
-    'pfingstferien': 'Pfingstferien',
-    'sommerferien': 'Sommerferien',
-    'herbstferien': 'Herbstferien',
-    'weihnachtsferien': 'Weihnachtsferien',
-  };
-  return nameMap[name.toLowerCase()] || name;
+  const lowerName = name.toLowerCase();
+  
+  // Check for each holiday type in the name
+  if (lowerName.includes('winterferien')) return 'Winterferien';
+  if (lowerName.includes('osterferien')) return 'Osterferien';
+  if (lowerName.includes('pfingstferien')) return 'Pfingstferien';
+  if (lowerName.includes('sommerferien')) return 'Sommerferien';
+  if (lowerName.includes('herbstferien')) return 'Herbstferien';
+  if (lowerName.includes('weihnachtsferien')) return 'Weihnachtsferien';
+  
+  // Default: capitalize first letter
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }
