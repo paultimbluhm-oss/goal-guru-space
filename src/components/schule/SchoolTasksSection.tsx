@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Users, GraduationCap, Plus, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, Users, GraduationCap, Plus, Trash2, Edit, ClipboardList } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -23,11 +23,11 @@ interface SchoolTask {
 
 interface SchoolTasksSectionProps {
   onBack: () => void;
-  taskType: 'classmate' | 'teacher';
 }
 
-export function SchoolTasksSection({ onBack, taskType }: SchoolTasksSectionProps) {
+export function SchoolTasksSection({ onBack }: SchoolTasksSectionProps) {
   const { user } = useAuth();
+  const [taskType, setTaskType] = useState<'classmate' | 'teacher'>('classmate');
   const [tasks, setTasks] = useState<SchoolTask[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<SchoolTask | null>(null);
@@ -36,10 +36,6 @@ export function SchoolTasksSection({ onBack, taskType }: SchoolTasksSectionProps
   const [personName, setPersonName] = useState('');
 
   const isClassmate = taskType === 'classmate';
-  const icon = isClassmate ? Users : GraduationCap;
-  const IconComponent = icon;
-  const color = isClassmate ? 'orange' : 'red';
-  const label = isClassmate ? 'Aufgaben für Mitschüler' : 'Aufgaben für Lehrer';
   const personLabel = isClassmate ? 'Mitschüler' : 'Lehrer';
 
   useEffect(() => {
@@ -144,10 +140,10 @@ export function SchoolTasksSection({ onBack, taskType }: SchoolTasksSectionProps
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className={`p-2.5 rounded-xl bg-${color}-500/20`}>
-            <IconComponent className={`w-5 h-5 text-${color}-500`} />
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20">
+            <ClipboardList className="w-5 h-5 text-orange-500" />
           </div>
-          <h2 className="text-xl font-bold">{label}</h2>
+          <h2 className="text-xl font-bold">Schulaufgaben</h2>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setDialogOpen(open); }}>
           <DialogTrigger asChild>
@@ -181,6 +177,28 @@ export function SchoolTasksSection({ onBack, taskType }: SchoolTasksSectionProps
         </Dialog>
       </div>
 
+      {/* Segment Toggle */}
+      <div className="flex gap-1 p-1 bg-muted rounded-lg">
+        <Button
+          variant={taskType === 'classmate' ? 'default' : 'ghost'}
+          size="sm"
+          className="flex-1 gap-2"
+          onClick={() => setTaskType('classmate')}
+        >
+          <Users className="w-4 h-4" />
+          Mitschüler
+        </Button>
+        <Button
+          variant={taskType === 'teacher' ? 'default' : 'ghost'}
+          size="sm"
+          className="flex-1 gap-2"
+          onClick={() => setTaskType('teacher')}
+        >
+          <GraduationCap className="w-4 h-4" />
+          Lehrer
+        </Button>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="glass-card p-4">
@@ -197,8 +215,12 @@ export function SchoolTasksSection({ onBack, taskType }: SchoolTasksSectionProps
       <div className="space-y-3">
         {tasks.length === 0 ? (
           <Card className="glass-card p-8 text-center">
-            <IconComponent className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">Noch keine Aufgaben</p>
+            {isClassmate ? (
+              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            ) : (
+              <GraduationCap className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            )}
+            <p className="text-muted-foreground">Noch keine Aufgaben für {isClassmate ? 'Mitschüler' : 'Lehrer'}</p>
             <p className="text-sm text-muted-foreground">Erstelle deine erste Aufgabe!</p>
           </Card>
         ) : (
