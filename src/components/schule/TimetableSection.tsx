@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, BookOpen, Coffee, UtensilsCrossed, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addWeeks, subWeeks, startOfWeek, addDays, getISOWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -571,14 +571,25 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                         const nextHomework = getHomeworkForDay(date, entry.subject_id);
                         const totalHomework = [...dayHomework, ...nextHomework.filter(h => !dayHomework.some(d => d.id === h.id))];
                         const worstAbsence = absence || nextAbsence;
+                        const isExcused = worstAbsence?.excused;
                         
                         return (
                           <Card
                             key={`${dayIndex}-${periodInfo.period}`}
-                            className={`p-2 min-h-[120px] flex flex-col justify-center text-center cursor-pointer transition-all hover:scale-[1.02] border row-span-2 ${getSlotColor(worstAbsence)}`}
+                            className={`p-2 min-h-[120px] flex flex-col justify-center text-center cursor-pointer transition-all hover:scale-[1.02] border row-span-2 relative ${getSlotColor(worstAbsence)}`}
                             style={{ gridRow: 'span 2' }}
                             onClick={() => openEdit(entry)}
                           >
+                            {/* Excused/Not excused indicator */}
+                            {worstAbsence && (
+                              <div className="absolute top-1 right-1">
+                                {isExcused ? (
+                                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <XCircle className="w-4 h-4 text-orange-500" />
+                                )}
+                              </div>
+                            )}
                             <div className="flex flex-col items-center gap-1">
                               <span className="font-semibold text-sm truncate block">
                                 {entry.subjects?.name || 'Kein Fach'}
@@ -605,9 +616,19 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
                       return (
                         <Card
                           key={`${dayIndex}-${periodInfo.period}`}
-                          className={`p-2 min-h-[60px] flex flex-col justify-between text-center cursor-pointer transition-all hover:scale-[1.02] border ${getSlotColor(absence)}`}
+                          className={`p-2 min-h-[60px] flex flex-col justify-between text-center cursor-pointer transition-all hover:scale-[1.02] border relative ${getSlotColor(absence)}`}
                           onClick={() => openEdit(entry)}
                         >
+                          {/* Excused/Not excused indicator */}
+                          {absence && (
+                            <div className="absolute top-1 right-1">
+                              {absence.excused ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                              ) : (
+                                <XCircle className="w-3.5 h-3.5 text-orange-500" />
+                              )}
+                            </div>
+                          )}
                           <div>
                             <span className="font-medium text-xs truncate block">
                               {entry.subjects?.name || 'Kein Fach'}
