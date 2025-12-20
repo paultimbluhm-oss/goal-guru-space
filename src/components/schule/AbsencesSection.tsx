@@ -1,16 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, addDays, startOfWeek, getISOWeek, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 interface TimetableEntry {
@@ -18,6 +13,8 @@ interface TimetableEntry {
   day_of_week: number;
   period: number;
   teacher_short: string;
+  week_type: string;
+  subject_id: string | null;
   subjects: { id: string; name: string } | null;
 }
 
@@ -35,41 +32,55 @@ interface AbsencesSectionProps {
   onBack: () => void;
 }
 
+const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+const DAYS_FULL = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 const HOURS_PER_DAY = 8;
-const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 
-const reasonLabels: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  sick: { label: 'Krank', icon: Thermometer, color: 'from-red-500 to-rose-600' },
-  doctor: { label: 'Arztbesuch', icon: Stethoscope, color: 'from-blue-500 to-indigo-600' },
-  school_project: { label: 'Schulprojekt', icon: FolderKanban, color: 'from-purple-500 to-violet-600' },
-  other: { label: 'Sonstiges', icon: HelpCircle, color: 'from-gray-500 to-slate-600' },
-};
+const REASONS = [
+  { value: 'sick', label: 'Krank', icon: Thermometer, color: 'bg-red-500' },
+  { value: 'doctor', label: 'Arzt', icon: Stethoscope, color: 'bg-blue-500' },
+  { value: 'school_project', label: 'Schulprojekt', icon: FolderKanban, color: 'bg-yellow-500' },
+  { value: 'other', label: 'Sonstiges', icon: HelpCircle, color: 'bg-gray-500' },
+] as const;
+
+type ReasonType = typeof REASONS[number]['value'];
 
 export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   const { user } = useAuth();
   const [absences, setAbsences] = useState<LessonAbsence[]>([]);
   const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Week navigation
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => 
+    startOfWeek(new Date(), { weekStartsOn: 1 })
+  );
+  
+  // Selection state for adding absences
+  const [selectedReason, setSelectedReason] = useState<ReasonType>('sick');
+  const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
 
-  // Form state
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [reason, setReason] = useState<'sick' | 'doctor' | 'school_project' | 'other'>('sick');
-  const [selectedLessons, setSelectedLessons] = useState<string[]>([]);
-  const [description, setDescription] = useState('');
+  const weekDates = DAYS.map((_, i) => addDays(currentWeekStart, i));
+  const currentWeekNum = getISOWeek(currentWeekStart);
+  const isOddWeek = currentWeekNum % 2 === 1;
 
   const fetchData = async () => {
     if (!user) return;
 
+    const weekEnd = addDays(currentWeekStart, 6);
+    const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd');
+    const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
+
     const [absencesRes, timetableRes] = await Promise.all([
       supabase
         .from('lesson_absences')
-        .select('*, timetable_entries(id, day_of_week, period, teacher_short, subjects(id, name))')
+        .select('*, timetable_entries(id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name))')
         .eq('user_id', user.id)
-        .order('date', { ascending: false }),
+        .gte('date', weekStartStr)
+        .lte('date', weekEndStr),
       supabase
         .from('timetable_entries')
-        .select('id, day_of_week, period, teacher_short, subjects(id, name)')
+        .select('id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name)')
         .eq('user_id', user.id)
         .order('period'),
     ]);
@@ -84,60 +95,128 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+    setSelectedSlots(new Set());
+  }, [user, currentWeekStart]);
 
-  // Get the day of week for the selected date (1 = Monday, 5 = Friday)
-  const getSelectedDayOfWeek = () => {
-    const dateObj = new Date(date);
-    const day = dateObj.getDay();
-    // Convert Sunday (0) to 7, then map to 1-5 for Mon-Fri
-    return day === 0 ? 7 : day;
+  // Get entry for a specific slot, respecting A/B weeks
+  const getEntryForSlot = (day: number, period: number) => {
+    return timetableEntries.find(e => {
+      if (e.day_of_week !== day || e.period !== period) return false;
+      if (e.week_type === 'both') return true;
+      if (e.week_type === 'odd' && isOddWeek) return true;
+      if (e.week_type === 'even' && !isOddWeek) return true;
+      return false;
+    });
   };
 
-  // Get lessons for the selected day
-  const getLessonsForSelectedDay = () => {
-    const dayOfWeek = getSelectedDayOfWeek();
-    return timetableEntries
-      .filter(e => e.day_of_week === dayOfWeek)
-      .sort((a, b) => a.period - b.period);
+  // Check if two consecutive periods form a double lesson
+  const isStartOfDouble = (day: number, period: number) => {
+    const current = getEntryForSlot(day, period);
+    const next = getEntryForSlot(day, period + 1);
+    if (!current || !next) return false;
+    return current.subject_id === next.subject_id && 
+           current.teacher_short === next.teacher_short &&
+           current.week_type === next.week_type &&
+           period !== 6 && period + 1 !== 7;
   };
 
-  const handleSubmit = async () => {
-    if (!user) return;
+  const isSecondOfDouble = (day: number, period: number) => {
+    const current = getEntryForSlot(day, period);
+    const prev = getEntryForSlot(day, period - 1);
+    if (!current || !prev) return false;
+    return current.subject_id === prev.subject_id && 
+           current.teacher_short === prev.teacher_short &&
+           current.week_type === prev.week_type &&
+           period !== 7 && period - 1 !== 7;
+  };
 
-    if (selectedLessons.length === 0) {
-      toast.error('Bitte wähle mindestens eine Stunde aus');
-      return;
+  // Get absence for a slot
+  const getAbsenceForSlot = (date: Date, entryId: string) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return absences.find(a => a.date === dateStr && a.timetable_entry_id === entryId);
+  };
+
+  // Build visible periods (1-9 except 7 which is lunch)
+  const visiblePeriods = [1, 2, 3, 4, 5, 6, 8, 9];
+
+  // Group consecutive periods into display slots
+  const getDisplaySlots = (dayIndex: number) => {
+    const day = dayIndex + 1;
+    const slots: { period: number; isDouble: boolean; entry: TimetableEntry | undefined }[] = [];
+    
+    for (const period of visiblePeriods) {
+      const entry = getEntryForSlot(day, period);
+      if (isSecondOfDouble(day, period)) continue; // Skip second part of double
+      
+      slots.push({
+        period,
+        isDouble: isStartOfDouble(day, period),
+        entry,
+      });
     }
+    
+    return slots;
+  };
 
-    const inserts = selectedLessons.map(entryId => ({
-      user_id: user.id,
-      date,
-      timetable_entry_id: entryId,
-      reason,
-      description: description || null,
-      excused: false,
-    }));
+  // Handle slot selection
+  const toggleSlotSelection = (date: Date, entry: TimetableEntry, isDouble: boolean) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const key = `${dateStr}:${entry.id}`;
+    const newSelected = new Set(selectedSlots);
+    
+    if (newSelected.has(key)) {
+      newSelected.delete(key);
+      // If double lesson, also remove the second period
+      if (isDouble) {
+        const nextEntry = getEntryForSlot(entry.day_of_week, entry.period + 1);
+        if (nextEntry) {
+          newSelected.delete(`${dateStr}:${nextEntry.id}`);
+        }
+      }
+    } else {
+      newSelected.add(key);
+      // If double lesson, also add the second period
+      if (isDouble) {
+        const nextEntry = getEntryForSlot(entry.day_of_week, entry.period + 1);
+        if (nextEntry) {
+          newSelected.add(`${dateStr}:${nextEntry.id}`);
+        }
+      }
+    }
+    
+    setSelectedSlots(newSelected);
+  };
+
+  // Submit selected absences
+  const handleSubmitAbsences = async () => {
+    if (!user || selectedSlots.size === 0) return;
+
+    const inserts = Array.from(selectedSlots).map(key => {
+      const [dateStr, entryId] = key.split(':');
+      return {
+        user_id: user.id,
+        date: dateStr,
+        timetable_entry_id: entryId,
+        reason: selectedReason,
+        excused: false,
+      };
+    });
 
     const { error } = await supabase
       .from('lesson_absences')
-      .insert(inserts);
+      .upsert(inserts, { onConflict: 'user_id,date,timetable_entry_id' });
 
     if (error) {
-      if (error.code === '23505') {
-        toast.error('Diese Stunden wurden bereits eingetragen');
-      } else {
-        toast.error('Fehler beim Speichern');
-        console.error(error);
-      }
+      toast.error('Fehler beim Speichern');
+      console.error(error);
     } else {
-      toast.success(`${selectedLessons.length} Fehlstunde(n) eingetragen`);
-      setDialogOpen(false);
-      resetForm();
+      toast.success(`${selectedSlots.size} Fehlstunde(n) eingetragen`);
+      setSelectedSlots(new Set());
       fetchData();
     }
   };
 
+  // Toggle excused status
   const toggleExcused = async (id: string, currentExcused: boolean) => {
     const { error } = await supabase
       .from('lesson_absences')
@@ -152,7 +231,8 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  // Delete absence
+  const handleDeleteAbsence = async (id: string) => {
     const { error } = await supabase
       .from('lesson_absences')
       .delete()
@@ -161,44 +241,44 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     if (error) {
       toast.error('Fehler beim Löschen');
     } else {
-      toast.success('Fehlstunde gelöscht');
+      toast.success('Gelöscht');
       fetchData();
     }
   };
 
-  const resetForm = () => {
-    setDate(format(new Date(), 'yyyy-MM-dd'));
-    setReason('sick');
-    setSelectedLessons([]);
-    setDescription('');
+  // Delete all absences for a slot (including double lessons)
+  const handleDeleteSlot = async (date: Date, entry: TimetableEntry, isDouble: boolean) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const idsToDelete = [entry.id];
+    
+    if (isDouble) {
+      const nextEntry = getEntryForSlot(entry.day_of_week, entry.period + 1);
+      if (nextEntry) idsToDelete.push(nextEntry.id);
+    }
+
+    const { error } = await supabase
+      .from('lesson_absences')
+      .delete()
+      .eq('user_id', user!.id)
+      .eq('date', dateStr)
+      .in('timetable_entry_id', idsToDelete);
+
+    if (error) {
+      toast.error('Fehler beim Löschen');
+    } else {
+      toast.success('Fehlzeit entfernt');
+      fetchData();
+    }
   };
 
-  // Calculate statistics
+  // Statistics
   const totalHours = absences.length;
-  const realAbsenceHours = absences.filter(a => a.reason === 'sick' || a.reason === 'doctor').length;
-  const projectHours = absences.filter(a => a.reason === 'school_project').length;
   const excusedCount = absences.filter(a => a.excused).length;
   const unexcusedCount = absences.filter(a => !a.excused).length;
 
-  const hoursToDay = (h: number) => (h / HOURS_PER_DAY).toFixed(1);
-
-  // Group absences by teacher for overview
-  const absencesByTeacher = absences.reduce((acc, absence) => {
-    const teacher = absence.timetable_entries.teacher_short;
-    if (!acc[teacher]) {
-      acc[teacher] = { total: 0, excused: 0, unexcused: 0 };
-    }
-    acc[teacher].total++;
-    if (absence.excused) {
-      acc[teacher].excused++;
-    } else {
-      acc[teacher].unexcused++;
-    }
-    return acc;
-  }, {} as Record<string, { total: number; excused: number; unexcused: number }>);
-
-  const lessonsForDay = getLessonsForSelectedDay();
-  const isWeekend = getSelectedDayOfWeek() > 5;
+  const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
+  const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+  const goToCurrentWeek = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   if (loading) {
     return (
@@ -218,271 +298,262 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
           </Button>
           <div>
             <h2 className="text-xl md:text-2xl font-bold">Fehltage</h2>
-            <p className="text-sm text-muted-foreground">Übersicht deiner Abwesenheiten</p>
+            <p className="text-sm text-muted-foreground">Tippe auf Stunden zum Auswählen</p>
           </div>
         </div>
+      </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-2">
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Eintragen</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Fehlstunden eintragen</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Datum</Label>
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => {
-                    setDate(e.target.value);
-                    setSelectedLessons([]);
-                  }}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Grund</Label>
-                <Select value={reason} onValueChange={(v) => setReason(v as typeof reason)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sick">Krank</SelectItem>
-                    <SelectItem value="doctor">Arztbesuch</SelectItem>
-                    <SelectItem value="school_project">Schulprojekt</SelectItem>
-                    <SelectItem value="other">Sonstiges</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Fehlende Stunden auswählen</Label>
-                {timetableEntries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Bitte erstelle zuerst deinen Stundenplan.
-                  </p>
-                ) : isWeekend ? (
-                  <p className="text-sm text-muted-foreground">
-                    Am Wochenende gibt es keinen Unterricht.
-                  </p>
-                ) : lessonsForDay.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Keine Stunden für {DAYS[getSelectedDayOfWeek() - 1]} im Stundenplan.
-                  </p>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {lessonsForDay.map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <Checkbox
-                          id={entry.id}
-                          checked={selectedLessons.includes(entry.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedLessons([...selectedLessons, entry.id]);
-                            } else {
-                              setSelectedLessons(selectedLessons.filter(id => id !== entry.id));
-                            }
-                          }}
-                        />
-                        <label htmlFor={entry.id} className="flex-1 cursor-pointer text-sm">
-                          <span className="font-medium">{entry.period}. Stunde</span>
-                          <span className="text-muted-foreground ml-2">
-                            {entry.subjects?.name || 'Kein Fach'} ({entry.teacher_short})
-                          </span>
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Beschreibung (optional)</Label>
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="z.B. Zahnarzt, Kopfschmerzen..."
-                />
-              </div>
-
-              <Button 
-                onClick={handleSubmit} 
-                className="w-full"
-                disabled={selectedLessons.length === 0}
+      {/* Reason Selector */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Grund auswählen:</p>
+        <div className="flex flex-wrap gap-2">
+          {REASONS.map(reason => {
+            const Icon = reason.icon;
+            const isActive = selectedReason === reason.value;
+            return (
+              <Button
+                key={reason.value}
+                variant={isActive ? 'default' : 'outline'}
+                size="sm"
+                className={`gap-2 ${isActive ? '' : 'opacity-60'}`}
+                onClick={() => setSelectedReason(reason.value)}
               >
-                {selectedLessons.length} Stunde(n) eintragen
+                <Icon className="w-4 h-4" />
+                {reason.label}
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-gray-500 to-slate-600">
-              <Clock className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Gesamt</p>
-              <p className="text-lg font-bold">{totalHours} Std</p>
-              <p className="text-xs text-muted-foreground">= {hoursToDay(totalHours)} Tage</p>
-            </div>
+      {/* Week Navigation */}
+      <div className="flex items-center justify-between gap-4">
+        <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <div className="text-center">
+          <p className="font-medium">
+            {format(currentWeekStart, 'dd. MMM', { locale: de })} - {format(addDays(currentWeekStart, 4), 'dd. MMM yyyy', { locale: de })}
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${isOddWeek ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+              {isOddWeek ? 'A-Woche' : 'B-Woche'}
+            </span>
+            <span className="text-xs text-muted-foreground">(KW {currentWeekNum})</span>
           </div>
-        </Card>
-
-        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-rose-600">
-              <Thermometer className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Krank/Arzt</p>
-              <p className="text-lg font-bold">{realAbsenceHours} Std</p>
-              <p className="text-xs text-muted-foreground">= {hoursToDay(realAbsenceHours)} Tage</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600">
-              <CheckCircle2 className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Entschuldigt</p>
-              <p className="text-lg font-bold">{excusedCount} Std</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600">
-              <XCircle className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Nicht entschuldigt</p>
-              <p className="text-lg font-bold">{unexcusedCount} Std</p>
-            </div>
-          </div>
-        </Card>
+          <Button variant="link" size="sm" onClick={goToCurrentWeek} className="text-muted-foreground">
+            Zur aktuellen Woche
+          </Button>
+        </div>
+        <Button variant="outline" size="icon" onClick={goToNextWeek}>
+          <ChevronRight className="w-4 h-4" />
+        </Button>
       </div>
 
-      {/* Absences by Teacher */}
-      {Object.keys(absencesByTeacher).length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-lg">Nach Lehrer</h3>
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(absencesByTeacher).map(([teacher, stats]) => (
-              <Card key={teacher} className="p-3 bg-card/80 backdrop-blur-sm border-border/50">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{teacher}</span>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-green-500">{stats.excused}✓</span>
-                    <span className="text-orange-500">{stats.unexcused}✗</span>
-                    <span className="text-muted-foreground">= {stats.total}</span>
-                  </div>
-                </div>
-              </Card>
+      {/* Weekly Calendar Grid */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[600px]">
+          {/* Day Headers */}
+          <div className="grid grid-cols-5 gap-2 mb-2">
+            {weekDates.map((date, i) => (
+              <div key={i} className="text-center p-2 bg-muted/50 rounded-lg">
+                <div className="font-medium">{DAYS[i]}</div>
+                <div className="text-xs text-muted-foreground">{format(date, 'dd.MM')}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Slots Grid */}
+          <div className="grid grid-cols-5 gap-2">
+            {weekDates.map((date, dayIndex) => (
+              <div key={dayIndex} className="space-y-1">
+                {getDisplaySlots(dayIndex).map(slot => {
+                  if (!slot.entry) {
+                    return (
+                      <div 
+                        key={slot.period} 
+                        className={`p-2 text-center text-xs text-muted-foreground/40 border border-dashed border-border/30 rounded ${slot.isDouble ? 'min-h-[70px]' : 'min-h-[40px]'}`}
+                      >
+                        {slot.period}.{slot.isDouble && `+${slot.period + 1}.`}
+                      </div>
+                    );
+                  }
+
+                  const absence = getAbsenceForSlot(date, slot.entry.id);
+                  const dateStr = format(date, 'yyyy-MM-dd');
+                  const isSelected = selectedSlots.has(`${dateStr}:${slot.entry.id}`);
+                  
+                  // Check if double lesson has absence
+                  let doubleHasAbsence = false;
+                  let doubleAbsence: LessonAbsence | undefined;
+                  if (slot.isDouble) {
+                    const nextEntry = getEntryForSlot(slot.entry.day_of_week, slot.entry.period + 1);
+                    if (nextEntry) {
+                      doubleAbsence = getAbsenceForSlot(date, nextEntry.id);
+                      doubleHasAbsence = !!(absence || doubleAbsence);
+                    }
+                  }
+
+                  const hasAbsence = absence || doubleHasAbsence;
+                  const displayAbsence = absence || doubleAbsence;
+
+                  // Get color based on absence reason
+                  const getSlotBg = () => {
+                    if (isSelected) return 'bg-primary/30 border-primary ring-2 ring-primary';
+                    if (hasAbsence) {
+                      const reason = displayAbsence?.reason || 'sick';
+                      if (reason === 'school_project') return 'bg-yellow-500/20 border-yellow-500/50';
+                      return 'bg-red-500/20 border-red-500/50';
+                    }
+                    return 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20';
+                  };
+
+                  return (
+                    <div
+                      key={slot.period}
+                      className={`p-2 rounded border cursor-pointer transition-all ${getSlotBg()} ${slot.isDouble ? 'min-h-[70px]' : 'min-h-[40px]'}`}
+                      onClick={() => {
+                        if (hasAbsence) {
+                          handleDeleteSlot(date, slot.entry!, slot.isDouble);
+                        } else {
+                          toggleSlotSelection(date, slot.entry!, slot.isDouble);
+                        }
+                      }}
+                    >
+                      <div className="flex flex-col items-center justify-center h-full gap-0.5">
+                        <span className="text-[10px] text-muted-foreground">
+                          {slot.period}.{slot.isDouble && `-${slot.period + 1}.`} Std
+                        </span>
+                        <span className="text-xs font-medium truncate max-w-full">
+                          {slot.entry.subjects?.name?.slice(0, 6) || '-'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {slot.entry.teacher_short}
+                        </span>
+                        {hasAbsence && displayAbsence && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {displayAbsence.excused ? (
+                              <CheckCircle2 className="w-3 h-3 text-green-500" />
+                            ) : (
+                              <XCircle className="w-3 h-3 text-orange-500" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Selection Action Bar */}
+      {selectedSlots.size > 0 && (
+        <Card className="p-4 bg-primary/10 border-primary/30 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Plus className="w-5 h-5 text-primary" />
+            <span className="font-medium">{selectedSlots.size} Stunde(n) ausgewählt</span>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedSlots(new Set())}>
+              Abbrechen
+            </Button>
+            <Button size="sm" onClick={handleSubmitAbsences}>
+              Eintragen
+            </Button>
+          </div>
+        </Card>
       )}
 
-      {/* Absences List */}
-      <div className="space-y-3">
-        <h3 className="font-semibold text-lg">Alle Einträge</h3>
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-xs">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-green-500/20 border border-green-500/30" />
+          <span>Anwesend</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-red-500/20 border border-red-500/50" />
+          <span>Abwesend</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-yellow-500/20 border border-yellow-500/50" />
+          <span>Schulprojekt</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <CheckCircle2 className="w-3 h-3 text-green-500" />
+          <span>Entschuldigt</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <XCircle className="w-3 h-3 text-orange-500" />
+          <span>Nicht entschuldigt</span>
+        </div>
+      </div>
 
-        {absences.length === 0 ? (
-          <Card className="p-8 text-center bg-card/80 backdrop-blur-sm border-border/50">
-            <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">Noch keine Fehlstunden eingetragen</p>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {absences.map((absence) => {
-              const reasonInfo = reasonLabels[absence.reason];
-              const Icon = reasonInfo.icon;
-              const entry = absence.timetable_entries;
+      {/* Statistics */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="p-3 bg-card/80 backdrop-blur-sm border-border/50 text-center">
+          <div className="text-2xl font-bold">{totalHours}</div>
+          <div className="text-xs text-muted-foreground">Diese Woche</div>
+        </Card>
+        <Card className="p-3 bg-card/80 backdrop-blur-sm border-border/50 text-center">
+          <div className="text-2xl font-bold text-green-500">{excusedCount}</div>
+          <div className="text-xs text-muted-foreground">Entschuldigt</div>
+        </Card>
+        <Card className="p-3 bg-card/80 backdrop-blur-sm border-border/50 text-center">
+          <div className="text-2xl font-bold text-orange-500">{unexcusedCount}</div>
+          <div className="text-xs text-muted-foreground">Offen</div>
+        </Card>
+      </div>
 
+      {/* This Week's Absences List */}
+      {absences.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Fehlzeiten dieser Woche</h3>
+          <div className="space-y-1">
+            {absences.map(absence => {
+              const reason = REASONS.find(r => r.value === absence.reason);
+              const Icon = reason?.icon || HelpCircle;
+              
               return (
-                <Card
+                <div
                   key={absence.id}
-                  className={`p-4 bg-card/80 backdrop-blur-sm border-border/50 flex items-center gap-4 ${
+                  className={`flex items-center gap-3 p-2 rounded-lg bg-card/80 border ${
                     absence.excused ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-orange-500'
                   }`}
                 >
-                  <div className={`p-2 rounded-lg bg-gradient-to-br ${reasonInfo.color}`}>
-                    <Icon className="w-4 h-4 text-white" />
-                  </div>
+                  <Icon className={`w-4 h-4 ${reason?.color.replace('bg-', 'text-')}`} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium">
-                        {format(new Date(absence.date), 'dd.MM.yyyy', { locale: de })}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {entry.period}. Std • {entry.subjects?.name || 'Kein Fach'}
-                      </span>
-                      <span className="text-sm font-medium text-primary">
-                        ({entry.teacher_short})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted">
-                        {reasonInfo.label}
-                      </span>
-                      {absence.description && (
-                        <span className="text-xs text-muted-foreground truncate">
-                          {absence.description}
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-sm font-medium">
+                      {format(new Date(absence.date), 'EEE dd.MM', { locale: de })}
+                    </span>
+                    <span className="text-sm text-muted-foreground ml-2">
+                      {absence.timetable_entries.period}. Std - {absence.timetable_entries.subjects?.name || '-'}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={absence.excused ? 'default' : 'outline'}
-                      size="sm"
-                      className="gap-1"
-                      onClick={() => toggleExcused(absence.id, absence.excused)}
-                    >
-                      {absence.excused ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Entschuldigt</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Offen</span>
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDelete(absence.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </Card>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={absence.excused ? 'text-green-500' : 'text-orange-500'}
+                    onClick={() => toggleExcused(absence.id, absence.excused)}
+                  >
+                    {absence.excused ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive h-8 w-8"
+                    onClick={() => handleDeleteAbsence(absence.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
