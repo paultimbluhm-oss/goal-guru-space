@@ -600,6 +600,47 @@ export type Database = {
         }
         Relationships: []
       }
+      lesson_absences: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          excused: boolean
+          id: string
+          reason: Database["public"]["Enums"]["absence_reason"]
+          timetable_entry_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description?: string | null
+          excused?: boolean
+          id?: string
+          reason?: Database["public"]["Enums"]["absence_reason"]
+          timetable_entry_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          excused?: boolean
+          id?: string
+          reason?: Database["public"]["Enums"]["absence_reason"]
+          timetable_entry_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_absences_timetable_entry_id_fkey"
+            columns: ["timetable_entry_id"]
+            isOneToOne: false
+            referencedRelation: "timetable_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       milestone_items: {
         Row: {
           completed: boolean | null
@@ -1145,6 +1186,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      timetable_entries: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          id: string
+          period: number
+          room: string | null
+          subject_id: string | null
+          teacher_short: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          id?: string
+          period: number
+          room?: string | null
+          subject_id?: string | null
+          teacher_short: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          period?: number
+          room?: string | null
+          subject_id?: string | null
+          teacher_short?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timetable_entries_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {

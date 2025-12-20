@@ -7,26 +7,36 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Plus, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ArrowLeft, Plus, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
-interface Absence {
+interface TimetableEntry {
+  id: string;
+  day_of_week: number;
+  period: number;
+  teacher_short: string;
+  subjects: { id: string; name: string } | null;
+}
+
+interface LessonAbsence {
   id: string;
   date: string;
-  hours: number;
   reason: 'sick' | 'doctor' | 'school_project' | 'other';
+  excused: boolean;
   description: string | null;
-  created_at: string;
+  timetable_entry_id: string;
+  timetable_entries: TimetableEntry;
 }
 
 interface AbsencesSectionProps {
   onBack: () => void;
 }
 
-const HOURS_PER_DAY = 8; // Standard school day hours
+const HOURS_PER_DAY = 8;
+const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 
 const reasonLabels: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   sick: { label: 'Krank', icon: Thermometer, color: 'from-red-500 to-rose-600' },
@@ -37,108 +47,158 @@ const reasonLabels: Record<string, { label: string; icon: React.ElementType; col
 
 export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   const { user } = useAuth();
-  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [absences, setAbsences] = useState<LessonAbsence[]>([]);
+  const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Form state
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [hours, setHours] = useState('1');
   const [reason, setReason] = useState<'sick' | 'doctor' | 'school_project' | 'other'>('sick');
+  const [selectedLessons, setSelectedLessons] = useState<string[]>([]);
   const [description, setDescription] = useState('');
 
-  const fetchAbsences = async () => {
+  const fetchData = async () => {
     if (!user) return;
-    
-    const { data, error } = await supabase
-      .from('absences')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false });
 
-    if (error) {
-      toast.error('Fehler beim Laden der Fehltage');
-      console.error(error);
-    } else {
-      setAbsences(data || []);
-    }
+    const [absencesRes, timetableRes] = await Promise.all([
+      supabase
+        .from('lesson_absences')
+        .select('*, timetable_entries(id, day_of_week, period, teacher_short, subjects(id, name))')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false }),
+      supabase
+        .from('timetable_entries')
+        .select('id, day_of_week, period, teacher_short, subjects(id, name)')
+        .eq('user_id', user.id)
+        .order('period'),
+    ]);
+
+    if (absencesRes.error) console.error(absencesRes.error);
+    if (timetableRes.error) console.error(timetableRes.error);
+
+    setAbsences(absencesRes.data || []);
+    setTimetableEntries(timetableRes.data || []);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchAbsences();
+    fetchData();
   }, [user]);
+
+  // Get the day of week for the selected date (1 = Monday, 5 = Friday)
+  const getSelectedDayOfWeek = () => {
+    const dateObj = new Date(date);
+    const day = dateObj.getDay();
+    // Convert Sunday (0) to 7, then map to 1-5 for Mon-Fri
+    return day === 0 ? 7 : day;
+  };
+
+  // Get lessons for the selected day
+  const getLessonsForSelectedDay = () => {
+    const dayOfWeek = getSelectedDayOfWeek();
+    return timetableEntries
+      .filter(e => e.day_of_week === dayOfWeek)
+      .sort((a, b) => a.period - b.period);
+  };
 
   const handleSubmit = async () => {
     if (!user) return;
 
-    const hoursNum = parseInt(hours);
-    if (isNaN(hoursNum) || hoursNum < 1 || hoursNum > 12) {
-      toast.error('Bitte gib eine gültige Stundenanzahl ein (1-12)');
+    if (selectedLessons.length === 0) {
+      toast.error('Bitte wähle mindestens eine Stunde aus');
       return;
     }
 
+    const inserts = selectedLessons.map(entryId => ({
+      user_id: user.id,
+      date,
+      timetable_entry_id: entryId,
+      reason,
+      description: description || null,
+      excused: false,
+    }));
+
     const { error } = await supabase
-      .from('absences')
-      .insert({
-        user_id: user.id,
-        date,
-        hours: hoursNum,
-        reason,
-        description: description || null,
-      });
+      .from('lesson_absences')
+      .insert(inserts);
 
     if (error) {
-      toast.error('Fehler beim Speichern');
-      console.error(error);
+      if (error.code === '23505') {
+        toast.error('Diese Stunden wurden bereits eingetragen');
+      } else {
+        toast.error('Fehler beim Speichern');
+        console.error(error);
+      }
     } else {
-      toast.success('Fehltag eingetragen');
+      toast.success(`${selectedLessons.length} Fehlstunde(n) eingetragen`);
       setDialogOpen(false);
       resetForm();
-      fetchAbsences();
+      fetchData();
+    }
+  };
+
+  const toggleExcused = async (id: string, currentExcused: boolean) => {
+    const { error } = await supabase
+      .from('lesson_absences')
+      .update({ excused: !currentExcused })
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Fehler beim Aktualisieren');
+    } else {
+      toast.success(currentExcused ? 'Als nicht entschuldigt markiert' : 'Als entschuldigt markiert');
+      fetchData();
     }
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase
-      .from('absences')
+      .from('lesson_absences')
       .delete()
       .eq('id', id);
 
     if (error) {
       toast.error('Fehler beim Löschen');
     } else {
-      toast.success('Fehltag gelöscht');
-      fetchAbsences();
+      toast.success('Fehlstunde gelöscht');
+      fetchData();
     }
   };
 
   const resetForm = () => {
     setDate(format(new Date(), 'yyyy-MM-dd'));
-    setHours('1');
     setReason('sick');
+    setSelectedLessons([]);
     setDescription('');
   };
 
   // Calculate statistics
-  const stats = absences.reduce(
-    (acc, absence) => {
-      acc.totalHours += absence.hours;
-      if (absence.reason === 'sick' || absence.reason === 'doctor') {
-        acc.realAbsenceHours += absence.hours;
-      }
-      if (absence.reason === 'school_project') {
-        acc.projectHours += absence.hours;
-      }
-      if (absence.reason === 'other') {
-        acc.otherHours += absence.hours;
-      }
-      return acc;
-    },
-    { totalHours: 0, realAbsenceHours: 0, projectHours: 0, otherHours: 0 }
-  );
+  const totalHours = absences.length;
+  const realAbsenceHours = absences.filter(a => a.reason === 'sick' || a.reason === 'doctor').length;
+  const projectHours = absences.filter(a => a.reason === 'school_project').length;
+  const excusedCount = absences.filter(a => a.excused).length;
+  const unexcusedCount = absences.filter(a => !a.excused).length;
 
   const hoursToDay = (h: number) => (h / HOURS_PER_DAY).toFixed(1);
+
+  // Group absences by teacher for overview
+  const absencesByTeacher = absences.reduce((acc, absence) => {
+    const teacher = absence.timetable_entries.teacher_short;
+    if (!acc[teacher]) {
+      acc[teacher] = { total: 0, excused: 0, unexcused: 0 };
+    }
+    acc[teacher].total++;
+    if (absence.excused) {
+      acc[teacher].excused++;
+    } else {
+      acc[teacher].unexcused++;
+    }
+    return acc;
+  }, {} as Record<string, { total: number; excused: number; unexcused: number }>);
+
+  const lessonsForDay = getLessonsForSelectedDay();
+  const isWeekend = getSelectedDayOfWeek() > 5;
 
   if (loading) {
     return (
@@ -161,7 +221,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
             <p className="text-sm text-muted-foreground">Übersicht deiner Abwesenheiten</p>
           </div>
         </div>
-        
+
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-2">
@@ -169,9 +229,9 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
               <span className="hidden sm:inline">Eintragen</span>
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Fehltag eintragen</DialogTitle>
+              <DialogTitle>Fehlstunden eintragen</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -179,20 +239,13 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
                 <Input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    setSelectedLessons([]);
+                  }}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Anzahl Stunden</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
-                  placeholder="z.B. 4"
-                />
-              </div>
+
               <div className="space-y-2">
                 <Label>Grund</Label>
                 <Select value={reason} onValueChange={(v) => setReason(v as typeof reason)}>
@@ -207,16 +260,66 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label>Fehlende Stunden auswählen</Label>
+                {timetableEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Bitte erstelle zuerst deinen Stundenplan.
+                  </p>
+                ) : isWeekend ? (
+                  <p className="text-sm text-muted-foreground">
+                    Am Wochenende gibt es keinen Unterricht.
+                  </p>
+                ) : lessonsForDay.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Keine Stunden für {DAYS[getSelectedDayOfWeek() - 1]} im Stundenplan.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {lessonsForDay.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                      >
+                        <Checkbox
+                          id={entry.id}
+                          checked={selectedLessons.includes(entry.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedLessons([...selectedLessons, entry.id]);
+                            } else {
+                              setSelectedLessons(selectedLessons.filter(id => id !== entry.id));
+                            }
+                          }}
+                        />
+                        <label htmlFor={entry.id} className="flex-1 cursor-pointer text-sm">
+                          <span className="font-medium">{entry.period}. Stunde</span>
+                          <span className="text-muted-foreground ml-2">
+                            {entry.subjects?.name || 'Kein Fach'} ({entry.teacher_short})
+                          </span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label>Beschreibung (optional)</Label>
-                <Textarea
+                <Input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="z.B. Zahnarzt, Mathe-Olympiade..."
+                  placeholder="z.B. Zahnarzt, Kopfschmerzen..."
                 />
               </div>
-              <Button onClick={handleSubmit} className="w-full">
-                Speichern
+
+              <Button 
+                onClick={handleSubmit} 
+                className="w-full"
+                disabled={selectedLessons.length === 0}
+              >
+                {selectedLessons.length} Stunde(n) eintragen
               </Button>
             </div>
           </DialogContent>
@@ -232,8 +335,8 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Gesamt</p>
-              <p className="text-lg font-bold">{stats.totalHours}h</p>
-              <p className="text-xs text-muted-foreground">= {hoursToDay(stats.totalHours)} Tage</p>
+              <p className="text-lg font-bold">{totalHours} Std</p>
+              <p className="text-xs text-muted-foreground">= {hoursToDay(totalHours)} Tage</p>
             </div>
           </div>
         </Card>
@@ -245,85 +348,135 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Krank/Arzt</p>
-              <p className="text-lg font-bold">{stats.realAbsenceHours}h</p>
-              <p className="text-xs text-muted-foreground">= {hoursToDay(stats.realAbsenceHours)} Tage</p>
+              <p className="text-lg font-bold">{realAbsenceHours} Std</p>
+              <p className="text-xs text-muted-foreground">= {hoursToDay(realAbsenceHours)} Tage</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600">
-              <FolderKanban className="w-4 h-4 text-white" />
+            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600">
+              <CheckCircle2 className="w-4 h-4 text-white" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Schulprojekte</p>
-              <p className="text-lg font-bold">{stats.projectHours}h</p>
-              <p className="text-xs text-muted-foreground">= {hoursToDay(stats.projectHours)} Tage</p>
+              <p className="text-xs text-muted-foreground">Entschuldigt</p>
+              <p className="text-lg font-bold">{excusedCount} Std</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-gray-400 to-gray-500">
-              <HelpCircle className="w-4 h-4 text-white" />
+            <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600">
+              <XCircle className="w-4 h-4 text-white" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Sonstiges</p>
-              <p className="text-lg font-bold">{stats.otherHours}h</p>
-              <p className="text-xs text-muted-foreground">= {hoursToDay(stats.otherHours)} Tage</p>
+              <p className="text-xs text-muted-foreground">Nicht entschuldigt</p>
+              <p className="text-lg font-bold">{unexcusedCount} Std</p>
             </div>
           </div>
         </Card>
       </div>
 
+      {/* Absences by Teacher */}
+      {Object.keys(absencesByTeacher).length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-semibold text-lg">Nach Lehrer</h3>
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+            {Object.entries(absencesByTeacher).map(([teacher, stats]) => (
+              <Card key={teacher} className="p-3 bg-card/80 backdrop-blur-sm border-border/50">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{teacher}</span>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-green-500">{stats.excused}✓</span>
+                    <span className="text-orange-500">{stats.unexcused}✗</span>
+                    <span className="text-muted-foreground">= {stats.total}</span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Absences List */}
       <div className="space-y-3">
         <h3 className="font-semibold text-lg">Alle Einträge</h3>
-        
+
         {absences.length === 0 ? (
           <Card className="p-8 text-center bg-card/80 backdrop-blur-sm border-border/50">
             <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">Noch keine Fehltage eingetragen</p>
+            <p className="text-muted-foreground">Noch keine Fehlstunden eingetragen</p>
           </Card>
         ) : (
           <div className="space-y-2">
             {absences.map((absence) => {
               const reasonInfo = reasonLabels[absence.reason];
               const Icon = reasonInfo.icon;
-              
+              const entry = absence.timetable_entries;
+
               return (
-                <Card 
-                  key={absence.id} 
-                  className="p-4 bg-card/80 backdrop-blur-sm border-border/50 flex items-center gap-4"
+                <Card
+                  key={absence.id}
+                  className={`p-4 bg-card/80 backdrop-blur-sm border-border/50 flex items-center gap-4 ${
+                    absence.excused ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-orange-500'
+                  }`}
                 >
                   <div className={`p-2 rounded-lg bg-gradient-to-br ${reasonInfo.color}`}>
                     <Icon className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{reasonInfo.label}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium">
+                        {format(new Date(absence.date), 'dd.MM.yyyy', { locale: de })}
+                      </span>
                       <span className="text-sm text-muted-foreground">
-                        {format(new Date(absence.date), 'dd. MMM yyyy', { locale: de })}
+                        {entry.period}. Std • {entry.subjects?.name || 'Kein Fach'}
+                      </span>
+                      <span className="text-sm font-medium text-primary">
+                        ({entry.teacher_short})
                       </span>
                     </div>
-                    {absence.description && (
-                      <p className="text-sm text-muted-foreground truncate">{absence.description}</p>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted">
+                        {reasonInfo.label}
+                      </span>
+                      {absence.description && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {absence.description}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold">{absence.hours}h</p>
-                    <p className="text-xs text-muted-foreground">{hoursToDay(absence.hours)} Tage</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={absence.excused ? 'default' : 'outline'}
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => toggleExcused(absence.id, absence.excused)}
+                    >
+                      {absence.excused ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Entschuldigt</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Offen</span>
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDelete(absence.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleDelete(absence.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                 </Card>
               );
             })}
