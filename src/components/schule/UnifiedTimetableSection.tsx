@@ -379,7 +379,7 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
   const getSlotColor = (absence: LessonAbsence | null) => {
     if (!absence) return 'bg-green-500/20 border-green-500/30 text-green-700 dark:text-green-300';
     if (absence.reason === 'efa') {
-      return 'bg-cyan-500/20 border-cyan-500/30 text-cyan-700 dark:text-cyan-300';
+      return 'bg-muted border-2 border-red-500 text-muted-foreground';
     }
     if (absence.reason === 'school_project') {
       return 'bg-yellow-500/20 border-yellow-500/30 text-yellow-700 dark:text-yellow-300';
@@ -759,8 +759,10 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
           <span>Anwesend</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-cyan-500/20 border border-cyan-500/30" />
-          <span>EFA</span>
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-muted border-2 border-red-500 relative overflow-hidden">
+            <div className="absolute inset-0 w-full h-0.5 bg-red-500 rotate-45 top-1/2 -translate-y-1/2 origin-center" style={{ width: '150%', left: '-25%' }} />
+          </div>
+          <span>EVA</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-yellow-500/20 border border-yellow-500/30" />
@@ -864,12 +866,18 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                                 )}
                               </div>
                             )}
-                            <div className={`flex flex-col items-center gap-0.5 ${isEfa ? 'opacity-50' : ''}`}>
-                              <span className={`font-semibold text-[10px] md:text-sm truncate block max-w-full ${isEfa ? 'line-through' : ''}`}>
+                            {/* Red diagonal strikethrough for EVA */}
+                            {isEfa && (
+                              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-lg">
+                                <div className="absolute top-1/2 left-1/2 w-[150%] h-0.5 bg-red-500 -translate-x-1/2 -translate-y-1/2 rotate-45" />
+                              </div>
+                            )}
+                            <div className={`flex flex-col items-center gap-0.5 ${isEfa ? 'opacity-40' : ''}`}>
+                              <span className="font-semibold text-[10px] md:text-sm truncate block max-w-full">
                                 {entry.subjects?.short_name || entry.subjects?.name?.slice(0, 4) || '-'}
                               </span>
                               {isEfa ? (
-                                <span className="text-[9px] md:text-xs font-medium text-cyan-600">EFA</span>
+                                <span className="text-[9px] md:text-xs font-bold text-red-500">EVA</span>
                               ) : (
                                 <>
                                   <span className="text-[9px] md:text-xs opacity-70">{entry.teacher_short}</span>
@@ -917,18 +925,18 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                               )}
                             </div>
                           )}
-                          {/* EFA indicator */}
+                          {/* Red diagonal strikethrough for EVA */}
                           {isEfaSingle && (
-                            <div className="absolute top-0.5 right-0.5 md:top-1 md:right-1">
-                              <Clock className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-cyan-500" />
+                            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-lg">
+                              <div className="absolute top-1/2 left-1/2 w-[150%] h-0.5 bg-red-500 -translate-x-1/2 -translate-y-1/2 rotate-45" />
                             </div>
                           )}
-                          <div className={isEfaSingle ? 'opacity-50' : ''}>
-                            <span className={`font-medium text-[10px] md:text-xs truncate block ${isEfaSingle ? 'line-through' : ''}`}>
+                          <div className={isEfaSingle ? 'opacity-40' : ''}>
+                            <span className="font-medium text-[10px] md:text-xs truncate block">
                               {entry.subjects?.short_name || entry.subjects?.name?.slice(0, 4) || '-'}
                             </span>
                             {isEfaSingle ? (
-                              <span className="text-[9px] md:text-xs font-medium text-cyan-600">EFA</span>
+                              <span className="text-[9px] md:text-xs font-bold text-red-500">EVA</span>
                             ) : (
                               <span className="text-[9px] md:text-xs opacity-70">{entry.teacher_short}</span>
                             )}
@@ -977,16 +985,16 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                 )}
               </SheetTitle>
               <div className="flex gap-1 shrink-0">
-                {/* EFA Toggle Button */}
+                {/* EVA Toggle Button */}
                 {selectedSlotEntry && selectedSlotDate && (
                   <Button 
-                    variant={getEfaStatusForSlot(selectedSlotEntry, selectedSlotDate) ? 'default' : 'outline'}
+                    variant={getEfaStatusForSlot(selectedSlotEntry, selectedSlotDate) ? 'destructive' : 'outline'}
                     size="sm"
                     className="gap-1 text-xs"
                     onClick={() => toggleEFA(selectedSlotEntry, selectedSlotDate)}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    EFA
+                    EVA
                   </Button>
                 )}
                 <Button 
@@ -1010,8 +1018,8 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
               <p className="text-xs text-muted-foreground mt-1">
                 {format(selectedSlotDate, 'EEEE, dd. MMMM yyyy', { locale: de })}
                 {getEfaStatusForSlot(selectedSlotEntry!, selectedSlotDate) && (
-                  <Badge variant="secondary" className="ml-2 text-xs bg-cyan-500/20 text-cyan-600">
-                    EFA - Freistunde
+                  <Badge variant="destructive" className="ml-2 text-xs">
+                    EVA - Freistunde
                   </Badge>
                 )}
               </p>
