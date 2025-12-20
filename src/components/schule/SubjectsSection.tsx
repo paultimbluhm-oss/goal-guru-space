@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, GraduationCap, BookOpen, Calendar, TrendingUp, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, GraduationCap, BookOpen, Calendar, TrendingUp, ChevronDown, ChevronRight, Edit2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { AddSubjectDialog } from './AddSubjectDialog';
+import { EditSubjectDialog } from './EditSubjectDialog';
 import { SubjectCard } from './SubjectCard';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -14,6 +15,7 @@ import { de } from 'date-fns/locale';
 interface Subject {
   id: string;
   name: string;
+  short_name?: string | null;
   grade_year: number;
   written_weight: number;
   oral_weight: number;
@@ -54,6 +56,7 @@ export function SubjectsSection({ onBack }: SubjectsSectionProps) {
   const [upcomingEvents, setUpcomingEvents] = useState<SchoolEvent[]>([]);
   const [averageGrade, setAverageGrade] = useState<number | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [homeworkOpen, setHomeworkOpen] = useState(false);
   const [eventsOpen, setEventsOpen] = useState(false);
 
@@ -171,13 +174,46 @@ export function SubjectsSection({ onBack }: SubjectsSectionProps) {
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10">
             <GraduationCap className="w-5 h-5 text-blue-400" />
           </div>
-          <h2 className="text-xl font-bold">{selectedSubject.name}</h2>
+          <h2 className="text-xl font-bold flex-1">
+            {selectedSubject.name}
+            {selectedSubject.short_name && (
+              <span className="text-muted-foreground font-normal ml-2">({selectedSubject.short_name})</span>
+            )}
+          </h2>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setEditingSubject(selectedSubject)}
+            className="shrink-0"
+          >
+            <Edit2 className="w-4 h-4" />
+          </Button>
         </div>
         <SubjectCard 
           subject={selectedSubject} 
           onDeleted={() => { setSelectedSubject(null); fetchData(); }}
           onDataChanged={fetchData}
         />
+        
+        {editingSubject && (
+          <EditSubjectDialog
+            subject={editingSubject}
+            open={!!editingSubject}
+            onOpenChange={(open) => !open && setEditingSubject(null)}
+            onSubjectUpdated={() => {
+              fetchData();
+              // Update selected subject with new data
+              supabase
+                .from('subjects')
+                .select('*')
+                .eq('id', editingSubject.id)
+                .single()
+                .then(({ data }) => {
+                  if (data) setSelectedSubject(data);
+                });
+            }}
+          />
+        )}
       </div>
     );
   }
