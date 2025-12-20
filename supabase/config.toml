@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.search-stocks]
 verify_jwt = false
+
+[functions.get-school-holidays]
+verify_jwt = false
