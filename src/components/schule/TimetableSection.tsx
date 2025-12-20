@@ -17,6 +17,8 @@ interface Subject {
   id: string;
   name: string;
   short_name: string | null;
+  teacher_short: string | null;
+  room: string | null;
 }
 
 interface TimetableEntry {
@@ -99,13 +101,13 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
     const [entriesRes, subjectsRes, absencesRes, homeworkRes] = await Promise.all([
       supabase
         .from('timetable_entries')
-        .select('*, subjects(id, name, short_name)')
+        .select('*, subjects(id, name, short_name, teacher_short, room)')
         .eq('user_id', user.id)
         .order('day_of_week')
         .order('period'),
       supabase
         .from('subjects')
-        .select('id, name, short_name')
+        .select('id, name, short_name, teacher_short, room')
         .eq('user_id', user.id)
         .order('name'),
       supabase
@@ -417,7 +419,22 @@ export function TimetableSection({ onBack }: TimetableSectionProps) {
 
                 <div className="space-y-2">
                   <Label>Fach</Label>
-                  <Select value={subjectId} onValueChange={setSubjectId}>
+                  <Select 
+                    value={subjectId} 
+                    onValueChange={(value) => {
+                      setSubjectId(value);
+                      // Auto-fill teacher and room from subject if not already set
+                      const selectedSubject = subjects.find(s => s.id === value);
+                      if (selectedSubject) {
+                        if (!teacherShort && selectedSubject.teacher_short) {
+                          setTeacherShort(selectedSubject.teacher_short);
+                        }
+                        if (!room && selectedSubject.room) {
+                          setRoom(selectedSubject.room);
+                        }
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Fach auswählen..." />
                     </SelectTrigger>

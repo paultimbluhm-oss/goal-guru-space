@@ -10,6 +10,8 @@ interface Subject {
   id: string;
   name: string;
   short_name?: string | null;
+  teacher_short?: string | null;
+  room?: string | null;
   grade_year: number;
   written_weight: number;
   oral_weight: number;
@@ -26,6 +28,8 @@ export function EditSubjectDialog({ subject, open, onOpenChange, onSubjectUpdate
   const { user } = useAuth();
   const [name, setName] = useState(subject.name);
   const [shortName, setShortName] = useState(subject.short_name || '');
+  const [teacherShort, setTeacherShort] = useState(subject.teacher_short || '');
+  const [room, setRoom] = useState(subject.room || '');
   const [gradeYear, setGradeYear] = useState(subject.grade_year.toString());
   const [writtenWeight, setWrittenWeight] = useState(subject.written_weight.toString());
   const [oralWeight, setOralWeight] = useState(subject.oral_weight.toString());
@@ -34,6 +38,8 @@ export function EditSubjectDialog({ subject, open, onOpenChange, onSubjectUpdate
   useEffect(() => {
     setName(subject.name);
     setShortName(subject.short_name || '');
+    setTeacherShort(subject.teacher_short || '');
+    setRoom(subject.room || '');
     setGradeYear(subject.grade_year.toString());
     setWrittenWeight(subject.written_weight.toString());
     setOralWeight(subject.oral_weight.toString());
@@ -62,6 +68,8 @@ export function EditSubjectDialog({ subject, open, onOpenChange, onSubjectUpdate
       .update({
         name: name.trim(),
         short_name: shortName.trim() || null,
+        teacher_short: teacherShort.trim() || null,
+        room: room.trim() || null,
         grade_year: parseInt(gradeYear),
         written_weight: parseInt(writtenWeight),
         oral_weight: parseInt(oralWeight),
@@ -104,6 +112,27 @@ export function EditSubjectDialog({ subject, open, onOpenChange, onSubjectUpdate
                 onChange={(e) => setShortName(e.target.value)}
                 placeholder="z.B. M"
                 maxLength={5}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-teacherShort">Lehrerkürzel</Label>
+              <Input
+                id="edit-teacherShort"
+                value={teacherShort}
+                onChange={(e) => setTeacherShort(e.target.value)}
+                placeholder="z.B. Mü"
+                maxLength={10}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-room">Raum</Label>
+              <Input
+                id="edit-room"
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                placeholder="z.B. A201"
               />
             </div>
           </div>

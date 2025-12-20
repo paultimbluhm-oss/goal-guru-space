@@ -16,6 +16,8 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
+  const [teacherShort, setTeacherShort] = useState('');
+  const [room, setRoom] = useState('');
   const [gradeYear, setGradeYear] = useState('11');
   const [writtenWeight, setWrittenWeight] = useState('50');
   const [oralWeight, setOralWeight] = useState('50');
@@ -42,6 +44,8 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
       user_id: user.id,
       name: name.trim(),
       short_name: shortName.trim() || null,
+      teacher_short: teacherShort.trim() || null,
+      room: room.trim() || null,
       grade_year: parseInt(gradeYear),
       written_weight: parseInt(writtenWeight),
       oral_weight: parseInt(oralWeight),
@@ -53,6 +57,8 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
       toast.success('Fach hinzugefügt');
       setName('');
       setShortName('');
+      setTeacherShort('');
+      setRoom('');
       setGradeYear('11');
       setWrittenWeight('50');
       setOralWeight('50');
@@ -94,6 +100,27 @@ export function AddSubjectDialog({ onSubjectAdded }: AddSubjectDialogProps) {
                 onChange={(e) => setShortName(e.target.value)}
                 placeholder="z.B. M"
                 maxLength={5}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="teacherShort">Lehrerkürzel</Label>
+              <Input
+                id="teacherShort"
+                value={teacherShort}
+                onChange={(e) => setTeacherShort(e.target.value)}
+                placeholder="z.B. Mü"
+                maxLength={10}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="room">Raum</Label>
+              <Input
+                id="room"
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                placeholder="z.B. A201"
               />
             </div>
           </div>
