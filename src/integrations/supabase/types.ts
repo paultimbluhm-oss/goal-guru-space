@@ -1325,7 +1325,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      absence_reason: "sick" | "doctor" | "school_project" | "other"
+      absence_reason: "sick" | "doctor" | "school_project" | "other" | "efa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1453,7 +1453,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      absence_reason: ["sick", "doctor", "school_project", "other"],
+      absence_reason: ["sick", "doctor", "school_project", "other", "efa"],
     },
   },
 } as const
