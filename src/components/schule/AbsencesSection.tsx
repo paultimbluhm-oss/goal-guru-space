@@ -3,11 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus, AlertCircle, LayoutGrid, Columns3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addDays, startOfWeek, getISOWeek, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TimetableEntry {
   id: string;
@@ -48,11 +49,16 @@ type ReasonType = typeof REASONS[number]['value'];
 
 export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [absences, setAbsences] = useState<LessonAbsence[]>([]);
   const [allAbsences, setAllAbsences] = useState<LessonAbsence[]>([]);
   const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const unexcusedListRef = useRef<HTMLDivElement>(null);
+  
+  // Mobile view mode
+  const [mobileViewStart, setMobileViewStart] = useState(0);
+  const [viewMode, setViewMode] = useState<'full' | 'compact'>('full');
   
   // Week navigation
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
@@ -62,6 +68,28 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   // Selection state for adding absences
   const [selectedReason, setSelectedReason] = useState<ReasonType>('sick');
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
+
+  // Auto-switch to compact mode on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setViewMode('compact');
+    }
+  }, [isMobile]);
+
+  // Mobile day navigation
+  const goToPreviousDays = () => setMobileViewStart(Math.max(0, mobileViewStart - 2));
+  const goToNextDays = () => setMobileViewStart(Math.min(2, mobileViewStart + 2));
+
+  // Get visible days based on view mode
+  const getVisibleDays = () => {
+    if (viewMode === 'full') {
+      return [0, 1, 2, 3, 4]; // All 5 days
+    }
+    const start = mobileViewStart;
+    return [start, start + 1, start + 2].filter(i => i < 5);
+  };
+
+  const visibleDayIndices = getVisibleDays();
 
   const weekDates = DAYS.map((_, i) => addDays(currentWeekStart, i));
   const currentWeekNum = getISOWeek(currentWeekStart);
@@ -486,12 +514,12 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
       </div>
 
       {/* Week Navigation */}
-      <div className="flex items-center justify-between gap-4">
-        <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="outline" size="icon" onClick={goToPreviousWeek} className="shrink-0">
           <ChevronLeft className="w-4 h-4" />
         </Button>
-        <div className="text-center">
-          <p className="font-medium">
+        <div className="text-center flex-1">
+          <p className="font-medium text-sm md:text-base">
             {format(currentWeekStart, 'dd. MMM', { locale: de })} - {format(addDays(currentWeekStart, 4), 'dd. MMM yyyy', { locale: de })}
           </p>
           <div className="flex items-center justify-center gap-2">
@@ -500,32 +528,78 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
             </span>
             <span className="text-xs text-muted-foreground">(KW {currentWeekNum})</span>
           </div>
-          <Button variant="link" size="sm" onClick={goToCurrentWeek} className="text-muted-foreground">
+          <Button variant="link" size="sm" onClick={goToCurrentWeek} className="text-muted-foreground text-xs">
             Zur aktuellen Woche
           </Button>
         </div>
-        <Button variant="outline" size="icon" onClick={goToNextWeek}>
+        <Button variant="outline" size="icon" onClick={goToNextWeek} className="shrink-0">
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
 
+      {/* View Mode Toggle & Day Navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1 bg-muted rounded-lg p-1">
+          <Button variant={viewMode === 'full' ? 'default' : 'ghost'} size="sm" className="h-7 px-2 text-xs" onClick={() => setViewMode('full')}>
+            <LayoutGrid className="w-3.5 h-3.5 mr-1" />
+            <span className="hidden sm:inline">Vollansicht</span>
+            <span className="sm:hidden">5T</span>
+          </Button>
+          <Button variant={viewMode === 'compact' ? 'default' : 'ghost'} size="sm" className="h-7 px-2 text-xs" onClick={() => setViewMode('compact')}>
+            <Columns3 className="w-3.5 h-3.5 mr-1" />
+            <span className="hidden sm:inline">Kompakt</span>
+            <span className="sm:hidden">3T</span>
+          </Button>
+        </div>
+        {viewMode === 'compact' && (
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={goToPreviousDays} disabled={mobileViewStart === 0}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-xs font-medium min-w-[50px] text-center">
+              {DAYS[visibleDayIndices[0]]} - {DAYS[visibleDayIndices[visibleDayIndices.length - 1]]}
+            </span>
+            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={goToNextDays} disabled={mobileViewStart >= 2}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Weekly Calendar Grid */}
-      <div className="overflow-x-auto">
-        <div className="min-w-[600px]">
+      <div className={viewMode === 'full' ? 'overflow-x-auto' : ''}>
+        <div className={viewMode === 'full' ? 'min-w-[600px]' : ''}>
           {/* Day Headers */}
-          <div className="grid grid-cols-5 gap-2 mb-2">
-            {weekDates.map((date, i) => (
-              <div key={i} className="text-center p-2 bg-muted/50 rounded-lg">
-                <div className="font-medium">{DAYS[i]}</div>
-                <div className="text-xs text-muted-foreground">{format(date, 'dd.MM')}</div>
+          <div className={`grid gap-1 md:gap-2 mb-2 ${viewMode === 'full' ? 'grid-cols-5' : 'grid-cols-3'}`}>
+            {visibleDayIndices.map((i) => (
+              <div key={i} className="text-center p-1 md:p-2 bg-muted/50 rounded-lg">
+                <div className="font-medium text-xs md:text-sm">{DAYS[i]}</div>
+                <div className="text-[10px] md:text-xs text-muted-foreground">{format(weekDates[i], 'dd.MM')}</div>
               </div>
             ))}
           </div>
 
           {/* Slots Grid */}
-          <div className="grid grid-cols-5 gap-2">
-            {weekDates.map((date, dayIndex) => (
+          <div className={`grid gap-1 ${viewMode === 'full' ? 'grid-cols-5' : 'grid-cols-3'}`}>
+            {visibleDayIndices.map((dayIndex) => {
+              const date = weekDates[dayIndex];
+              return (
               <div key={dayIndex} className="space-y-1">
+                {getDisplaySlots(dayIndex).map(slot => {
+                  if (!slot.entry) {
+                    return (
+                      <div 
+                        key={slot.period} 
+                        className={`p-1 md:p-2 text-center text-[10px] md:text-xs text-muted-foreground/40 border border-dashed border-border/30 rounded ${slot.isDouble ? 'min-h-[50px] md:min-h-[70px]' : 'min-h-[32px] md:min-h-[40px]'}`}
+                      >
+                        {slot.period}.{slot.isDouble && `+${slot.period + 1}.`}
+                      </div>
+                    );
+                  }
+
+                  const absence = getAbsenceForSlot(date, slot.entry.id);
+                  const dateStr = format(date, 'yyyy-MM-dd');
+                  const isSelected = selectedSlots.has(`${dateStr}:${slot.entry.id}`);
                 {getDisplaySlots(dayIndex).map(slot => {
                   if (!slot.entry) {
                     return (
