@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addDays, startOfWeek, getISOWeek, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface TimetableEntry {
   id: string;
@@ -48,8 +49,10 @@ type ReasonType = typeof REASONS[number]['value'];
 export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   const { user } = useAuth();
   const [absences, setAbsences] = useState<LessonAbsence[]>([]);
+  const [allAbsences, setAllAbsences] = useState<LessonAbsence[]>([]);
   const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const unexcusedListRef = useRef<HTMLDivElement>(null);
   
   // Week navigation
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
@@ -71,13 +74,17 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd');
     const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
 
-    const [absencesRes, timetableRes] = await Promise.all([
+    const [absencesRes, allAbsencesRes, timetableRes] = await Promise.all([
       supabase
         .from('lesson_absences')
         .select('*, timetable_entries(id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name, short_name))')
         .eq('user_id', user.id)
         .gte('date', weekStartStr)
         .lte('date', weekEndStr),
+      supabase
+        .from('lesson_absences')
+        .select('*, timetable_entries(id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name, short_name))')
+        .eq('user_id', user.id),
       supabase
         .from('timetable_entries')
         .select('id, day_of_week, period, teacher_short, week_type, subject_id, subjects(id, name, short_name)')
@@ -86,9 +93,11 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     ]);
 
     if (absencesRes.error) console.error(absencesRes.error);
+    if (allAbsencesRes.error) console.error(allAbsencesRes.error);
     if (timetableRes.error) console.error(timetableRes.error);
 
     setAbsences(absencesRes.data || []);
+    setAllAbsences(allAbsencesRes.data || []);
     setTimetableEntries(timetableRes.data || []);
     setLoading(false);
   };
@@ -97,6 +106,52 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     fetchData();
     setSelectedSlots(new Set());
   }, [user, currentWeekStart]);
+
+  // Calculate comprehensive statistics from all absences
+  const stats = useMemo(() => {
+    const HOURS_PER_SCHOOL_DAY = 8; // 4 Doppelstunden = 8 Einzelstunden
+    
+    const total = allAbsences.length;
+    const sickCount = allAbsences.filter(a => a.reason === 'sick').length;
+    const doctorCount = allAbsences.filter(a => a.reason === 'doctor').length;
+    const schoolProjectCount = allAbsences.filter(a => a.reason === 'school_project').length;
+    const otherCount = allAbsences.filter(a => a.reason === 'other').length;
+    const excused = allAbsences.filter(a => a.excused).length;
+    const unexcused = allAbsences.filter(a => !a.excused).length;
+    
+    // Abwesenheit (sick + doctor + other) vs Schulprojekte
+    const absenceHours = sickCount + doctorCount + otherCount;
+    
+    return {
+      total,
+      totalDays: (total / HOURS_PER_SCHOOL_DAY).toFixed(1),
+      sickCount,
+      sickDays: (sickCount / HOURS_PER_SCHOOL_DAY).toFixed(1),
+      doctorCount,
+      doctorDays: (doctorCount / HOURS_PER_SCHOOL_DAY).toFixed(1),
+      schoolProjectCount,
+      schoolProjectDays: (schoolProjectCount / HOURS_PER_SCHOOL_DAY).toFixed(1),
+      otherCount,
+      otherDays: (otherCount / HOURS_PER_SCHOOL_DAY).toFixed(1),
+      absenceHours,
+      absenceDays: (absenceHours / HOURS_PER_SCHOOL_DAY).toFixed(1),
+      excused,
+      excusedDays: (excused / HOURS_PER_SCHOOL_DAY).toFixed(1),
+      unexcused,
+      unexcusedDays: (unexcused / HOURS_PER_SCHOOL_DAY).toFixed(1),
+    };
+  }, [allAbsences]);
+
+  // Get unexcused absences for clickable list
+  const unexcusedAbsences = useMemo(() => {
+    return allAbsences.filter(a => !a.excused).sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [allAbsences]);
+
+  const scrollToUnexcused = () => {
+    unexcusedListRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   // Get entry for a specific slot, respecting A/B weeks
   const getEntryForSlot = (day: number, period: number) => {
@@ -322,6 +377,91 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
         </div>
       </div>
 
+      {/* Comprehensive Statistics Overview */}
+      <Card className="p-4 space-y-4">
+        <h3 className="font-semibold flex items-center gap-2">
+          <Clock className="w-4 h-4" />
+          Gesamtübersicht
+        </h3>
+        
+        {/* Total Hours and Days */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <div className="text-3xl font-bold">{stats.total}</div>
+            <div className="text-sm text-muted-foreground">Fehlstunden gesamt</div>
+            <div className="text-xs text-muted-foreground mt-1">({stats.totalDays} Tage)</div>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <div className="text-3xl font-bold">{stats.absenceHours}</div>
+            <div className="text-sm text-muted-foreground">Abwesend</div>
+            <div className="text-xs text-muted-foreground mt-1">({stats.absenceDays} Tage)</div>
+          </div>
+        </div>
+
+        {/* Breakdown by Reason */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-muted-foreground">Nach Grund:</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="flex items-center gap-2 bg-red-500/10 rounded-lg p-2">
+              <Thermometer className="w-4 h-4 text-red-500" />
+              <div>
+                <div className="font-medium text-sm">{stats.sickCount} Std</div>
+                <div className="text-xs text-muted-foreground">Krank ({stats.sickDays}T)</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-blue-500/10 rounded-lg p-2">
+              <Stethoscope className="w-4 h-4 text-blue-500" />
+              <div>
+                <div className="font-medium text-sm">{stats.doctorCount} Std</div>
+                <div className="text-xs text-muted-foreground">Arzt ({stats.doctorDays}T)</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-yellow-500/10 rounded-lg p-2">
+              <FolderKanban className="w-4 h-4 text-yellow-500" />
+              <div>
+                <div className="font-medium text-sm">{stats.schoolProjectCount} Std</div>
+                <div className="text-xs text-muted-foreground">Schulprojekt ({stats.schoolProjectDays}T)</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-gray-500/10 rounded-lg p-2">
+              <HelpCircle className="w-4 h-4 text-gray-500" />
+              <div>
+                <div className="font-medium text-sm">{stats.otherCount} Std</div>
+                <div className="text-xs text-muted-foreground">Sonstiges ({stats.otherDays}T)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Excused vs Unexcused */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-muted-foreground">Entschuldigt / Offen:</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-3 bg-green-500/10 rounded-lg p-3">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <div>
+                <div className="font-bold text-lg text-green-600">{stats.excused} Std</div>
+                <div className="text-xs text-muted-foreground">Entschuldigt ({stats.excusedDays} Tage)</div>
+              </div>
+            </div>
+            <button 
+              onClick={scrollToUnexcused}
+              className="flex items-center gap-3 bg-orange-500/10 rounded-lg p-3 text-left hover:bg-orange-500/20 transition-colors cursor-pointer"
+              disabled={stats.unexcused === 0}
+            >
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              <div>
+                <div className="font-bold text-lg text-orange-600">{stats.unexcused} Std</div>
+                <div className="text-xs text-muted-foreground">
+                  Offen ({stats.unexcusedDays} Tage)
+                  {stats.unexcused > 0 && <span className="ml-1">→ anzeigen</span>}
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </Card>
+
       {/* Reason Selector */}
       <div className="space-y-2">
         <p className="text-sm font-medium">Grund auswählen:</p>
@@ -510,7 +650,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
         </div>
       </div>
 
-      {/* Statistics */}
+      {/* This Week's Statistics */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="p-3 bg-card/80 backdrop-blur-sm border-border/50 text-center">
           <div className="text-2xl font-bold">{totalHours}</div>
@@ -606,6 +746,51 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
               });
             })()}
           </div>
+        </div>
+      )}
+
+      {/* Unexcused Absences List - all time, clickable */}
+      {unexcusedAbsences.length > 0 && (
+        <div ref={unexcusedListRef} className="space-y-2">
+          <h3 className="font-semibold flex items-center gap-2 text-orange-600">
+            <AlertCircle className="w-4 h-4" />
+            Offene Fehlzeiten ({unexcusedAbsences.length})
+          </h3>
+          <ScrollArea className="h-auto max-h-[300px]">
+            <div className="space-y-1 pr-2">
+              {unexcusedAbsences.map((absence) => {
+                const reason = REASONS.find(r => r.value === absence.reason);
+                const Icon = reason?.icon || HelpCircle;
+                const entry = absence.timetable_entries;
+                
+                return (
+                  <div
+                    key={absence.id}
+                    className="flex items-center gap-3 p-2 rounded-lg bg-orange-500/10 border border-orange-500/30"
+                  >
+                    <Icon className={`w-4 h-4 ${reason?.color.replace('bg-', 'text-')}`} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium">
+                        {format(new Date(absence.date), 'EEE dd.MM.yyyy', { locale: de })}
+                      </span>
+                      <span className="text-sm text-muted-foreground ml-2">
+                        {entry.period}. Std - {entry.subjects?.short_name || entry.subjects?.name || '-'}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-green-600 border-green-500/50 hover:bg-green-500/20"
+                      onClick={() => toggleExcused(absence, false)}
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-1" />
+                      Entschuldigen
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
         </div>
       )}
     </div>
