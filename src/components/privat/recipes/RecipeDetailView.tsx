@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Trash2, Clock, Users, Minus, Plus, Soup, UtensilsCrossed, Cake, Wine, Candy, Cookie } from 'lucide-react';
+import { ArrowLeft, Trash2, Clock, Users, Minus, Plus, Soup, UtensilsCrossed, Cake, Coffee, ChefHat, Star, TrendingUp, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getSupabase } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -17,13 +17,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-const categoryConfig: Record<string, { label: string; icon: typeof Soup }> = {
-  vorspeise: { label: 'Vorspeise', icon: Soup },
-  hauptspeise: { label: 'Hauptspeise', icon: UtensilsCrossed },
-  nachspeise: { label: 'Nachspeise', icon: Cake },
-  getraenk: { label: 'Getränk', icon: Wine },
-  suessigkeit: { label: 'Süßigkeit', icon: Candy },
-  snack: { label: 'Snack', icon: Cookie },
+const categoryConfig: Record<string, { label: string; icon: typeof Soup; color: string }> = {
+  vorspeise: { label: 'Vorspeise', icon: Soup, color: 'from-cyan-500 to-teal-600' },
+  hauptspeise: { label: 'Hauptgericht', icon: UtensilsCrossed, color: 'from-orange-500 to-red-600' },
+  nachspeise: { label: 'Nachspeise', icon: Cake, color: 'from-pink-500 to-rose-600' },
+  getraenk: { label: 'Getrank', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
+  sonstiges: { label: 'Sonstiges', icon: ChefHat, color: 'from-slate-500 to-zinc-600' },
 };
 
 interface Recipe {
@@ -61,7 +60,7 @@ interface RecipeDetailViewProps {
 export function RecipeDetailView({ recipe, onBack, onUpdate }: RecipeDetailViewProps) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
-  const [servingMultiplier, setServingMultiplier] = useState(1);
+  const [desiredServings, setDesiredServings] = useState(recipe.servings || 4);
   const baseServings = recipe.servings || 4;
 
   useEffect(() => {
@@ -91,162 +90,243 @@ export function RecipeDetailView({ recipe, onBack, onUpdate }: RecipeDetailViewP
     const supabase = getSupabase();
     const { error } = await supabase.from('recipes').delete().eq('id', recipe.id);
     if (error) {
-      toast.error('Fehler beim Löschen');
+      toast.error('Fehler beim Loschen');
       return;
     }
-    toast.success('Rezept gelöscht');
+    toast.success('Rezept geloscht');
     onUpdate();
     onBack();
   };
 
   const adjustServings = (delta: number) => {
-    const newMultiplier = servingMultiplier + delta;
-    if (newMultiplier >= 0.5 && newMultiplier <= 10) {
-      setServingMultiplier(newMultiplier);
+    const newServings = desiredServings + delta;
+    if (newServings >= 1 && newServings <= 50) {
+      setDesiredServings(newServings);
     }
   };
 
-  const calculateAmount = (amount: number | null) => {
-    if (!amount) return null;
-    const adjusted = amount * servingMultiplier;
-    return adjusted % 1 === 0 ? adjusted : adjusted.toFixed(1);
+  // Calculate scaled amount based on desired servings
+  const calculateAmount = (originalAmount: number | null) => {
+    if (!originalAmount) return null;
+    const scaleFactor = desiredServings / baseServings;
+    const adjusted = originalAmount * scaleFactor;
+    
+    // Format nicely
+    if (adjusted % 1 === 0) {
+      return adjusted.toString();
+    } else if (adjusted < 1) {
+      // Handle fractions nicely
+      const decimal = adjusted;
+      if (Math.abs(decimal - 0.25) < 0.01) return '1/4';
+      if (Math.abs(decimal - 0.33) < 0.02) return '1/3';
+      if (Math.abs(decimal - 0.5) < 0.01) return '1/2';
+      if (Math.abs(decimal - 0.66) < 0.02) return '2/3';
+      if (Math.abs(decimal - 0.75) < 0.01) return '3/4';
+      return adjusted.toFixed(1);
+    } else {
+      return adjusted.toFixed(1).replace(/\.0$/, '');
+    }
   };
 
-  const currentServings = Math.round(baseServings * servingMultiplier);
   const totalTime = (recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0);
+  const config = recipe.category ? categoryConfig[recipe.category] : null;
+  const CategoryIcon = config?.icon || ChefHat;
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex items-start sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-10 md:w-10 shrink-0" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={onBack}>
+            <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg md:text-2xl font-bold truncate">{recipe.name}</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-bold truncate">{recipe.name}</h1>
+            {config && (
+              <div className="flex items-center gap-2 mt-1">
+                <div className={`p-1 rounded bg-gradient-to-br ${config.color}`}>
+                  <CategoryIcon className="w-3 h-3 text-white" />
+                </div>
+                <span className="text-sm text-muted-foreground">{config.label}</span>
+              </div>
+            )}
+          </div>
         </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-destructive h-8 w-8 shrink-0">
-              <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+            <Button variant="ghost" size="icon" className="text-destructive shrink-0">
+              <Trash2 className="w-5 h-5" />
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent className="max-w-[95vw] sm:max-w-lg">
+          <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Rezept löschen?</AlertDialogTitle>
+              <AlertDialogTitle>Rezept loschen?</AlertDialogTitle>
               <AlertDialogDescription>
-                Diese Aktion kann nicht rückgängig gemacht werden.
+                Diese Aktion kann nicht ruckgangig gemacht werden.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive">
-                Löschen
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                Loschen
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
 
-      {recipe.category && categoryConfig[recipe.category] && (
-        <Badge variant="secondary" className="flex items-center gap-1.5 w-fit">
-          {(() => {
-            const Icon = categoryConfig[recipe.category].icon;
-            return <Icon className="w-4 h-4" />;
-          })()}
-          {categoryConfig[recipe.category].label}
-        </Badge>
-      )}
-
       {recipe.description && (
-        <p className="text-sm md:text-base text-muted-foreground">{recipe.description}</p>
+        <p className="text-muted-foreground">{recipe.description}</p>
       )}
 
-      {/* Meta Info */}
-      <div className="flex flex-wrap gap-3 md:gap-4 text-xs md:text-sm">
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {totalTime > 0 && (
-          <div className="flex items-center gap-1.5 md:gap-2">
-            <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground" />
-            <span>{totalTime} Min</span>
-            {recipe.prep_time_minutes && recipe.cook_time_minutes && (
-              <span className="text-muted-foreground hidden sm:inline">
-                ({recipe.prep_time_minutes} + {recipe.cook_time_minutes})
-              </span>
-            )}
-          </div>
+          <Card className="border-border/50">
+            <CardContent className="p-3 flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-blue-500/20">
+                <Clock className="w-4 h-4 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Gesamtzeit</p>
+                <p className="font-semibold">{totalTime} Min</p>
+              </div>
+            </CardContent>
+          </Card>
         )}
-        <div className="flex items-center gap-2 md:gap-3">
-          {recipe.taste_rating && <span>{recipe.taste_rating}/5 Geschmack</span>}
-          {recipe.health_rating && <span>{recipe.health_rating}/5 Gesund</span>}
-        </div>
+        {recipe.prep_time_minutes && (
+          <Card className="border-border/50">
+            <CardContent className="p-3 flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-cyan-500/20">
+                <Timer className="w-4 h-4 text-cyan-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Vorbereitung</p>
+                <p className="font-semibold">{recipe.prep_time_minutes} Min</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {recipe.taste_rating && (
+          <Card className="border-border/50">
+            <CardContent className="p-3 flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-amber-500/20">
+                <Star className="w-4 h-4 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Geschmack</p>
+                <p className="font-semibold">{recipe.taste_rating}/5</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {recipe.health_rating && (
+          <Card className="border-border/50">
+            <CardContent className="p-3 flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-green-500/20">
+                <TrendingUp className="w-4 h-4 text-green-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Gesundheit</p>
+                <p className="font-semibold">{recipe.health_rating}/5</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Portion Calculator */}
-      <Card className="p-3 md:p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 md:gap-2">
-            <Users className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
-            <span className="font-medium text-sm md:text-base">Portionen</span>
+      <Card className="border-border/50 bg-gradient-to-br from-card to-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            Portionen anpassen
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Original: {baseServings} {baseServings === 1 ? 'Portion' : 'Portionen'}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() => adjustServings(-1)}
+                disabled={desiredServings <= 1}
+              >
+                <Minus className="w-4 h-4" />
+              </Button>
+              <div className="text-center min-w-[60px]">
+                <span className="text-2xl font-bold text-primary">{desiredServings}</span>
+                <p className="text-xs text-muted-foreground">Portionen</p>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() => adjustServings(1)}
+                disabled={desiredServings >= 50}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-7 w-7 md:h-8 md:w-8"
-              onClick={() => adjustServings(-0.5)}
-              disabled={servingMultiplier <= 0.5}
-            >
-              <Minus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            </Button>
-            <span className="font-bold text-base md:text-lg w-6 md:w-8 text-center">{currentServings}</span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-7 w-7 md:h-8 md:w-8"
-              onClick={() => adjustServings(0.5)}
-              disabled={servingMultiplier >= 10}
-            >
-              <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            </Button>
-          </div>
-        </div>
-        {servingMultiplier !== 1 && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Original: {baseServings} Portionen • Mengen angepasst
-          </p>
-        )}
+          {desiredServings !== baseServings && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <p className="text-sm text-primary font-medium">
+                Mengen fur {desiredServings} Portionen berechnet (x{(desiredServings / baseServings).toFixed(2)})
+              </p>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       {/* Ingredients */}
       {ingredients.length > 0 && (
-        <div className="space-y-2 md:space-y-3">
-          <h2 className="font-semibold text-base md:text-lg">Zutaten</h2>
-          <Card className="p-3 md:p-4">
-            <ul className="space-y-1.5 md:space-y-2">
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Zutaten</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
               {ingredients.map((ing) => (
-                <li key={ing.id} className="flex items-center gap-2 text-sm md:text-base">
-                  <span className="w-16 md:w-20 text-right font-mono text-xs md:text-sm shrink-0">
-                    {calculateAmount(ing.amount)} {ing.unit}
-                  </span>
-                  <span className="truncate">{ing.name}</span>
+                <li key={ing.id} className="flex items-center gap-3 py-2 border-b border-border/30 last:border-0">
+                  <div className="w-20 text-right shrink-0">
+                    <span className="font-mono font-medium text-primary">
+                      {calculateAmount(ing.amount)}
+                    </span>
+                    <span className="text-muted-foreground ml-1 text-sm">
+                      {ing.unit}
+                    </span>
+                  </div>
+                  <span className="flex-1">{ing.name}</span>
                 </li>
               ))}
             </ul>
-          </Card>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Steps */}
       {steps.length > 0 && (
-        <div className="space-y-2 md:space-y-3">
-          <h2 className="font-semibold text-base md:text-lg">Zubereitung</h2>
-          <div className="space-y-3 md:space-y-4">
+        <div className="space-y-3">
+          <h2 className="font-semibold text-lg">Zubereitung</h2>
+          <div className="space-y-3">
             {steps.map((step) => (
-              <Card key={step.id} className="p-3 md:p-4">
-                <div className="flex gap-3 md:gap-4">
-                  <span className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold shrink-0 text-sm md:text-base">
-                    {step.step_number}
-                  </span>
-                  <p className="text-sm md:text-base pt-0.5 md:pt-1">{step.instruction}</p>
+              <Card key={step.id} className="border-border/50 overflow-hidden">
+                <div className="flex">
+                  <div className="w-12 bg-gradient-to-b from-primary/20 to-primary/10 flex items-start justify-center pt-4">
+                    <span className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                      {step.step_number}
+                    </span>
+                  </div>
+                  <CardContent className="flex-1 p-4">
+                    <p className="text-sm md:text-base">{step.instruction}</p>
+                  </CardContent>
                 </div>
               </Card>
             ))}
