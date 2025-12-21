@@ -244,6 +244,92 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_events: {
+        Row: {
+          all_day: boolean | null
+          calendar_id: string | null
+          created_at: string | null
+          description: string | null
+          end_time: string
+          id: string
+          is_recurring: boolean | null
+          location: string | null
+          recurrence_rule: string | null
+          start_time: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          all_day?: boolean | null
+          calendar_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_time: string
+          id?: string
+          is_recurring?: boolean | null
+          location?: string | null
+          recurrence_rule?: string | null
+          start_time: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          all_day?: boolean | null
+          calendar_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_time?: string
+          id?: string
+          is_recurring?: boolean | null
+          location?: string | null
+          recurrence_rule?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendars: {
+        Row: {
+          color: string
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          is_visible: boolean | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          is_visible?: boolean | null
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          is_visible?: boolean | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       checklist_items: {
         Row: {
           checklist_id: string
