@@ -111,12 +111,12 @@ export function AddOrderDialog({ open, onOpenChange, onSave, editOrder, contacts
 
             <div>
               <Label htmlFor="contact">Kontakt</Label>
-              <Select value={formData.contact_id} onValueChange={(v) => setFormData({ ...formData, contact_id: v })}>
+              <Select value={formData.contact_id || '_none'} onValueChange={(v) => setFormData({ ...formData, contact_id: v === '_none' ? '' : v })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Kontakt auswählen" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Kein Kontakt</SelectItem>
+                  <SelectItem value="_none">Kein Kontakt</SelectItem>
                   {contacts.map((contact) => (
                     <SelectItem key={contact.id} value={contact.id}>
                       {contact.name} {contact.company && `(${contact.company})`}
