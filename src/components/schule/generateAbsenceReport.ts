@@ -70,9 +70,9 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
     return false;
   };
 
-  // Calculate real absence hours (excluding EVA)
-  const realAbsenceHours = stats.total - (stats.efaCount || 0);
-  const realAbsenceDays = (realAbsenceHours / 8).toFixed(1);
+  // stats.total already excludes EVA, so we use it directly
+  const realAbsenceHours = stats.total;
+  const realAbsenceDays = stats.totalDays;
 
   // Header
   doc.setFillColor(59, 130, 246);
