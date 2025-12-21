@@ -145,16 +145,21 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   }, [user, currentWeekStart]);
 
   // Calculate comprehensive statistics from all absences
+  // EFA (Eigenverantwortliches Arbeiten) counts as free period - not a real absence
   const stats = useMemo(() => {
     const HOURS_PER_SCHOOL_DAY = 8; // 4 Doppelstunden = 8 Einzelstunden
     
-    const total = allAbsences.length;
-    const sickCount = allAbsences.filter(a => a.reason === 'sick').length;
-    const doctorCount = allAbsences.filter(a => a.reason === 'doctor').length;
-    const schoolProjectCount = allAbsences.filter(a => a.reason === 'school_project').length;
-    const otherCount = allAbsences.filter(a => a.reason === 'other').length;
-    const excused = allAbsences.filter(a => a.excused).length;
-    const unexcused = allAbsences.filter(a => !a.excused).length;
+    // Filter out EFA for "real" absence statistics
+    const realAbsences = allAbsences.filter(a => a.reason !== 'efa');
+    const efaCount = allAbsences.filter(a => a.reason === 'efa').length;
+    
+    const total = realAbsences.length;
+    const sickCount = realAbsences.filter(a => a.reason === 'sick').length;
+    const doctorCount = realAbsences.filter(a => a.reason === 'doctor').length;
+    const schoolProjectCount = realAbsences.filter(a => a.reason === 'school_project').length;
+    const otherCount = realAbsences.filter(a => a.reason === 'other').length;
+    const excused = realAbsences.filter(a => a.excused).length;
+    const unexcused = realAbsences.filter(a => !a.excused).length;
     
     // Abwesenheit (sick + doctor + other) vs Schulprojekte
     const absenceHours = sickCount + doctorCount + otherCount;
@@ -176,12 +181,14 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
       excusedDays: (excused / HOURS_PER_SCHOOL_DAY).toFixed(1),
       unexcused,
       unexcusedDays: (unexcused / HOURS_PER_SCHOOL_DAY).toFixed(1),
+      efaCount,
+      efaDays: (efaCount / HOURS_PER_SCHOOL_DAY).toFixed(1),
     };
   }, [allAbsences]);
 
-  // Get unexcused absences for clickable list
+  // Get unexcused absences for clickable list (exclude EFA - they don't need excusing)
   const unexcusedAbsences = useMemo(() => {
-    return allAbsences.filter(a => !a.excused).sort((a, b) => 
+    return allAbsences.filter(a => !a.excused && a.reason !== 'efa').sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [allAbsences]);
@@ -451,10 +458,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
       };
     });
     
-    const efaCount = allAbsences.filter(a => a.reason === 'efa').length;
-    const efaDays = (efaCount / 8).toFixed(1);
-    
-    generateAbsenceReport(reportData, { ...stats, efaCount, efaDays }, reportName || undefined);
+    generateAbsenceReport(reportData, stats, reportName || undefined);
     toast.success('PDF-Bericht wurde heruntergeladen');
     setShowReportDialog(false);
     setReportName('');
