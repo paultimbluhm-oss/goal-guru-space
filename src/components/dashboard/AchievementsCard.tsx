@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Award, Lock, ChevronRight, Star, Flame, Target, Zap, BookOpen, CheckCircle2, Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import { playAchievementSound } from '@/lib/sounds';
 
 interface Achievement {
   id: string;
@@ -249,9 +249,12 @@ export async function checkAndUnlockAchievements(
 
     const def = ACHIEVEMENT_DEFINITIONS.find(d => d.type === achievement.type);
     if (def) {
-      toast.success(`🏆 Achievement freigeschaltet: ${def.name}!`, { duration: 4000 });
+      // Play achievement sound
+      playAchievementSound();
     }
   }
 
-  return newAchievements.length;
+  return newAchievements;
 }
+
+export { ACHIEVEMENT_DEFINITIONS };

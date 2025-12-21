@@ -50,7 +50,7 @@ interface TaskSectionProps {
 export function TaskSection({ onBack }: TaskSectionProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { addXP } = useGamification();
+  const { addXP, celebrateTaskComplete } = useGamification();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [homework, setHomework] = useState<Homework[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -117,7 +117,8 @@ export function TaskSection({ onBack }: TaskSectionProps) {
     if (!error) {
       setTasks(tasks.map(t => t.id === task.id ? { ...t, completed: newCompleted } : t));
       if (newCompleted && task.xp_reward) {
-        await addXP(task.xp_reward, 'Aufgabe erledigt');
+        celebrateTaskComplete();
+        await addXP(task.xp_reward, task.title);
       }
     }
   };
@@ -134,7 +135,8 @@ export function TaskSection({ onBack }: TaskSectionProps) {
       setHomework(homework.map(h => h.id === hw.id ? { ...h, completed: newCompleted } : h));
       if (newCompleted) {
         const xpAmount = hw.xp_reward || 10;
-        await addXP(xpAmount, 'Hausaufgabe erledigt');
+        celebrateTaskComplete();
+        await addXP(xpAmount, hw.title);
       }
     }
   };
