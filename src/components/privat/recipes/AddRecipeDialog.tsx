@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Soup, UtensilsCrossed, Cake, Wine, Candy, Cookie } from 'lucide-react';
+import { Plus, Trash2, Soup, UtensilsCrossed, Cake, Coffee, ChefHat, Star, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,15 +37,14 @@ interface AddRecipeDialogProps {
   onSuccess: () => void;
 }
 
-const units = ['g', 'kg', 'ml', 'l', 'TL', 'EL', 'Stück', 'Prise', 'Tasse', 'Packung'];
+const units = ['g', 'kg', 'ml', 'l', 'TL', 'EL', 'Stuck', 'Prise', 'Tasse', 'Packung', 'Scheibe', 'Dose'];
 
 const categories = [
-  { value: 'vorspeise', label: 'Vorspeise', icon: Soup },
-  { value: 'hauptspeise', label: 'Hauptspeise', icon: UtensilsCrossed },
-  { value: 'nachspeise', label: 'Nachspeise', icon: Cake },
-  { value: 'getraenk', label: 'Getränk', icon: Wine },
-  { value: 'suessigkeit', label: 'Süßigkeit', icon: Candy },
-  { value: 'snack', label: 'Snack', icon: Cookie },
+  { value: 'hauptspeise', label: 'Hauptgericht', icon: UtensilsCrossed, color: 'from-orange-500 to-red-600' },
+  { value: 'vorspeise', label: 'Vorspeise', icon: Soup, color: 'from-cyan-500 to-teal-600' },
+  { value: 'nachspeise', label: 'Nachspeise', icon: Cake, color: 'from-pink-500 to-rose-600' },
+  { value: 'getraenk', label: 'Getrank', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
+  { value: 'sonstiges', label: 'Sonstiges', icon: ChefHat, color: 'from-slate-500 to-zinc-600' },
 ];
 
 export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDialogProps) {
@@ -173,10 +172,12 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
     setSteps([{ instruction: '' }]);
   };
 
+  const selectedCategory = categories.find(c => c.value === category);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button>
+        <Button className="hidden sm:flex bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700">
           <Plus className="w-4 h-4 mr-2" />
           Neues Rezept
         </Button>
@@ -188,67 +189,85 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
         <div className="space-y-6 pt-4">
           {/* Basic Info */}
           <div className="space-y-4">
-            <Input
-              placeholder="Rezeptname *"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <Textarea
-              placeholder="Beschreibung (optional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-            />
             <div>
-              <Label className="text-xs text-muted-foreground">Kategorie</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => {
-                    const Icon = cat.icon;
-                    return (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4" />
-                          {cat.label}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <Label>Rezeptname *</Label>
+              <Input
+                placeholder="z.B. Spaghetti Carbonara"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Beschreibung (optional)</Label>
+              <Textarea
+                placeholder="Kurze Beschreibung des Rezepts..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          {/* Category Selection */}
+          <div>
+            <Label className="mb-3 block">Kategorie</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {categories.map(cat => {
+                const Icon = cat.icon;
+                const isSelected = category === cat.value;
+                return (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => setCategory(cat.value)}
+                    className={`p-3 rounded-xl border-2 transition-all text-center ${
+                      isSelected 
+                        ? 'border-primary bg-primary/10' 
+                        : 'border-border/50 hover:border-primary/30'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 mx-auto rounded-lg bg-gradient-to-br ${cat.color} flex items-center justify-center mb-2`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-xs font-medium">{cat.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Time & Servings */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground">Portionen</Label>
+              <Label>Portionen</Label>
               <Input
                 type="number"
                 value={servings}
                 onChange={(e) => setServings(e.target.value)}
                 min={1}
+                className="mt-1"
               />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Vorbereitung (Min)</Label>
+              <Label>Vorbereitung (Min)</Label>
               <Input
                 type="number"
                 placeholder="0"
                 value={prepTime}
                 onChange={(e) => setPrepTime(e.target.value)}
+                className="mt-1"
               />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Kochzeit (Min)</Label>
+              <Label>Kochzeit (Min)</Label>
               <Input
                 type="number"
                 placeholder="0"
                 value={cookTime}
                 onChange={(e) => setCookTime(e.target.value)}
+                className="mt-1"
               />
             </div>
           </div>
@@ -256,9 +275,12 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
           {/* Ratings */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground">😋 Geschmack</Label>
+              <Label className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-500" />
+                Geschmack
+              </Label>
               <Select value={tasteRating} onValueChange={setTasteRating}>
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Bewertung" />
                 </SelectTrigger>
                 <SelectContent>
@@ -269,9 +291,12 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">🥗 Gesundheit</Label>
+              <Label className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-green-500" />
+                Gesundheit
+              </Label>
               <Select value={healthRating} onValueChange={setHealthRating}>
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Bewertung" />
                 </SelectTrigger>
                 <SelectContent>
@@ -318,6 +343,7 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
                     variant="ghost"
                     size="icon"
                     onClick={() => removeIngredient(index)}
+                    className="text-destructive hover:text-destructive"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -325,7 +351,7 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
               </div>
             ))}
             <Button variant="outline" size="sm" onClick={addIngredient}>
-              <Plus className="w-4 h-4 mr-1" /> Zutat hinzufügen
+              <Plus className="w-4 h-4 mr-1" /> Zutat hinzufugen
             </Button>
           </div>
 
@@ -334,11 +360,11 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
             <Label className="font-medium">Zubereitungsschritte</Label>
             {steps.map((step, index) => (
               <div key={index} className="flex gap-2 items-start">
-                <span className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-medium shrink-0 mt-2">
+                <span className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0 mt-2">
                   {index + 1}
                 </span>
                 <Textarea
-                  placeholder={`Schritt ${index + 1}`}
+                  placeholder={`Schritt ${index + 1} beschreiben...`}
                   value={step.instruction}
                   onChange={(e) => updateStep(index, e.target.value)}
                   rows={2}
@@ -349,7 +375,7 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
                     variant="ghost"
                     size="icon"
                     onClick={() => removeStep(index)}
-                    className="mt-2"
+                    className="mt-2 text-destructive hover:text-destructive"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -357,11 +383,15 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
               </div>
             ))}
             <Button variant="outline" size="sm" onClick={addStep}>
-              <Plus className="w-4 h-4 mr-1" /> Schritt hinzufügen
+              <Plus className="w-4 h-4 mr-1" /> Schritt hinzufugen
             </Button>
           </div>
 
-          <Button onClick={handleSubmit} className="w-full" disabled={!name.trim() || saving}>
+          <Button 
+            onClick={handleSubmit} 
+            className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700" 
+            disabled={!name.trim() || saving}
+          >
             {saving ? 'Speichern...' : 'Rezept speichern'}
           </Button>
         </div>
