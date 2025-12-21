@@ -867,6 +867,85 @@ export type Database = {
         }
         Relationships: []
       }
+      order_expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          date: string | null
+          description: string
+          id: string
+          order_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          date?: string | null
+          description: string
+          id?: string
+          order_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          date?: string | null
+          description?: string
+          id?: string
+          order_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_expenses_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_time_entries: {
+        Row: {
+          created_at: string | null
+          date: string | null
+          description: string | null
+          hours: number
+          id: string
+          order_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string | null
+          description?: string | null
+          hours: number
+          id?: string
+          order_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string | null
+          description?: string | null
+          hours?: number
+          id?: string
+          order_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_time_entries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           amount: number | null
@@ -874,8 +953,16 @@ export type Database = {
           created_at: string | null
           description: string | null
           due_date: string | null
+          end_date: string | null
+          expenses: number | null
           id: string
+          location: string | null
+          notes: string | null
+          priority: string | null
+          revenue: number | null
+          start_date: string | null
           status: string | null
+          time_spent_hours: number | null
           title: string
           user_id: string
         }
@@ -885,8 +972,16 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          end_date?: string | null
+          expenses?: number | null
           id?: string
+          location?: string | null
+          notes?: string | null
+          priority?: string | null
+          revenue?: number | null
+          start_date?: string | null
           status?: string | null
+          time_spent_hours?: number | null
           title: string
           user_id: string
         }
@@ -896,8 +991,16 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          end_date?: string | null
+          expenses?: number | null
           id?: string
+          location?: string | null
+          notes?: string | null
+          priority?: string | null
+          revenue?: number | null
+          start_date?: string | null
           status?: string | null
+          time_spent_hours?: number | null
           title?: string
           user_id?: string
         }

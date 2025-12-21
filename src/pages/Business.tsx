@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Briefcase, Users, ClipboardList, TrendingUp, Package, ChevronRight } from 'lucide-react';
+import { Briefcase, Users, ClipboardList, TrendingUp, Package } from 'lucide-react';
 import { ContactsSection } from '@/components/business/contacts';
+import { OrdersSection } from '@/components/business/orders';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type BusinessSection = 'kontakte' | 'auftraege' | 'investitionen' | 'produkte';
@@ -54,11 +55,7 @@ export default function Business() {
           </TabsContent>
 
           <TabsContent value="auftraege" className="mt-6">
-            <div className="glass-card p-8 text-center">
-              <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="font-medium text-muted-foreground mb-2">Aufträge</h3>
-              <p className="text-sm text-muted-foreground/70">Kommt bald...</p>
-            </div>
+            <OrdersSection />
           </TabsContent>
 
           <TabsContent value="investitionen" className="mt-6">
