@@ -3,12 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus, AlertCircle, LayoutGrid, Columns3 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Stethoscope, Thermometer, FolderKanban, HelpCircle, Trash2, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus, AlertCircle, LayoutGrid, Columns3, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addDays, startOfWeek, getISOWeek, addWeeks, subWeeks, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { generateAbsenceReport } from './generateAbsenceReport';
 
 interface TimetableEntry {
   id: string;
@@ -391,6 +392,23 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     );
   }
 
+  const handleDownloadReport = () => {
+    const reportData = allAbsences.map(a => ({
+      ...a,
+      timetable_entries: {
+        period: a.timetable_entries?.period || 0,
+        teacher_short: a.timetable_entries?.teacher_short || '',
+        subjects: a.timetable_entries?.subjects || null,
+      }
+    }));
+    
+    const efaCount = allAbsences.filter(a => a.reason === 'efa').length;
+    const efaDays = (efaCount / 8).toFixed(1);
+    
+    generateAbsenceReport(reportData, { ...stats, efaCount, efaDays });
+    toast.success('PDF-Bericht wurde heruntergeladen');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -404,6 +422,11 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
             <p className="text-sm text-muted-foreground">Tippe auf Stunden zum Auswählen</p>
           </div>
         </div>
+        <Button variant="outline" size="sm" onClick={handleDownloadReport} className="gap-2">
+          <FileDown className="w-4 h-4" />
+          <span className="hidden sm:inline">PDF-Bericht</span>
+          <span className="sm:hidden">PDF</span>
+        </Button>
       </div>
 
       {/* Comprehensive Statistics Overview */}
