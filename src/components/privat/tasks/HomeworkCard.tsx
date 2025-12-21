@@ -106,9 +106,6 @@ export function HomeworkCard({ homework, onToggle, onDelete, onUpdate }: Homewor
   };
 
   const handleToggle = () => {
-    if (!homework.completed && homework.xp_reward) {
-      toast({ title: `+${homework.xp_reward} XP verdient!` });
-    }
     onToggle();
   };
 

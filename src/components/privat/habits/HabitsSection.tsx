@@ -8,9 +8,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Check, Flame, Trophy, Trash2, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
+import { useGamification } from '@/contexts/GamificationContext';
 import { toast } from 'sonner';
-import { format, isToday, subDays, startOfDay } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 interface Habit {
@@ -34,7 +34,7 @@ interface HabitsSectionProps {
 
 export function HabitsSection({ onBack }: HabitsSectionProps) {
   const { user } = useAuth();
-  const { addXP, profile } = useProfile();
+  const { addXP, celebrateStreak, celebrateTaskComplete, profile } = useGamification();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completions, setCompletions] = useState<HabitCompletion[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -112,8 +112,8 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
 
       if (!error && data) {
         setCompletions(prev => [...prev, data]);
-        await addXP(habit.xp_reward);
-        toast.success(`+${habit.xp_reward} XP für ${habit.name}!`);
+        celebrateTaskComplete();
+        await addXP(habit.xp_reward, habit.name);
 
         // Check if all habits are now completed
         const newCompletions = [...completions, data];
@@ -122,7 +122,9 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
         );
         
         if (allDone && habits.length > 0) {
-          toast.success('🔥 Alle Habits erledigt! Streak gesichert!', { duration: 3000 });
+          setTimeout(() => {
+            celebrateStreak(profile?.streak_days || 1);
+          }, 2500);
         }
       }
     }
