@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -10,10 +10,8 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Clock,
-  GraduationCap,
-  Coffee
 } from 'lucide-react';
-import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, isToday, getWeek, startOfDay, addMinutes, setHours, setMinutes } from 'date-fns';
+import { format, startOfWeek, addDays, addWeeks, subWeeks, isToday, getWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 interface TimetableEntry {
@@ -31,29 +29,22 @@ interface TimetableEntry {
 }
 
 // Lesson times based on user specifications
-const LESSON_TIMES = [
-  { period: 1, start: '08:00', end: '08:45' },
-  { period: 2, start: '08:45', end: '09:30' },
-  // Break 09:30 - 09:50
-  { period: 3, start: '09:50', end: '10:35' },
-  { period: 4, start: '10:35', end: '11:20' },
-  // Break 11:20 - 11:40
-  { period: 5, start: '11:40', end: '12:25' },
-  { period: 6, start: '12:25', end: '13:10' },
-  // Lunch break 13:10 - 14:15
-  { period: 7, start: '14:15', end: '15:00' },
-  { period: 8, start: '15:00', end: '15:45' },
-  { period: 9, start: '15:45', end: '16:30' },
-  { period: 10, start: '16:30', end: '17:15' },
-];
+const LESSON_TIMES: Record<number, { start: string; end: string }> = {
+  1: { start: '08:00', end: '08:45' },
+  2: { start: '08:45', end: '09:30' },
+  3: { start: '09:50', end: '10:35' },
+  4: { start: '10:35', end: '11:20' },
+  5: { start: '11:40', end: '12:25' },
+  6: { start: '12:25', end: '13:10' },
+  7: { start: '14:15', end: '15:00' },
+  8: { start: '15:00', end: '15:45' },
+  9: { start: '15:45', end: '16:30' },
+  10: { start: '16:30', end: '17:15' },
+};
 
-const BREAKS = [
-  { start: '09:30', end: '09:50', label: 'Pause' },
-  { start: '11:20', end: '11:40', label: 'Pause' },
-  { start: '13:10', end: '14:15', label: 'Mittagspause' },
-];
-
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const DAY_NAMES_FULL = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 
 export default function Kalender() {
   const { user, loading } = useAuth();
@@ -61,6 +52,7 @@ export default function Kalender() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
@@ -69,6 +61,14 @@ export default function Kalender() {
   useEffect(() => {
     if (user) fetchTimetable();
   }, [user]);
+
+  // Scroll to 7:00 on mount
+  useEffect(() => {
+    if (scrollRef.current) {
+      const hourHeight = 60;
+      scrollRef.current.scrollTop = 7 * hourHeight;
+    }
+  }, [loadingData]);
 
   const fetchTimetable = async () => {
     const supabase = getSupabase();
@@ -92,12 +92,12 @@ export default function Kalender() {
   const currentWeekType = isEvenWeek ? 'B' : 'A';
 
   const weekDays = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
 
-  const getEntriesForDayAndPeriod = (dayOfWeek: number, period: number) => {
+  const getEntriesForDay = (dayOfWeek: number) => {
     return timetableEntries.filter(entry => {
-      if (entry.day_of_week !== dayOfWeek || entry.period !== period) return false;
+      if (entry.day_of_week !== dayOfWeek) return false;
       if (!entry.week_type || entry.week_type === 'both') return true;
       return entry.week_type.toUpperCase() === currentWeekType;
     });
@@ -108,15 +108,18 @@ export default function Kalender() {
     return h * 60 + m;
   };
 
+  const getEventStyle = (startTime: string, endTime: string) => {
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    const top = (startMinutes / 60) * 60; // 60px per hour
+    const height = ((endMinutes - startMinutes) / 60) * 60;
+    return { top: `${top}px`, height: `${height}px` };
+  };
+
   const getCurrentTimePosition = () => {
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const dayStart = timeToMinutes('08:00');
-    const dayEnd = timeToMinutes('17:15');
-    
-    if (currentMinutes < dayStart || currentMinutes > dayEnd) return null;
-    
-    return ((currentMinutes - dayStart) / (dayEnd - dayStart)) * 100;
+    return (currentMinutes / 60) * 60; // 60px per hour
   };
 
   const currentTimePosition = getCurrentTimePosition();
@@ -126,7 +129,7 @@ export default function Kalender() {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1800px] mx-auto">
         {/* Hero Header */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-6 md:p-8">
           <div className="absolute -top-32 -right-32 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
@@ -141,12 +144,15 @@ export default function Kalender() {
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold">Kalender</h1>
                 <p className="text-muted-foreground text-sm md:text-base">
-                  KW {weekNumber} ({currentWeekType}-Woche)
+                  KW {weekNumber} - {format(weekStart, 'd. MMM', { locale: de })} bis {format(addDays(weekStart, 6), 'd. MMM yyyy', { locale: de })}
                 </p>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
+              <Badge variant="outline" className="px-3 py-1">
+                {currentWeekType}-Woche
+              </Badge>
               <Button
                 variant="outline"
                 size="icon"
@@ -172,130 +178,132 @@ export default function Kalender() {
           </div>
         </div>
 
-        {/* Week View */}
+        {/* Calendar Grid */}
         <Card className="overflow-hidden border-border/50">
-          <div className="overflow-x-auto">
-            <div className="min-w-[800px]">
-              {/* Header */}
-              <div className="grid grid-cols-[80px_repeat(5,1fr)] border-b border-border/50 bg-muted/30">
-                <div className="p-3 flex items-center justify-center border-r border-border/50">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
+          {/* Day Headers */}
+          <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border/50 bg-muted/30 sticky top-0 z-20">
+            <div className="p-3 flex items-center justify-center border-r border-border/50">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+            </div>
+            {weekDays.map((day, idx) => (
+              <div
+                key={idx}
+                className={`p-3 text-center border-r last:border-r-0 border-border/50 ${
+                  isToday(day) ? 'bg-primary/10' : ''
+                }`}
+              >
+                <div className={`text-xs font-medium ${isToday(day) ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {DAY_NAMES[idx]}
                 </div>
-                {weekDays.map((day, idx) => (
+                <div className={`text-lg font-bold ${isToday(day) ? 'text-primary' : ''}`}>
+                  {format(day, 'd')}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Scrollable Time Grid */}
+          <div 
+            ref={scrollRef}
+            className="overflow-y-auto max-h-[calc(100vh-320px)] relative"
+          >
+            <div className="grid grid-cols-[60px_repeat(7,1fr)] relative" style={{ height: `${24 * 60}px` }}>
+              {/* Time Labels Column */}
+              <div className="border-r border-border/50 relative">
+                {HOURS.map((hour) => (
                   <div
-                    key={idx}
-                    className={`p-3 text-center border-r last:border-r-0 border-border/50 ${
-                      isToday(day) ? 'bg-primary/10' : ''
-                    }`}
+                    key={hour}
+                    className="absolute w-full border-t border-border/30 flex items-start justify-end pr-2 pt-1"
+                    style={{ top: `${hour * 60}px`, height: '60px' }}
                   >
-                    <div className={`text-sm font-medium ${isToday(day) ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {DAY_NAMES[idx]}
-                    </div>
-                    <div className={`text-lg font-bold ${isToday(day) ? 'text-primary' : ''}`}>
-                      {format(day, 'd')}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(day, 'MMM', { locale: de })}
-                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {hour.toString().padStart(2, '0')}:00
+                    </span>
                   </div>
                 ))}
               </div>
 
-              {/* Time Grid */}
-              <div className="relative">
-                {/* Current time indicator */}
-                {currentTimePosition !== null && todayIndex >= 0 && (
+              {/* Day Columns */}
+              {weekDays.map((day, dayIdx) => {
+                const entries = getEntriesForDay(dayIdx + 1);
+                
+                return (
                   <div
-                    className="absolute left-[80px] right-0 z-20 pointer-events-none"
-                    style={{ top: `${currentTimePosition}%` }}
+                    key={dayIdx}
+                    className={`relative border-r last:border-r-0 border-border/50 ${
+                      isToday(day) ? 'bg-primary/5' : ''
+                    }`}
                   >
-                    <div 
-                      className="absolute h-0.5 bg-red-500"
-                      style={{ 
-                        left: `${(todayIndex / 5) * 100}%`,
-                        width: `${100 / 5}%`
-                      }}
-                    >
-                      <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-red-500 rounded-full" />
-                    </div>
-                  </div>
-                )}
+                    {/* Hour Grid Lines */}
+                    {HOURS.map((hour) => (
+                      <div
+                        key={hour}
+                        className="absolute w-full border-t border-border/30"
+                        style={{ top: `${hour * 60}px`, height: '60px' }}
+                      />
+                    ))}
 
-                {LESSON_TIMES.map((slot, slotIdx) => {
-                  const isBreakBefore = BREAKS.some(b => b.end === slot.start);
-                  const breakBefore = BREAKS.find(b => b.end === slot.start);
-                  
-                  return (
-                    <div key={slot.period}>
-                      {/* Break row */}
-                      {breakBefore && (
-                        <div className="grid grid-cols-[80px_repeat(5,1fr)] bg-muted/20 border-b border-border/30">
-                          <div className="p-1.5 text-[10px] text-muted-foreground text-center border-r border-border/30 flex flex-col items-center justify-center">
-                            <Coffee className="w-3 h-3 mb-0.5" />
-                            <span>{breakBefore.start}</span>
-                          </div>
-                          {weekDays.map((day, dayIdx) => (
-                            <div
-                              key={dayIdx}
-                              className="p-1.5 text-center text-xs text-muted-foreground border-r last:border-r-0 border-border/30 flex items-center justify-center"
-                            >
-                              {breakBefore.label}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    {/* Half-hour Grid Lines */}
+                    {HOURS.map((hour) => (
+                      <div
+                        key={`half-${hour}`}
+                        className="absolute w-full border-t border-border/10"
+                        style={{ top: `${hour * 60 + 30}px` }}
+                      />
+                    ))}
 
-                      {/* Lesson row */}
-                      <div className="grid grid-cols-[80px_repeat(5,1fr)] border-b border-border/50">
-                        <div className="p-2 text-xs text-muted-foreground text-center border-r border-border/50 flex flex-col justify-center">
-                          <span className="font-medium">{slot.period}.</span>
-                          <span className="text-[10px]">{slot.start}</span>
-                          <span className="text-[10px]">{slot.end}</span>
-                        </div>
-                        {weekDays.map((day, dayIdx) => {
-                          const entries = getEntriesForDayAndPeriod(dayIdx + 1, slot.period);
-                          const entry = entries[0];
-                          
-                          return (
-                            <div
-                              key={dayIdx}
-                              className={`p-1.5 min-h-[70px] border-r last:border-r-0 border-border/50 ${
-                                isToday(day) ? 'bg-primary/5' : ''
-                              }`}
-                            >
-                              {entry && (
-                                <div className="h-full bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg p-2 border border-primary/20 hover:border-primary/40 transition-colors">
-                                  <div className="flex items-start justify-between gap-1">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium text-sm truncate">
-                                        {entry.subject?.short_name || entry.subject?.name || entry.teacher_short}
-                                      </p>
-                                      {entry.subject?.name && entry.subject?.short_name && (
-                                        <p className="text-[10px] text-muted-foreground truncate">
-                                          {entry.subject.name}
-                                        </p>
-                                      )}
-                                    </div>
-                                    {entry.week_type && entry.week_type !== 'both' && (
-                                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0">
-                                        {entry.week_type.toUpperCase()}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
-                                    {entry.room && <span>{entry.room}</span>}
-                                    <span>{entry.teacher_short}</span>
-                                  </div>
-                                </div>
+                    {/* Timetable Entries */}
+                    {entries.map((entry) => {
+                      const lessonTime = LESSON_TIMES[entry.period];
+                      if (!lessonTime) return null;
+                      
+                      const style = getEventStyle(lessonTime.start, lessonTime.end);
+                      
+                      return (
+                        <div
+                          key={entry.id}
+                          className="absolute left-1 right-1 bg-gradient-to-br from-primary/25 to-primary/10 rounded-lg border border-primary/30 overflow-hidden hover:border-primary/50 transition-colors cursor-pointer group"
+                          style={style}
+                        >
+                          <div className="p-1.5 h-full flex flex-col">
+                            <div className="flex items-start justify-between gap-1">
+                              <p className="font-medium text-xs truncate flex-1">
+                                {entry.subject?.short_name || entry.subject?.name || entry.teacher_short}
+                              </p>
+                              {entry.week_type && entry.week_type !== 'both' && (
+                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 shrink-0">
+                                  {entry.week_type.toUpperCase()}
+                                </Badge>
                               )}
                             </div>
-                          );
-                        })}
+                            <div className="text-[9px] text-muted-foreground mt-0.5">
+                              {lessonTime.start} - {lessonTime.end}
+                            </div>
+                            <div className="text-[9px] text-muted-foreground flex items-center gap-1 mt-auto">
+                              {entry.room && <span>{entry.room}</span>}
+                              {entry.room && <span>-</span>}
+                              <span>{entry.teacher_short}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Current Time Indicator */}
+                    {isToday(day) && (
+                      <div
+                        className="absolute left-0 right-0 z-10 pointer-events-none"
+                        style={{ top: `${currentTimePosition}px` }}
+                      >
+                        <div className="relative">
+                          <div className="absolute -left-1 -top-1.5 w-3 h-3 bg-red-500 rounded-full" />
+                          <div className="h-0.5 bg-red-500 w-full" />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </Card>
@@ -303,20 +311,16 @@ export default function Kalender() {
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20" />
+            <div className="w-4 h-4 rounded bg-gradient-to-br from-primary/25 to-primary/10 border border-primary/30" />
             <span>Unterricht</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-muted/30" />
-            <span>Pause</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-0.5 bg-red-500 rounded" />
+            <div className="w-4 h-0.5 bg-red-500 rounded" />
             <span>Aktuelle Zeit</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">A/B</Badge>
-            <span>Wochentyp</span>
+            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">A/B</Badge>
+            <span>Wochentyp (A = ungerade KW, B = gerade KW)</span>
           </div>
         </div>
       </div>
