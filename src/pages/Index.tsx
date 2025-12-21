@@ -7,7 +7,6 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { CompactLevelCard } from '@/components/dashboard/CompactLevelCard';
 import { TodayProgressCard } from '@/components/dashboard/TodayProgressCard';
 import { NextActionsCard } from '@/components/dashboard/NextActionsCard';
-import { RecentSuccessCard } from '@/components/dashboard/RecentSuccessCard';
 import { HabitsOverview } from '@/components/dashboard/HabitsOverview';
 import { AchievementsCard, checkAndUnlockAchievements } from '@/components/dashboard/AchievementsCard';
 import { QuickStats } from '@/components/dashboard/QuickStats';
@@ -69,28 +68,25 @@ export default function Index() {
   return (
     <AppLayout>
       <div className="p-4 md:p-6 lg:p-8 space-y-4 max-w-7xl mx-auto">
-        {/* Top Row: Level + Today's Progress */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <CompactLevelCard
-            xp={profile?.xp || 0}
-            level={profile?.level || 1}
-            streakDays={profile?.streak_days || 0}
-          />
-          <TodayProgressCard />
-        </div>
-
-        {/* Main Content: Actions + Successes */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <NextActionsCard />
-          <RecentSuccessCard />
-        </div>
-
-        {/* Habits + Time Progress */}
+        {/* Top Row: Level + Time Progress */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
-            <HabitsOverview />
+            <CompactLevelCard
+              xp={profile?.xp || 0}
+              level={profile?.level || 1}
+              streakDays={profile?.streak_days || 0}
+            />
           </div>
           <TimeProgressCard />
+        </div>
+
+        {/* Today's Progress */}
+        <TodayProgressCard />
+
+        {/* Main Content: Actions + Habits */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <NextActionsCard />
+          <HabitsOverview />
         </div>
 
         {/* Bottom: Achievements + Quick Stats */}
