@@ -8,7 +8,7 @@ import { HeroStats } from '@/components/dashboard/HeroStats';
 import { HabitsOverview } from '@/components/dashboard/HabitsOverview';
 import { AchievementsCard, checkAndUnlockAchievements } from '@/components/dashboard/AchievementsCard';
 import { QuickStats } from '@/components/dashboard/QuickStats';
-import { RecentActivity } from '@/components/dashboard/RecentActivity';
+import { TimeProgressCard } from '@/components/dashboard/TimeProgressCard';
 import { MotivationQuote } from '@/components/dashboard/MotivationQuote';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,6 +111,9 @@ export default function Index() {
           tasksTotal={todayTasksTotal}
         />
 
+        {/* Time Progress */}
+        <TimeProgressCard />
+
         {/* Habits & Achievements Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <HabitsOverview />
@@ -125,9 +128,6 @@ export default function Index() {
           totalBalance={stats.totalBalance}
           loadingPrices={stats.loadingPrices}
         />
-
-        {/* Recent Activity */}
-        <RecentActivity activities={recentActivity} />
       </div>
     </AppLayout>
   );
