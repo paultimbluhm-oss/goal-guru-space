@@ -238,6 +238,12 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     
     for (const period of visiblePeriods) {
       const entry = getEntryForSlot(day, period);
+      
+      // Skip default free periods (marked with teacher_short = 'FREI' and no subject)
+      if (entry && entry.teacher_short === 'FREI' && !entry.subject_id) {
+        continue;
+      }
+      
       if (isSecondOfDouble(day, period)) continue; // Skip second part of double
       
       slots.push({

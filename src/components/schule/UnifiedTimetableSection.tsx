@@ -19,6 +19,8 @@ import { SubjectCard } from './SubjectCard';
 import { AddSubjectDialog } from './AddSubjectDialog';
 import { EditSubjectDialog } from './EditSubjectDialog';
 import { AddHolidayDialog } from './AddHolidayDialog';
+import { SubjectsOverviewDialog } from './SubjectsOverviewDialog';
+import { DefaultFreePeriodDialog } from './DefaultFreePeriodDialog';
 
 interface CustomHoliday {
   id: string;
@@ -631,7 +633,13 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <SubjectsOverviewDialog 
+            subjects={subjects} 
+            onSubjectEdit={setEditingSubject}
+            onSubjectsChanged={fetchData}
+          />
+          <DefaultFreePeriodDialog onFreePeriodAdded={fetchData} />
           <AddHolidayDialog onHolidayAdded={fetchHolidays} />
           <AddSubjectDialog onSubjectAdded={fetchData} />
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
@@ -878,6 +886,10 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
           <span>Anwesend</span>
         </div>
         <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-cyan-500/10 border border-cyan-500/30" />
+          <span>Freistunde</span>
+        </div>
+        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-muted border-2 border-red-500 relative overflow-hidden">
             <div className="absolute inset-0 w-full h-0.5 bg-red-500 rotate-45 top-1/2 -translate-y-1/2 origin-center" style={{ width: '150%', left: '-25%' }} />
           </div>
@@ -973,6 +985,30 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                             }}
                           >
                             <Plus className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground/30" />
+                          </Card>
+                        );
+                      }
+
+                      // Check if this is a default free period
+                      const isDefaultFreePeriod = entry.teacher_short === 'FREI' && !entry.subject_id;
+
+                      if (isDefaultFreePeriod) {
+                        const isDoubleFreePeriod = isDoubleStart;
+                        return (
+                          <Card
+                            key={`${dayIndex}-${periodInfo.period}`}
+                            className={`p-1 md:p-2 flex flex-col justify-center items-center text-center bg-cyan-500/10 border border-cyan-500/30 ${isDoubleFreePeriod ? 'min-h-[90px] md:min-h-[120px] row-span-2' : 'min-h-[45px] md:min-h-[60px]'}`}
+                            style={isDoubleFreePeriod ? { gridRow: 'span 2' } : undefined}
+                          >
+                            <Coffee className="w-4 h-4 md:w-5 md:h-5 text-cyan-600 mb-0.5" />
+                            <span className="text-[9px] md:text-xs font-medium text-cyan-700 dark:text-cyan-300">
+                              Freistunde
+                            </span>
+                            {entry.week_type !== 'both' && (
+                              <span className="text-[8px] md:text-[10px] mt-0.5 px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-600">
+                                {entry.week_type === 'odd' ? 'A' : 'B'}
+                              </span>
+                            )}
                           </Card>
                         );
                       }
