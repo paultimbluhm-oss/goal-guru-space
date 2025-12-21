@@ -46,7 +46,6 @@ const REASONS = [
   { value: 'sick', label: 'Krank', icon: Thermometer, color: 'bg-red-500' },
   { value: 'doctor', label: 'Arzt', icon: Stethoscope, color: 'bg-blue-500' },
   { value: 'school_project', label: 'Schulprojekt', icon: FolderKanban, color: 'bg-yellow-500' },
-  { value: 'efa', label: 'EFA (Freistunde)', icon: Clock, color: 'bg-cyan-500' },
   { value: 'other', label: 'Sonstiges', icon: HelpCircle, color: 'bg-gray-500' },
 ] as const;
 
@@ -149,7 +148,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   const stats = useMemo(() => {
     const HOURS_PER_SCHOOL_DAY = 8; // 4 Doppelstunden = 8 Einzelstunden
     
-    // Filter out EFA for "real" absence statistics
+    // Filter out EVA for "real" absence statistics
     const realAbsences = allAbsences.filter(a => a.reason !== 'efa');
     const efaCount = allAbsences.filter(a => a.reason === 'efa').length;
     
@@ -186,7 +185,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     };
   }, [allAbsences]);
 
-  // Get unexcused absences for clickable list (exclude EFA - they don't need excusing)
+  // Get unexcused absences for clickable list (exclude EVA - they don't need excusing)
   const unexcusedAbsences = useMemo(() => {
     return allAbsences.filter(a => !a.excused && a.reason !== 'efa').sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -710,6 +709,23 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
                     }
 
                     const absence = getAbsenceForSlot(date, slot.entry.id);
+                    
+                    // Check if this slot has EVA - skip it like a free period
+                    if (absence?.reason === 'efa') {
+                      return null;
+                    }
+                    
+                    // For double lessons, also check next period for EVA
+                    if (slot.isDouble) {
+                      const nextEntry = getEntryForSlot(slot.entry.day_of_week, slot.entry.period + 1);
+                      if (nextEntry) {
+                        const nextAbsence = getAbsenceForSlot(date, nextEntry.id);
+                        if (nextAbsence?.reason === 'efa') {
+                          return null;
+                        }
+                      }
+                    }
+                    
                     const dateStr = format(date, 'yyyy-MM-dd');
                     const isSelected = selectedSlots.has(`${dateStr}:${slot.entry.id}`);
                     
