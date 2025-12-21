@@ -2,15 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, Wallet, ListChecks, Calendar, Sparkles, Lightbulb, ChefHat, BookOpen, Wrench, Check, ChevronRight } from 'lucide-react';
+import { User, Wallet, ListChecks, Calendar, Sparkles, ChefHat, Check, ChevronRight } from 'lucide-react';
 import { FinanceSection } from '@/components/privat/finance/FinanceSection';
 import { ChecklistSection } from '@/components/privat/checklists';
 import { TaskSection } from '@/components/privat/tasks';
 import { BoredomSection } from '@/components/privat/boredom';
-import { IdeasSection } from '@/components/privat/ideas';
 import { RecipesSection } from '@/components/privat/recipes';
-import { TermsSection } from '@/components/privat/terms';
-import { OptimizationsSection } from '@/components/privat/optimizations';
 import { HabitsSection } from '@/components/privat/habits';
 
 const sections = [
@@ -19,10 +16,7 @@ const sections = [
   { id: 'checklisten', icon: ListChecks, label: 'Checklisten', desc: 'Eigene Listen erstellen', color: 'from-blue-500 to-indigo-600' },
   { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', desc: 'Planer & To-Dos', color: 'from-violet-500 to-purple-600' },
   { id: 'langeweile', icon: Sparkles, label: 'Langeweile', desc: 'Projekte & Skills lernen', color: 'from-pink-500 to-rose-600' },
-  { id: 'ideen', icon: Lightbulb, label: 'Ideen', desc: 'Gedanken & Einfälle festhalten', color: 'from-yellow-500 to-amber-600' },
   { id: 'rezepte', icon: ChefHat, label: 'Rezepte', desc: 'Kochbuch mit Portionsrechner', color: 'from-red-500 to-orange-600' },
-  { id: 'fachbegriffe', icon: BookOpen, label: 'Fachbegriffe', desc: 'Vokabeln & professionelle Sprache', color: 'from-cyan-500 to-teal-600' },
-  { id: 'optimierungen', icon: Wrench, label: 'Optimierungen', desc: 'Probleme & Verbesserungen', color: 'from-slate-500 to-zinc-600' },
 ];
 
 export default function Privat() {
@@ -86,41 +80,11 @@ export default function Privat() {
     );
   }
 
-  if (activeSection === 'ideen') {
-    return (
-      <AppLayout>
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <IdeasSection onBack={() => setActiveSection(null)} />
-        </div>
-      </AppLayout>
-    );
-  }
-
   if (activeSection === 'rezepte') {
     return (
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <RecipesSection onBack={() => setActiveSection(null)} />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (activeSection === 'fachbegriffe') {
-    return (
-      <AppLayout>
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <TermsSection onBack={() => setActiveSection(null)} />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (activeSection === 'optimierungen') {
-    return (
-      <AppLayout>
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <OptimizationsSection onBack={() => setActiveSection(null)} />
         </div>
       </AppLayout>
     );
