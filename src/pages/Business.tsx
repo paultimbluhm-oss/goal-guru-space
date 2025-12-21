@@ -1,19 +1,24 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Briefcase, Users, ClipboardList, TrendingUp, Package } from 'lucide-react';
+import { Briefcase, Users, ClipboardList, TrendingUp, Package, ChevronRight } from 'lucide-react';
+import { ContactsSection } from '@/components/business/contacts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const sections = [
-  { icon: Users, label: 'Kontakte', desc: 'Kontaktverzeichnis' },
-  { icon: ClipboardList, label: 'Aufträge', desc: 'Status & Übersicht' },
-  { icon: TrendingUp, label: 'Investitionen', desc: 'Prognosen & Planung' },
-  { icon: Package, label: 'Produkte', desc: 'Produkte & Dienstleistungen' },
+type BusinessSection = 'kontakte' | 'auftraege' | 'investitionen' | 'produkte';
+
+const sections: { id: BusinessSection; icon: React.ElementType; label: string; desc: string }[] = [
+  { id: 'kontakte', icon: Users, label: 'Kontakte', desc: 'Kontaktverzeichnis' },
+  { id: 'auftraege', icon: ClipboardList, label: 'Aufträge', desc: 'Status & Übersicht' },
+  { id: 'investitionen', icon: TrendingUp, label: 'Investitionen', desc: 'Prognosen & Planung' },
+  { id: 'produkte', icon: Package, label: 'Produkte', desc: 'Produkte & Dienstleistungen' },
 ];
 
 export default function Business() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState<BusinessSection>('kontakte');
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
@@ -34,21 +39,44 @@ export default function Business() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sections.map((s, i) => (
-            <div key={s.label} className="glass-card p-6 hover:border-primary/50 transition-colors cursor-pointer fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-warning/20">
-                  <s.icon className="w-6 h-6 text-warning" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">{s.label}</h3>
-                  <p className="text-sm text-muted-foreground">{s.desc}</p>
-                </div>
-              </div>
+        <Tabs value={activeSection} onValueChange={(v) => setActiveSection(v as BusinessSection)}>
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+            {sections.map((s) => (
+              <TabsTrigger key={s.id} value={s.id} className="flex items-center gap-2">
+                <s.icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{s.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="kontakte" className="mt-6">
+            <ContactsSection />
+          </TabsContent>
+
+          <TabsContent value="auftraege" className="mt-6">
+            <div className="glass-card p-8 text-center">
+              <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="font-medium text-muted-foreground mb-2">Aufträge</h3>
+              <p className="text-sm text-muted-foreground/70">Kommt bald...</p>
             </div>
-          ))}
-        </div>
+          </TabsContent>
+
+          <TabsContent value="investitionen" className="mt-6">
+            <div className="glass-card p-8 text-center">
+              <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="font-medium text-muted-foreground mb-2">Investitionen</h3>
+              <p className="text-sm text-muted-foreground/70">Kommt bald...</p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="produkte" className="mt-6">
+            <div className="glass-card p-8 text-center">
+              <Package className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="font-medium text-muted-foreground mb-2">Produkte</h3>
+              <p className="text-sm text-muted-foreground/70">Kommt bald...</p>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );

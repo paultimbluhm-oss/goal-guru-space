@@ -436,6 +436,7 @@ export type Database = {
       }
       contacts: {
         Row: {
+          address: string | null
           company: string | null
           created_at: string | null
           email: string | null
@@ -443,9 +444,11 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          status: string | null
           user_id: string
         }
         Insert: {
+          address?: string | null
           company?: string | null
           created_at?: string | null
           email?: string | null
@@ -453,9 +456,11 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          status?: string | null
           user_id: string
         }
         Update: {
+          address?: string | null
           company?: string | null
           created_at?: string | null
           email?: string | null
@@ -463,6 +468,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          status?: string | null
           user_id?: string
         }
         Relationships: []
