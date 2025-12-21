@@ -41,7 +41,7 @@ const REASON_LABELS: Record<string, string> = {
   sick: 'Krank',
   doctor: 'Arzt',
   school_project: 'Schulprojekt',
-  efa: 'EFA (Freistunde)',
+  efa: 'EVA (Freistunde)',
   other: 'Sonstiges',
 };
 
@@ -70,7 +70,7 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
     return false;
   };
 
-  // Calculate real absence hours (excluding EFA)
+  // Calculate real absence hours (excluding EVA)
   const realAbsenceHours = stats.total - (stats.efaCount || 0);
   const realAbsenceDays = (realAbsenceHours / 8).toFixed(1);
 
@@ -158,7 +158,7 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
   doc.text((stats.efaCount || 0).toString(), efaX + boxWidth / 2, yPos + 15, { align: 'center' });
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('EFA-Stunden', efaX + boxWidth / 2, yPos + 23, { align: 'center' });
+  doc.text('EVA-Stunden', efaX + boxWidth / 2, yPos + 23, { align: 'center' });
   doc.setTextColor(100, 100, 100);
   doc.text('(keine Fehlzeit)', efaX + boxWidth / 2, yPos + 30, { align: 'center' });
 
@@ -222,7 +222,7 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
   doc.text('Detaillierte Auflistung (nach Fach)', margin, yPos);
   yPos += 8;
 
-  // Filter out EFA from detailed list if needed and sort by subject
+  // Filter out EVA from detailed list if needed and sort by subject
   const nonEfaAbsences = absences.filter(a => a.reason !== 'efa');
   
   // Sort by subject name, then by date
@@ -337,7 +337,7 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
     });
   }
 
-  // Add EFA section at the end if there are any
+  // Add EVA section at the end if there are any
   const efaAbsences = absences.filter(a => a.reason === 'efa');
   if (efaAbsences.length > 0) {
     yPos += 10;
@@ -346,7 +346,7 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(6, 182, 212);
-    doc.text('EFA-Stunden (keine Fehlzeiten)', margin, yPos);
+    doc.text('EVA-Stunden (keine Fehlzeiten)', margin, yPos);
     yPos += 8;
     
     doc.setFontSize(9);

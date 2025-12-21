@@ -473,15 +473,15 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
     return null;
   };
 
-  // Toggle EFA status for a slot
-  const toggleEFA = async (entry: TimetableEntry, date: Date) => {
+  // Toggle EVA status for a slot
+  const toggleEVA = async (entry: TimetableEntry, date: Date) => {
     if (!user) return;
     
     const dateStr = format(date, 'yyyy-MM-dd');
     const existingAbsence = absences.find(a => a.date === dateStr && a.timetable_entry_id === entry.id);
     
     if (existingAbsence?.reason === 'efa') {
-      // Remove EFA
+      // Remove EVA
       const { error } = await supabase
         .from('lesson_absences')
         .delete()
@@ -490,11 +490,11 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
       if (error) {
         toast.error('Fehler beim Entfernen');
       } else {
-        toast.success('EFA entfernt');
+        toast.success('EVA entfernt');
         fetchData();
       }
     } else if (!existingAbsence) {
-      // Add EFA
+      // Add EVA
       const { error } = await supabase
         .from('lesson_absences')
         .insert({
@@ -510,7 +510,7 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
         toast.error('Fehler beim Markieren');
         console.error(error);
       } else {
-        toast.success('Als EFA markiert');
+        toast.success('Als EVA markiert');
         fetchData();
       }
     } else {
@@ -518,7 +518,7 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
     }
   };
 
-  const getEfaStatusForSlot = (entry: TimetableEntry, date: Date) => {
+  const getEvaStatusForSlot = (entry: TimetableEntry, date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const absence = absences.find(a => a.date === dateStr && a.timetable_entry_id === entry.id);
     return absence?.reason === 'efa';
@@ -1169,10 +1169,10 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
                 {/* EVA Toggle Button */}
                 {selectedSlotEntry && selectedSlotDate && (
                   <Button 
-                    variant={getEfaStatusForSlot(selectedSlotEntry, selectedSlotDate) ? 'destructive' : 'outline'}
+                    variant={getEvaStatusForSlot(selectedSlotEntry, selectedSlotDate) ? 'destructive' : 'outline'}
                     size="sm"
                     className="gap-1 text-xs"
-                    onClick={() => toggleEFA(selectedSlotEntry, selectedSlotDate)}
+                    onClick={() => toggleEVA(selectedSlotEntry, selectedSlotDate)}
                   >
                     <Clock className="w-3.5 h-3.5" />
                     EVA
@@ -1198,7 +1198,7 @@ export function UnifiedTimetableSection({ onBack }: UnifiedTimetableSectionProps
             {selectedSlotDate && (
               <p className="text-xs text-muted-foreground mt-1">
                 {format(selectedSlotDate, 'EEEE, dd. MMMM yyyy', { locale: de })}
-                {getEfaStatusForSlot(selectedSlotEntry!, selectedSlotDate) && (
+                {getEvaStatusForSlot(selectedSlotEntry!, selectedSlotDate) && (
                   <Badge variant="destructive" className="ml-2 text-xs">
                     EVA - Freistunde
                   </Badge>
