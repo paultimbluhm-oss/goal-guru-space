@@ -95,12 +95,73 @@ export default function Kalender() {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
 
-  const getEntriesForDay = (dayOfWeek: number) => {
-    return timetableEntries.filter(entry => {
+  interface MergedEntry {
+    id: string;
+    startPeriod: number;
+    endPeriod: number;
+    room: string | null;
+    teacher_short: string;
+    subject_id: string | null;
+    week_type: string | null;
+    subject?: {
+      name: string;
+      short_name: string | null;
+    } | null;
+    isDouble: boolean;
+  }
+
+  const getMergedEntriesForDay = (dayOfWeek: number): MergedEntry[] => {
+    const dayEntries = timetableEntries.filter(entry => {
       if (entry.day_of_week !== dayOfWeek) return false;
       if (!entry.week_type || entry.week_type === 'both') return true;
       return entry.week_type.toUpperCase() === currentWeekType;
-    });
+    }).sort((a, b) => a.period - b.period);
+
+    const merged: MergedEntry[] = [];
+    let i = 0;
+
+    while (i < dayEntries.length) {
+      const current = dayEntries[i];
+      const next = dayEntries[i + 1];
+
+      // Check if this is a double lesson (same subject, consecutive periods)
+      const isConsecutive = next && 
+        current.subject_id && 
+        current.subject_id === next.subject_id &&
+        next.period === current.period + 1 &&
+        // Check they're in the same block (not split by a break)
+        !([2, 4, 6].includes(current.period));
+
+      if (isConsecutive) {
+        merged.push({
+          id: current.id,
+          startPeriod: current.period,
+          endPeriod: next.period,
+          room: current.room,
+          teacher_short: current.teacher_short,
+          subject_id: current.subject_id,
+          week_type: current.week_type,
+          subject: current.subject,
+          isDouble: true,
+        });
+        i += 2; // Skip next entry as it's merged
+      } else {
+        merged.push({
+          id: current.id,
+          startPeriod: current.period,
+          endPeriod: current.period,
+          room: current.room,
+          teacher_short: current.teacher_short,
+          subject_id: current.subject_id,
+          week_type: current.week_type,
+          subject: current.subject,
+          isDouble: false,
+        });
+        i += 1;
+      }
+    }
+
+    return merged;
   };
 
   const timeToMinutes = (time: string) => {
@@ -108,10 +169,14 @@ export default function Kalender() {
     return h * 60 + m;
   };
 
-  const getEventStyle = (startTime: string, endTime: string) => {
+  const getEventStyle = (startPeriod: number, endPeriod: number) => {
+    const startTime = LESSON_TIMES[startPeriod]?.start;
+    const endTime = LESSON_TIMES[endPeriod]?.end;
+    if (!startTime || !endTime) return { top: '0px', height: '0px' };
+    
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = timeToMinutes(endTime);
-    const top = (startMinutes / 60) * 60; // 60px per hour
+    const top = (startMinutes / 60) * 60;
     const height = ((endMinutes - startMinutes) / 60) * 60;
     return { top: `${top}px`, height: `${height}px` };
   };
@@ -225,7 +290,7 @@ export default function Kalender() {
 
               {/* Day Columns */}
               {weekDays.map((day, dayIdx) => {
-                const entries = getEntriesForDay(dayIdx + 1);
+                const mergedEntries = getMergedEntriesForDay(dayIdx + 1);
                 
                 return (
                   <div
@@ -253,36 +318,28 @@ export default function Kalender() {
                     ))}
 
                     {/* Timetable Entries */}
-                    {entries.map((entry) => {
-                      const lessonTime = LESSON_TIMES[entry.period];
-                      if (!lessonTime) return null;
-                      
-                      const style = getEventStyle(lessonTime.start, lessonTime.end);
+                    {mergedEntries.map((entry) => {
+                      const style = getEventStyle(entry.startPeriod, entry.endPeriod);
+                      const startTime = LESSON_TIMES[entry.startPeriod]?.start;
+                      const endTime = LESSON_TIMES[entry.endPeriod]?.end;
                       
                       return (
                         <div
                           key={entry.id}
-                          className="absolute left-1 right-1 bg-gradient-to-br from-primary/25 to-primary/10 rounded-lg border border-primary/30 overflow-hidden hover:border-primary/50 transition-colors cursor-pointer group"
+                          className="absolute left-1 right-1 bg-gradient-to-br from-primary/25 to-primary/10 rounded-lg border border-primary/30 overflow-hidden hover:border-primary/50 transition-colors cursor-pointer"
                           style={style}
                         >
-                          <div className="p-1.5 h-full flex flex-col">
-                            <div className="flex items-start justify-between gap-1">
-                              <p className="font-medium text-xs truncate flex-1">
-                                {entry.subject?.short_name || entry.subject?.name || entry.teacher_short}
+                          <div className="p-1.5 h-full flex flex-col overflow-hidden">
+                            <p className="font-medium text-xs truncate">
+                              {entry.subject?.short_name || entry.subject?.name || entry.teacher_short}
+                            </p>
+                            {entry.isDouble && (
+                              <p className="text-[9px] text-muted-foreground">
+                                {startTime} - {endTime}
                               </p>
-                              {entry.week_type && entry.week_type !== 'both' && (
-                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5 shrink-0">
-                                  {entry.week_type.toUpperCase()}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-[9px] text-muted-foreground mt-0.5">
-                              {lessonTime.start} - {lessonTime.end}
-                            </div>
-                            <div className="text-[9px] text-muted-foreground flex items-center gap-1 mt-auto">
-                              {entry.room && <span>{entry.room}</span>}
-                              {entry.room && <span>-</span>}
-                              <span>{entry.teacher_short}</span>
+                            )}
+                            <div className="text-[9px] text-muted-foreground mt-auto truncate">
+                              {entry.room || entry.teacher_short}
                             </div>
                           </div>
                         </div>
