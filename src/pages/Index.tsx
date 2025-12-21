@@ -1,60 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useStats } from '@/hooks/useStats';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { HeroStats } from '@/components/dashboard/HeroStats';
+import { CompactLevelCard } from '@/components/dashboard/CompactLevelCard';
+import { TodayProgressCard } from '@/components/dashboard/TodayProgressCard';
+import { NextActionsCard } from '@/components/dashboard/NextActionsCard';
+import { RecentSuccessCard } from '@/components/dashboard/RecentSuccessCard';
 import { HabitsOverview } from '@/components/dashboard/HabitsOverview';
 import { AchievementsCard, checkAndUnlockAchievements } from '@/components/dashboard/AchievementsCard';
 import { QuickStats } from '@/components/dashboard/QuickStats';
 import { TimeProgressCard } from '@/components/dashboard/TimeProgressCard';
-import { MotivationQuote } from '@/components/dashboard/MotivationQuote';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
 
 export default function Index() {
   const { user, loading: authLoading } = useAuth();
-  const { profile, loading: profileLoading, recentActivity, refetch } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
   const { stats, loading: statsLoading } = useStats();
   const navigate = useNavigate();
-  const [todayTasksCompleted, setTodayTasksCompleted] = useState(0);
-  const [todayTasksTotal, setTodayTasksTotal] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
     }
   }, [user, authLoading, navigate]);
-
-  // Fetch today's tasks progress
-  useEffect(() => {
-    if (user) {
-      fetchTodayTasks();
-    }
-  }, [user]);
-
-  const fetchTodayTasks = async () => {
-    if (!user) return;
-    
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const todayStart = `${today}T00:00:00.000Z`;
-    const todayEnd = `${today}T23:59:59.999Z`;
-    
-    // Get only tasks due today
-    const { data: tasks } = await supabase
-      .from('tasks')
-      .select('id, completed, due_date')
-      .eq('user_id', user.id)
-      .gte('due_date', todayStart)
-      .lte('due_date', todayEnd);
-    
-    if (tasks) {
-      setTodayTasksTotal(tasks.length);
-      setTodayTasksCompleted(tasks.filter(t => t.completed).length);
-    }
-  };
 
   // Check achievements when profile/stats load
   useEffect(() => {
@@ -66,7 +37,6 @@ export default function Index() {
   const checkAchievements = async () => {
     if (!user || !profile) return;
 
-    // Get additional stats for achievements
     const [habitsRes, gradesRes, termsRes] = await Promise.all([
       supabase.from('habits').select('id').eq('user_id', user.id).eq('is_active', true),
       supabase.from('grades').select('id').eq('user_id', user.id),
@@ -98,36 +68,42 @@ export default function Index() {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-        {/* Motivation Quote */}
-        <MotivationQuote />
-
-        {/* Hero Stats - Level, XP, Streak */}
-        <HeroStats 
-          xp={profile?.xp || 0} 
-          level={profile?.level || 1} 
-          streakDays={profile?.streak_days || 0}
-          tasksCompleted={todayTasksCompleted}
-          tasksTotal={todayTasksTotal}
-        />
-
-        {/* Time Progress */}
-        <TimeProgressCard />
-
-        {/* Habits & Achievements Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <HabitsOverview />
-          <AchievementsCard />
+      <div className="p-4 md:p-6 lg:p-8 space-y-4 max-w-7xl mx-auto">
+        {/* Top Row: Level + Today's Progress */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <CompactLevelCard
+            xp={profile?.xp || 0}
+            level={profile?.level || 1}
+            streakDays={profile?.streak_days || 0}
+          />
+          <TodayProgressCard />
         </div>
 
-        {/* Quick Stats */}
-        <QuickStats
-          tasksCompleted={stats.tasksCompleted}
-          tasksPending={stats.tasksPending}
-          averageGrade={stats.averageGrade}
-          totalBalance={stats.totalBalance}
-          loadingPrices={stats.loadingPrices}
-        />
+        {/* Main Content: Actions + Successes */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <NextActionsCard />
+          <RecentSuccessCard />
+        </div>
+
+        {/* Habits + Time Progress */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            <HabitsOverview />
+          </div>
+          <TimeProgressCard />
+        </div>
+
+        {/* Bottom: Achievements + Quick Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <AchievementsCard />
+          <QuickStats
+            tasksCompleted={stats.tasksCompleted}
+            tasksPending={stats.tasksPending}
+            averageGrade={stats.averageGrade}
+            totalBalance={stats.totalBalance}
+            loadingPrices={stats.loadingPrices}
+          />
+        </div>
       </div>
     </AppLayout>
   );
