@@ -73,6 +73,10 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   // Selection state for adding absences
   const [selectedReason, setSelectedReason] = useState<ReasonType>('sick');
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
+  
+  // Report dialog state
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportName, setReportName] = useState('');
 
   // Auto-switch to compact mode on mobile
   useEffect(() => {
@@ -395,8 +399,6 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     );
   }
 
-  const [showReportDialog, setShowReportDialog] = useState(false);
-  const [reportName, setReportName] = useState('');
 
   const handleDownloadReport = () => {
     // Group double lessons together
