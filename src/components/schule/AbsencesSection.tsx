@@ -10,6 +10,9 @@ import { de } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { generateAbsenceReport } from './generateAbsenceReport';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface TimetableEntry {
   id: string;
@@ -392,21 +395,61 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     );
   }
 
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportName, setReportName] = useState('');
+
   const handleDownloadReport = () => {
-    const reportData = allAbsences.map(a => ({
-      ...a,
-      timetable_entries: {
-        period: a.timetable_entries?.period || 0,
-        teacher_short: a.timetable_entries?.teacher_short || '',
-        subjects: a.timetable_entries?.subjects || null,
+    // Group double lessons together
+    const groupedAbsences: Map<string, typeof allAbsences> = new Map();
+    
+    allAbsences.forEach(absence => {
+      const entry = absence.timetable_entries;
+      const dateKey = absence.date;
+      const subjectKey = entry?.subjects?.id || entry?.teacher_short || 'unknown';
+      
+      // Create a key that groups by date + subject + consecutive periods
+      const baseKey = `${dateKey}-${subjectKey}`;
+      
+      if (!groupedAbsences.has(baseKey)) {
+        groupedAbsences.set(baseKey, []);
       }
-    }));
+      groupedAbsences.get(baseKey)!.push(absence);
+    });
+
+    // Process grouped absences to identify double lessons
+    const reportData = Array.from(groupedAbsences.values()).map(group => {
+      // Sort by period
+      group.sort((a, b) => (a.timetable_entries?.period || 0) - (b.timetable_entries?.period || 0));
+      
+      // Check if consecutive periods (double lesson)
+      const isDouble = group.length >= 2 && 
+        group[1].timetable_entries?.period === (group[0].timetable_entries?.period || 0) + 1;
+      
+      const first = group[0];
+      return {
+        id: first.id,
+        date: first.date,
+        reason: first.reason,
+        excused: first.excused,
+        description: first.description,
+        isDoublePeriod: isDouble,
+        periodStart: first.timetable_entries?.period || 0,
+        periodEnd: isDouble ? (group[1].timetable_entries?.period || 0) : (first.timetable_entries?.period || 0),
+        timetable_entries: {
+          period: first.timetable_entries?.period || 0,
+          teacher_short: first.timetable_entries?.teacher_short || '',
+          subjects: first.timetable_entries?.subjects || null,
+        }
+      };
+    });
     
     const efaCount = allAbsences.filter(a => a.reason === 'efa').length;
     const efaDays = (efaCount / 8).toFixed(1);
     
-    generateAbsenceReport(reportData, { ...stats, efaCount, efaDays });
+    generateAbsenceReport(reportData, { ...stats, efaCount, efaDays }, reportName || undefined);
     toast.success('PDF-Bericht wurde heruntergeladen');
+    setShowReportDialog(false);
+    setReportName('');
   };
 
   return (
@@ -422,12 +465,45 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
             <p className="text-sm text-muted-foreground">Tippe auf Stunden zum Auswählen</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={handleDownloadReport} className="gap-2">
+        <Button variant="outline" size="sm" onClick={() => setShowReportDialog(true)} className="gap-2">
           <FileDown className="w-4 h-4" />
           <span className="hidden sm:inline">PDF-Bericht</span>
           <span className="sm:hidden">PDF</span>
         </Button>
       </div>
+
+      {/* Report Name Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>PDF-Bericht erstellen</DialogTitle>
+            <DialogDescription>
+              Gib deinen Namen ein, der auf dem Bericht erscheinen soll.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="report-name">Name des Schülers</Label>
+              <Input
+                id="report-name"
+                placeholder="z.B. Max Mustermann"
+                value={reportName}
+                onChange={(e) => setReportName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleDownloadReport()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReportDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleDownloadReport} className="gap-2">
+              <FileDown className="w-4 h-4" />
+              Herunterladen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Comprehensive Statistics Overview */}
       <Card className="p-4 space-y-4">
