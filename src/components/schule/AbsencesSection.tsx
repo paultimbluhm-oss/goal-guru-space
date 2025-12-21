@@ -394,10 +394,11 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
     }
   };
 
-  // Statistics
-  const totalHours = absences.length;
-  const excusedCount = absences.filter(a => a.excused).length;
-  const unexcusedCount = absences.filter(a => !a.excused).length;
+  // Statistics for current week (exclude EVA - treated like free periods)
+  const weekAbsencesWithoutEva = absences.filter(a => a.reason !== 'efa');
+  const totalHours = weekAbsencesWithoutEva.length;
+  const excusedCount = weekAbsencesWithoutEva.filter(a => a.excused).length;
+  const unexcusedCount = weekAbsencesWithoutEva.filter(a => !a.excused).length;
 
   const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
@@ -854,8 +855,8 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
         </Card>
       </div>
 
-      {/* This Week's Absences List - grouped by double lessons */}
-      {absences.length > 0 && (
+      {/* This Week's Absences List - grouped by double lessons (exclude EVA) */}
+      {weekAbsencesWithoutEva.length > 0 && (
         <div className="space-y-2">
           <h3 className="font-semibold">Fehlzeiten dieser Woche</h3>
           <div className="space-y-1">
@@ -864,7 +865,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
               const grouped: { absence: LessonAbsence; isDouble: boolean; secondPeriod?: number }[] = [];
               const processedIds = new Set<string>();
               
-              for (const absence of absences) {
+              for (const absence of weekAbsencesWithoutEva) {
                 if (processedIds.has(absence.id)) continue;
                 
                 const entry = absence.timetable_entries;
@@ -875,7 +876,7 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
                 let secondPeriod: number | undefined;
                 
                 if (nextEntry && nextEntry.subject_id === entry.subject_id && nextEntry.teacher_short === entry.teacher_short) {
-                  const nextAbsence = absences.find(
+                  const nextAbsence = weekAbsencesWithoutEva.find(
                     a => a.date === absence.date && a.timetable_entry_id === nextEntry.id
                   );
                   if (nextAbsence) {
