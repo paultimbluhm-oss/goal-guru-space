@@ -8,6 +8,9 @@ interface AbsenceData {
   reason: 'sick' | 'doctor' | 'school_project' | 'other' | 'efa';
   excused: boolean;
   description: string | null;
+  isDoublePeriod?: boolean;
+  periodStart?: number;
+  periodEnd?: number;
   timetable_entries: {
     period: number;
     teacher_short: string;
@@ -67,9 +70,13 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
     return false;
   };
 
+  // Calculate real absence hours (excluding EFA)
+  const realAbsenceHours = stats.total - (stats.efaCount || 0);
+  const realAbsenceDays = (realAbsenceHours / 8).toFixed(1);
+
   // Header
   doc.setFillColor(59, 130, 246);
-  doc.rect(0, 0, pageWidth, 40, 'F');
+  doc.rect(0, 0, pageWidth, 45, 'F');
   
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);
@@ -82,10 +89,12 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
   doc.text(`Erstellt am ${dateStr}`, margin, 35);
   
   if (userName) {
-    doc.text(`Schüler: ${userName}`, pageWidth - margin - 50, 35);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Schüler/in: ${userName}`, margin, 42);
   }
 
-  yPos = 55;
+  yPos = 60;
 
   // Statistics Overview Section
   doc.setTextColor(30, 30, 30);
@@ -98,18 +107,18 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
   const boxWidth = (pageWidth - 2 * margin - 15) / 4;
   const boxHeight = 35;
   
-  // Total hours box
+  // Total hours box (excluding EFA)
   doc.setFillColor(243, 244, 246);
   doc.roundedRect(margin, yPos, boxWidth, boxHeight, 3, 3, 'F');
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 30, 30);
-  doc.text(stats.total.toString(), margin + boxWidth / 2, yPos + 15, { align: 'center' });
+  doc.text(realAbsenceHours.toString(), margin + boxWidth / 2, yPos + 15, { align: 'center' });
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text('Fehlstunden', margin + boxWidth / 2, yPos + 23, { align: 'center' });
-  doc.text(`(${stats.totalDays} Tage)`, margin + boxWidth / 2, yPos + 30, { align: 'center' });
+  doc.text(`(${realAbsenceDays} Tage)`, margin + boxWidth / 2, yPos + 30, { align: 'center' });
 
   // Excused box
   const excusedX = margin + boxWidth + 5;
@@ -139,19 +148,19 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
   doc.setTextColor(100, 100, 100);
   doc.text(`(${stats.unexcusedDays} Tage)`, unexcusedX + boxWidth / 2, yPos + 30, { align: 'center' });
 
-  // Days box
-  const daysX = margin + 3 * (boxWidth + 5);
-  doc.setFillColor(243, 244, 246);
-  doc.roundedRect(daysX, yPos, boxWidth, boxHeight, 3, 3, 'F');
+  // EFA hours box (not counted as absence)
+  const efaX = margin + 3 * (boxWidth + 5);
+  doc.setFillColor(207, 250, 254);
+  doc.roundedRect(efaX, yPos, boxWidth, boxHeight, 3, 3, 'F');
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 30, 30);
-  doc.text(stats.totalDays, daysX + boxWidth / 2, yPos + 15, { align: 'center' });
+  doc.setTextColor(6, 182, 212);
+  doc.text((stats.efaCount || 0).toString(), efaX + boxWidth / 2, yPos + 15, { align: 'center' });
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
+  doc.text('EFA-Stunden', efaX + boxWidth / 2, yPos + 23, { align: 'center' });
   doc.setTextColor(100, 100, 100);
-  doc.text('Fehltage', daysX + boxWidth / 2, yPos + 23, { align: 'center' });
-  doc.text('(Gesamt)', daysX + boxWidth / 2, yPos + 30, { align: 'center' });
+  doc.text('(keine Fehlzeit)', efaX + boxWidth / 2, yPos + 30, { align: 'center' });
 
   yPos += boxHeight + 15;
 
@@ -203,73 +212,29 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
     yPos += barHeight + 5;
   });
 
-  yPos += 10;
+  yPos += 15;
 
-  // Pie Chart (simplified representation)
-  checkPageBreak(60);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 30, 30);
-  doc.text('Entschuldigt vs. Offen', margin, yPos);
-  yPos += 8;
-
-  const pieX = margin + 30;
-  const pieRadius = 20;
-  
-  if (stats.total > 0) {
-    const excusedAngle = (stats.excused / stats.total) * 360;
-    
-    // Draw excused portion (green)
-    doc.setFillColor(34, 197, 94);
-    doc.circle(pieX, yPos + pieRadius, pieRadius, 'F');
-    
-    // Draw unexcused portion (orange) as overlay
-    if (stats.unexcused > 0) {
-      doc.setFillColor(249, 115, 22);
-      // Simple visual: draw a segment
-      const startAngle = excusedAngle * (Math.PI / 180);
-      doc.circle(pieX, yPos + pieRadius, pieRadius, 'F');
-      doc.setFillColor(34, 197, 94);
-      // Draw excused as a pie slice (simplified)
-      if (stats.excused > 0) {
-        const sliceWidth = pieRadius * 2 * (stats.excused / stats.total);
-        doc.rect(pieX - pieRadius, yPos, sliceWidth, pieRadius * 2, 'F');
-      }
-    }
-    
-    // Legend
-    const legendX = pieX + pieRadius + 20;
-    doc.setFillColor(34, 197, 94);
-    doc.rect(legendX, yPos + 5, 10, 10, 'F');
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 60);
-    doc.text(`Entschuldigt: ${stats.excused} (${((stats.excused / stats.total) * 100).toFixed(1)}%)`, legendX + 15, yPos + 12);
-    
-    doc.setFillColor(249, 115, 22);
-    doc.rect(legendX, yPos + 20, 10, 10, 'F');
-    doc.text(`Offen: ${stats.unexcused} (${((stats.unexcused / stats.total) * 100).toFixed(1)}%)`, legendX + 15, yPos + 27);
-  } else {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(100, 100, 100);
-    doc.text('Keine Fehlzeiten vorhanden', margin, yPos + 10);
-  }
-
-  yPos += pieRadius * 2 + 20;
-
-  // Detailed List Section
+  // Detailed List Section - Sorted by Subject
   checkPageBreak(30);
   doc.setTextColor(30, 30, 30);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Detaillierte Auflistung', margin, yPos);
+  doc.text('Detaillierte Auflistung (nach Fach)', margin, yPos);
   yPos += 8;
 
-  // Sort absences by date
-  const sortedAbsences = [...absences].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  // Filter out EFA from detailed list if needed and sort by subject
+  const nonEfaAbsences = absences.filter(a => a.reason !== 'efa');
+  
+  // Sort by subject name, then by date
+  const sortedAbsences = [...nonEfaAbsences].sort((a, b) => {
+    const subjectA = a.timetable_entries?.subjects?.name || a.timetable_entries?.teacher_short || 'ZZZ';
+    const subjectB = b.timetable_entries?.subjects?.name || b.timetable_entries?.teacher_short || 'ZZZ';
+    
+    if (subjectA !== subjectB) {
+      return subjectA.localeCompare(subjectB, 'de');
+    }
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
 
   if (sortedAbsences.length === 0) {
     doc.setFontSize(10);
@@ -278,8 +243,8 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
     doc.text('Keine Fehlzeiten eingetragen.', margin, yPos + 10);
   } else {
     // Table header
-    const colWidths = [35, 50, 35, 30, 20];
-    const headers = ['Datum', 'Fach', 'Grund', 'Stunde', 'Status'];
+    const colWidths = [50, 35, 35, 35, 15];
+    const headers = ['Fach', 'Datum', 'Grund', 'Stunde(n)', '✓'];
     
     checkPageBreak(20);
     doc.setFillColor(59, 130, 246);
@@ -297,9 +262,28 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
     
     yPos += 12;
 
+    // Group by subject for visual separation
+    let currentSubject = '';
+
     // Table rows
     sortedAbsences.forEach((absence, index) => {
       checkPageBreak(12);
+      
+      const subjectName = absence.timetable_entries?.subjects?.name || 
+                          absence.timetable_entries?.teacher_short || '-';
+      
+      // Add subject header when subject changes
+      if (subjectName !== currentSubject) {
+        currentSubject = subjectName;
+        checkPageBreak(20);
+        doc.setFillColor(229, 231, 235);
+        doc.rect(margin, yPos - 2, pageWidth - 2 * margin, 10, 'F');
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(50, 50, 50);
+        doc.text(subjectName, margin + 3, yPos + 5);
+        yPos += 12;
+      }
       
       // Alternating row colors
       if (index % 2 === 0) {
@@ -313,15 +297,14 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
       
       xPos = margin + 3;
       
-      // Date
-      doc.text(format(new Date(absence.date), 'dd.MM.yyyy'), xPos, yPos + 5);
+      // Subject (short name)
+      const shortName = absence.timetable_entries?.subjects?.short_name || 
+                        absence.timetable_entries?.teacher_short || '-';
+      doc.text(shortName.substring(0, 15), xPos, yPos + 5);
       xPos += colWidths[0];
       
-      // Subject
-      const subjectName = absence.timetable_entries?.subjects?.short_name || 
-                          absence.timetable_entries?.subjects?.name || 
-                          absence.timetable_entries?.teacher_short || '-';
-      doc.text(subjectName.substring(0, 15), xPos, yPos + 5);
+      // Date
+      doc.text(format(new Date(absence.date), 'dd.MM.yyyy'), xPos, yPos + 5);
       xPos += colWidths[1];
       
       // Reason with color indicator
@@ -331,21 +314,45 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
       doc.text(REASON_LABELS[absence.reason] || absence.reason, xPos + 7, yPos + 5);
       xPos += colWidths[2];
       
-      // Period
-      doc.text(`${absence.timetable_entries?.period || '-'}. Std`, xPos, yPos + 5);
+      // Period(s) - show as double lesson if applicable
+      let periodText: string;
+      if (absence.isDoublePeriod && absence.periodStart && absence.periodEnd) {
+        periodText = `${absence.periodStart}.-${absence.periodEnd}. Std`;
+      } else {
+        periodText = `${absence.timetable_entries?.period || absence.periodStart || '-'}. Std`;
+      }
+      doc.text(periodText, xPos, yPos + 5);
       xPos += colWidths[3];
       
       // Status
       if (absence.excused) {
         doc.setTextColor(22, 163, 74);
-        doc.text('✓', xPos + 5, yPos + 5);
+        doc.text('✓', xPos + 3, yPos + 5);
       } else {
         doc.setTextColor(234, 88, 12);
-        doc.text('○', xPos + 5, yPos + 5);
+        doc.text('○', xPos + 3, yPos + 5);
       }
       
       yPos += 10;
     });
+  }
+
+  // Add EFA section at the end if there are any
+  const efaAbsences = absences.filter(a => a.reason === 'efa');
+  if (efaAbsences.length > 0) {
+    yPos += 10;
+    checkPageBreak(30);
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(6, 182, 212);
+    doc.text('EFA-Stunden (keine Fehlzeiten)', margin, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${efaAbsences.length} EFA-Stunden wurden nicht als Fehlzeit gezählt.`, margin, yPos);
   }
 
   // Footer
@@ -353,10 +360,10 @@ export function generateAbsenceReport(absences: AbsenceData[], stats: AbsenceSta
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(150, 150, 150);
-  doc.text(`Seite 1 | Generiert am ${dateStr}`, margin, footerY);
+  doc.text(`Generiert am ${dateStr}`, margin, footerY);
   doc.text('Schulplaner - Fehlzeiten-Bericht', pageWidth - margin - 50, footerY);
 
   // Save the PDF
-  const fileName = `Fehlzeiten-Bericht_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+  const fileName = `Fehlzeiten-Bericht_${userName ? userName.replace(/\s+/g, '_') + '_' : ''}${format(new Date(), 'yyyy-MM-dd')}.pdf`;
   doc.save(fileName);
 }
