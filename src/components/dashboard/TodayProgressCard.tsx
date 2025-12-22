@@ -35,22 +35,20 @@ export function TodayProgressCard() {
     if (!user) return;
 
     const today = format(new Date(), 'yyyy-MM-dd');
-    const todayStart = `${today}T00:00:00.000Z`;
-    const todayEnd = `${today}T23:59:59.999Z`;
 
     const [tasksRes, homeworkRes, habitsRes, habitCompletionsRes] = await Promise.all([
+      // Tasks: filter for today only (due_date is timestamp, use date comparison)
       supabase
         .from('tasks')
-        .select('id, completed')
+        .select('id, completed, due_date')
         .eq('user_id', user.id)
-        .gte('due_date', todayStart)
-        .lte('due_date', todayEnd),
+        .not('due_date', 'is', null),
+      // Homework: due_date is a date field, compare directly
       supabase
         .from('homework')
-        .select('id, completed')
+        .select('id, completed, due_date')
         .eq('user_id', user.id)
-        .gte('due_date', todayStart)
-        .lte('due_date', todayEnd),
+        .eq('due_date', today),
       supabase
         .from('habits')
         .select('id')
@@ -63,9 +61,16 @@ export function TodayProgressCard() {
         .eq('completed_date', today),
     ]);
 
+    // Filter tasks to only include those due today (compare date part only)
+    const todaysTasks = (tasksRes.data || []).filter(t => {
+      if (!t.due_date) return false;
+      const taskDate = format(new Date(t.due_date), 'yyyy-MM-dd');
+      return taskDate === today;
+    });
+
     setStats({
-      tasksCompleted: tasksRes.data?.filter(t => t.completed).length || 0,
-      tasksTotal: tasksRes.data?.length || 0,
+      tasksCompleted: todaysTasks.filter(t => t.completed).length,
+      tasksTotal: todaysTasks.length,
       homeworkCompleted: homeworkRes.data?.filter(h => h.completed).length || 0,
       homeworkTotal: homeworkRes.data?.length || 0,
       habitsCompleted: habitCompletionsRes.data?.length || 0,

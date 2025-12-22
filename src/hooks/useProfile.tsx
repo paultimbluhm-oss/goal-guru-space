@@ -105,8 +105,8 @@ export function useProfile() {
         
         let newStreak = profileData.streak_days || 0;
         
-        // Check if ALL habits were completed yesterday
-        const [habitsRes, completionsRes] = await Promise.all([
+        // Check if ALL daily items (tasks, homework, habits) were completed yesterday
+        const [habitsRes, habitCompletionsRes, tasksRes, homeworkRes] = await Promise.all([
           supabase
             .from('habits')
             .select('id')
@@ -116,18 +116,47 @@ export function useProfile() {
             .from('habit_completions')
             .select('habit_id')
             .eq('user_id', user.id)
-            .eq('completed_date', yesterdayStr)
+            .eq('completed_date', yesterdayStr),
+          supabase
+            .from('tasks')
+            .select('id, completed, due_date')
+            .eq('user_id', user.id)
+            .not('due_date', 'is', null),
+          supabase
+            .from('homework')
+            .select('id, completed')
+            .eq('user_id', user.id)
+            .eq('due_date', yesterdayStr)
         ]);
         
-        const totalHabits = habitsRes.data?.length || 0;
-        const completedHabits = completionsRes.data?.length || 0;
-        const allHabitsCompletedYesterday = totalHabits > 0 && completedHabits >= totalHabits;
+        // Filter tasks for yesterday only
+        const yesterdaysTasks = (tasksRes.data || []).filter(t => {
+          if (!t.due_date) return false;
+          const taskDate = t.due_date.split('T')[0];
+          return taskDate === yesterdayStr;
+        });
         
-        if (lastActive === yesterdayStr && allHabitsCompletedYesterday) {
-          // Continue streak only if all habits were completed yesterday
+        const totalHabits = habitsRes.data?.length || 0;
+        const completedHabits = habitCompletionsRes.data?.length || 0;
+        const allHabitsCompleted = totalHabits === 0 || completedHabits >= totalHabits;
+        
+        const totalTasks = yesterdaysTasks.length;
+        const completedTasks = yesterdaysTasks.filter(t => t.completed).length;
+        const allTasksCompleted = totalTasks === 0 || completedTasks >= totalTasks;
+        
+        const totalHomework = homeworkRes.data?.length || 0;
+        const completedHomework = homeworkRes.data?.filter(h => h.completed).length || 0;
+        const allHomeworkCompleted = totalHomework === 0 || completedHomework >= totalHomework;
+        
+        // Check if there was anything to do yesterday
+        const hadItemsYesterday = totalHabits > 0 || totalTasks > 0 || totalHomework > 0;
+        const allItemsCompleted = allHabitsCompleted && allTasksCompleted && allHomeworkCompleted;
+        
+        if (lastActive === yesterdayStr && hadItemsYesterday && allItemsCompleted) {
+          // Continue streak only if all items were completed yesterday
           newStreak += 1;
-        } else if (lastActive !== today) {
-          // Streak broken - either not active yesterday or not all habits completed
+        } else if (lastActive !== today && !allItemsCompleted) {
+          // Streak broken - not all items completed
           newStreak = 0;
         }
         
