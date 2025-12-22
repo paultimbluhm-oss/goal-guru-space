@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Soup, UtensilsCrossed, Cake, Coffee, ChefHat, Star, TrendingUp } from 'lucide-react';
+import { Plus, Trash2, Soup, UtensilsCrossed, Cake, Coffee, ChefHat, Star, TrendingUp, Cookie, Salad } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,14 +37,15 @@ interface AddRecipeDialogProps {
   onSuccess: () => void;
 }
 
-const units = ['g', 'kg', 'ml', 'l', 'TL', 'EL', 'Stuck', 'Prise', 'Tasse', 'Packung', 'Scheibe', 'Dose'];
+const units = ['g', 'kg', 'ml', 'l', 'TL', 'EL', 'Stück', 'Prise', 'Tasse', 'Packung', 'Scheibe', 'Dose'];
 
 const categories = [
   { value: 'hauptspeise', label: 'Hauptgericht', icon: UtensilsCrossed, color: 'from-orange-500 to-red-600' },
   { value: 'vorspeise', label: 'Vorspeise', icon: Soup, color: 'from-cyan-500 to-teal-600' },
   { value: 'nachspeise', label: 'Nachspeise', icon: Cake, color: 'from-pink-500 to-rose-600' },
-  { value: 'getraenk', label: 'Getrank', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
-  { value: 'sonstiges', label: 'Sonstiges', icon: ChefHat, color: 'from-slate-500 to-zinc-600' },
+  { value: 'getraenk', label: 'Getränk', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
+  { value: 'suesswaren', label: 'Süßwaren', icon: Cookie, color: 'from-purple-500 to-pink-600' },
+  { value: 'beilagen', label: 'Beilagen', icon: Salad, color: 'from-green-500 to-emerald-600' },
 ];
 
 export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDialogProps) {
@@ -213,7 +214,7 @@ export function AddRecipeDialog({ open, onOpenChange, onSuccess }: AddRecipeDial
           {/* Category Selection */}
           <div>
             <Label className="mb-3 block">Kategorie</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {categories.map(cat => {
                 const Icon = cat.icon;
                 const isSelected = category === cat.value;

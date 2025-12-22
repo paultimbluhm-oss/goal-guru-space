@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Plus, ChefHat, Soup, UtensilsCrossed, Cake, Wine, Coffee, Clock, Users, TrendingUp, BookOpen, Star, Filter } from 'lucide-react';
+import { ArrowLeft, Plus, ChefHat, Soup, UtensilsCrossed, Cake, Wine, Coffee, Clock, Users, TrendingUp, BookOpen, Star, Filter, Cookie, Salad } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,11 +31,12 @@ const categoryConfig: Record<string, { label: string; icon: typeof Soup; color: 
   vorspeise: { label: 'Vorspeisen', icon: Soup, color: 'from-cyan-500 to-teal-600' },
   hauptspeise: { label: 'Hauptgerichte', icon: UtensilsCrossed, color: 'from-orange-500 to-red-600' },
   nachspeise: { label: 'Nachspeisen', icon: Cake, color: 'from-pink-500 to-rose-600' },
-  getraenk: { label: 'Getranke', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
-  sonstiges: { label: 'Sonstiges', icon: ChefHat, color: 'from-slate-500 to-zinc-600' },
+  getraenk: { label: 'Getränke', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
+  suesswaren: { label: 'Süßwaren', icon: Cookie, color: 'from-purple-500 to-pink-600' },
+  beilagen: { label: 'Beilagen', icon: Salad, color: 'from-green-500 to-emerald-600' },
 };
 
-const categoryOrder = ['hauptspeise', 'vorspeise', 'nachspeise', 'getraenk', 'sonstiges'];
+const categoryOrder = ['hauptspeise', 'vorspeise', 'nachspeise', 'getraenk', 'suesswaren', 'beilagen'];
 
 export function RecipesSection({ onBack }: RecipesSectionProps) {
   const { user } = useAuth();
@@ -196,7 +197,7 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
       </div>
 
       {/* Category Overview Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {categoryOrder.map(catKey => {
           const config = categoryConfig[catKey];
           const Icon = config.icon;
