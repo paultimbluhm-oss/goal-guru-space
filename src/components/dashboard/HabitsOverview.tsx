@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Check, ChevronRight, Flame, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
+import { useGamification } from '@/contexts/GamificationContext';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -24,7 +24,7 @@ interface HabitCompletion {
 
 export function HabitsOverview() {
   const { user } = useAuth();
-  const { addXP } = useProfile();
+  const { addXP } = useGamification();
   const navigate = useNavigate();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completions, setCompletions] = useState<HabitCompletion[]>([]);
@@ -63,12 +63,17 @@ export function HabitsOverview() {
     const alreadyCompleted = isCompletedToday(habit.id);
 
     if (alreadyCompleted) {
+      // Remove completion and subtract XP
       await supabase
         .from('habit_completions')
         .delete()
         .eq('habit_id', habit.id)
         .eq('completed_date', today);
       setCompletions(prev => prev.filter(c => c.habit_id !== habit.id));
+      
+      // Subtract XP (negative amount)
+      await addXP(-habit.xp_reward, `${habit.name} rückgängig`);
+      toast.info(`-${habit.xp_reward} XP`);
     } else {
       const { data } = await supabase
         .from('habit_completions')
@@ -82,8 +87,7 @@ export function HabitsOverview() {
 
       if (data) {
         setCompletions(prev => [...prev, data]);
-        await addXP(habit.xp_reward);
-        toast.success(`+${habit.xp_reward} XP`);
+        await addXP(habit.xp_reward, habit.name);
       }
     }
   };

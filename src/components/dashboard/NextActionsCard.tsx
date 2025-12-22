@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowRight, BookOpen, CheckCircle2, Clock, Target } from 'lucide-react';
+import { ArrowRight, BookOpen, CheckCircle2, Clock, Target, Check } from 'lucide-react';
 import { format, isToday, isTomorrow, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useGamification } from '@/contexts/GamificationContext';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Task {
   id: string;
@@ -14,10 +16,12 @@ interface Task {
   priority: string | null;
   type: 'task' | 'homework';
   subject_name?: string;
+  xp_reward?: number;
 }
 
 export function NextActionsCard() {
   const { user } = useAuth();
+  const { addXP, celebrateTaskComplete } = useGamification();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,20 +41,20 @@ export function NextActionsCard() {
     const [tasksRes, homeworkRes] = await Promise.all([
       supabase
         .from('tasks')
-        .select('id, title, due_date, priority')
+        .select('id, title, due_date, priority, xp_reward')
         .eq('user_id', user.id)
         .eq('completed', false)
         .gte('due_date', today.toISOString())
         .order('due_date', { ascending: true })
-        .limit(3),
+        .limit(5),
       supabase
         .from('homework')
-        .select('id, title, due_date, priority, subjects(name)')
+        .select('id, title, due_date, priority, xp_reward, subjects(name)')
         .eq('user_id', user.id)
         .eq('completed', false)
         .gte('due_date', today.toISOString())
         .order('due_date', { ascending: true })
-        .limit(3),
+        .limit(5),
     ]);
 
     const allTasks: Task[] = [
@@ -62,6 +66,7 @@ export function NextActionsCard() {
         priority: h.priority,
         type: 'homework' as const,
         subject_name: (h.subjects as any)?.name,
+        xp_reward: h.xp_reward,
       })),
     ];
 
@@ -96,6 +101,25 @@ export function NextActionsCard() {
     }
   };
 
+  const completeTask = async (task: Task, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const table = task.type === 'task' ? 'tasks' : 'homework';
+    
+    await supabase
+      .from(table)
+      .update({ completed: true })
+      .eq('id', task.id);
+    
+    // Remove from list with animation
+    setTasks(prev => prev.filter(t => t.id !== task.id));
+    
+    // Award XP and celebrate
+    const xp = task.xp_reward || 10;
+    await addXP(xp, task.title);
+    celebrateTaskComplete(task.title);
+  };
+
   return (
     <div className="glass-card p-4 md:p-5">
       <div className="flex items-center justify-between mb-4">
@@ -121,40 +145,55 @@ export function NextActionsCard() {
           <p className="text-xs text-muted-foreground/60 mt-1">Du bist auf dem Laufenden</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {tasks.map((task, i) => (
-            <motion.div
-              key={task.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="group flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-all cursor-pointer border border-transparent hover:border-primary/30"
-            >
-              <div className={`p-2 rounded-lg ${task.type === 'homework' ? 'bg-accent/20' : 'bg-primary/20'}`}>
-                {task.type === 'homework' ? (
-                  <BookOpen className="w-4 h-4 text-accent" />
-                ) : (
-                  <Target className="w-4 h-4 text-primary" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                  {task.title}
-                </p>
-                <div className="flex items-center gap-2 text-xs">
-                  {task.subject_name && (
-                    <span className="text-accent">{task.subject_name}</span>
-                  )}
-                  <span className={getPriorityColor(task.priority)}>
-                    <Clock className="w-3 h-3 inline mr-1" />
-                    {formatDueDate(task.due_date)}
-                  </span>
+        <AnimatePresence mode="popLayout">
+          <div className="space-y-2">
+            {tasks.map((task, i) => (
+              <motion.div
+                key={task.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20, height: 0 }}
+                transition={{ delay: i * 0.1 }}
+                layout
+                className="group flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-all border border-transparent hover:border-primary/30"
+              >
+                {/* Checkbox */}
+                <div 
+                  onClick={(e) => completeTask(task, e)}
+                  className="cursor-pointer"
+                >
+                  <Checkbox className="data-[state=checked]:bg-success data-[state=checked]:border-success" />
                 </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </motion.div>
-          ))}
-        </div>
+                
+                <div className={`p-2 rounded-lg ${task.type === 'homework' ? 'bg-accent/20' : 'bg-primary/20'}`}>
+                  {task.type === 'homework' ? (
+                    <BookOpen className="w-4 h-4 text-accent" />
+                  ) : (
+                    <Target className="w-4 h-4 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                    {task.title}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs">
+                    {task.subject_name && (
+                      <span className="text-accent">{task.subject_name}</span>
+                    )}
+                    <span className={getPriorityColor(task.priority)}>
+                      <Clock className="w-3 h-3 inline mr-1" />
+                      {formatDueDate(task.due_date)}
+                    </span>
+                    {task.xp_reward && (
+                      <span className="text-primary">+{task.xp_reward} XP</span>
+                    )}
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </motion.div>
+            ))}
+          </div>
+        </AnimatePresence>
       )}
     </div>
   );

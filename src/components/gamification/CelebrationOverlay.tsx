@@ -13,7 +13,7 @@ interface ConfettiPiece {
 }
 
 interface CelebrationOverlayProps {
-  type: 'xp' | 'levelUp' | 'streak' | 'achievement';
+  type: 'xp' | 'levelUp' | 'streak' | 'achievement' | 'taskComplete';
   amount?: number;
   message?: string;
   onComplete?: () => void;
@@ -24,6 +24,7 @@ const colors = {
   levelUp: ['#fbbf24', '#f59e0b', '#eab308', '#facc15', '#fcd34d', '#ef4444', '#22c55e'],
   streak: ['#f97316', '#ef4444', '#fb923c', '#fbbf24', '#dc2626'],
   achievement: ['#22c55e', '#10b981', '#34d399', '#6ee7b7', '#fbbf24'],
+  taskComplete: ['#22c55e', '#10b981', '#34d399', '#3b82f6', '#60a5fa'],
 };
 
 export function CelebrationOverlay({ type, amount, message, onComplete }: CelebrationOverlayProps) {
@@ -50,10 +51,11 @@ export function CelebrationOverlay({ type, amount, message, onComplete }: Celebr
   }, [type]);
 
   useEffect(() => {
+    const duration = type === 'levelUp' ? 3500 : type === 'taskComplete' ? 1800 : 2500;
     const timer = setTimeout(() => {
       setVisible(false);
       setTimeout(() => onComplete?.(), 300);
-    }, type === 'levelUp' ? 3500 : 2500);
+    }, duration);
 
     return () => clearTimeout(timer);
   }, [type, onComplete]);
@@ -63,6 +65,7 @@ export function CelebrationOverlay({ type, amount, message, onComplete }: Celebr
     levelUp: Star,
     streak: Flame,
     achievement: Trophy,
+    taskComplete: Trophy,
   }[type];
 
   const title = {
@@ -70,6 +73,7 @@ export function CelebrationOverlay({ type, amount, message, onComplete }: Celebr
     levelUp: `Level ${amount}!`,
     streak: `${amount} Tage Streak!`,
     achievement: 'Achievement!',
+    taskComplete: 'Erledigt!',
   }[type];
 
   const bgGlow = {
@@ -77,6 +81,7 @@ export function CelebrationOverlay({ type, amount, message, onComplete }: Celebr
     levelUp: 'from-yellow-500/40',
     streak: 'from-orange-500/30',
     achievement: 'from-green-500/30',
+    taskComplete: 'from-green-500/30',
   }[type];
 
   return (
@@ -200,6 +205,7 @@ export function CelebrationOverlay({ type, amount, message, onComplete }: Celebr
                     type === 'xp' ? 'border-purple-400' :
                     type === 'levelUp' ? 'border-yellow-400' :
                     type === 'streak' ? 'border-orange-400' :
+                    type === 'taskComplete' ? 'border-green-400' :
                     'border-green-400'
                   }`}
                   style={{ 
@@ -226,6 +232,7 @@ export function CelebrationOverlay({ type, amount, message, onComplete }: Celebr
                   type === 'xp' ? 'bg-purple-500/20 border-purple-400 shadow-purple-500/30' :
                   type === 'levelUp' ? 'bg-yellow-500/20 border-yellow-400 shadow-yellow-500/30' :
                   type === 'streak' ? 'bg-orange-500/20 border-orange-400 shadow-orange-500/30' :
+                  type === 'taskComplete' ? 'bg-green-500/20 border-green-400 shadow-green-500/30' :
                   'bg-green-500/20 border-green-400 shadow-green-500/30'
                 }`}
               >
@@ -249,12 +256,14 @@ export function CelebrationOverlay({ type, amount, message, onComplete }: Celebr
                     type === 'xp' ? 'bg-purple-500/30' :
                     type === 'levelUp' ? 'bg-yellow-500/30' :
                     type === 'streak' ? 'bg-orange-500/30' :
+                    type === 'taskComplete' ? 'bg-green-500/30' :
                     'bg-green-500/30'
                   }`}>
                     <Icon className={`w-12 h-12 md:w-16 md:h-16 ${
                       type === 'xp' ? 'text-purple-300' :
                       type === 'levelUp' ? 'text-yellow-300' :
                       type === 'streak' ? 'text-orange-300' :
+                      type === 'taskComplete' ? 'text-green-300' :
                       'text-green-300'
                     }`} />
                   </div>
@@ -269,6 +278,7 @@ export function CelebrationOverlay({ type, amount, message, onComplete }: Celebr
                     type === 'xp' ? 'text-purple-200' :
                     type === 'levelUp' ? 'text-yellow-200' :
                     type === 'streak' ? 'text-orange-200' :
+                    type === 'taskComplete' ? 'text-green-200' :
                     'text-green-200'
                   }`}
                 >
