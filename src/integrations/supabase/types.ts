@@ -434,6 +434,51 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_connections: {
+        Row: {
+          created_at: string
+          description: string | null
+          from_contact_id: string
+          id: string
+          relationship_type: string
+          to_contact_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          from_contact_id: string
+          id?: string
+          relationship_type?: string
+          to_contact_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          from_contact_id?: string
+          id?: string
+          relationship_type?: string
+          to_contact_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_connections_from_contact_id_fkey"
+            columns: ["from_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_connections_to_contact_id_fkey"
+            columns: ["to_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           address: string | null
@@ -444,6 +489,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          position: string | null
           status: string | null
           user_id: string
         }
@@ -456,6 +502,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          position?: string | null
           status?: string | null
           user_id: string
         }
@@ -468,6 +515,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          position?: string | null
           status?: string | null
           user_id?: string
         }

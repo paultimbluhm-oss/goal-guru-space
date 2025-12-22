@@ -17,6 +17,7 @@ interface AddContactDialogProps {
 export function AddContactDialog({ open, onOpenChange, onSave, editContact }: AddContactDialogProps) {
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
+  const [position, setPosition] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -27,6 +28,7 @@ export function AddContactDialog({ open, onOpenChange, onSave, editContact }: Ad
     if (editContact) {
       setName(editContact.name);
       setCompany(editContact.company || '');
+      setPosition(editContact.position || '');
       setEmail(editContact.email || '');
       setPhone(editContact.phone || '');
       setAddress(editContact.address || '');
@@ -40,6 +42,7 @@ export function AddContactDialog({ open, onOpenChange, onSave, editContact }: Ad
   const resetForm = () => {
     setName('');
     setCompany('');
+    setPosition('');
     setEmail('');
     setPhone('');
     setAddress('');
@@ -55,6 +58,7 @@ export function AddContactDialog({ open, onOpenChange, onSave, editContact }: Ad
       id: editContact?.id,
       name: name.trim(),
       company: company.trim() || null,
+      position: position.trim() || null,
       email: email.trim() || null,
       phone: phone.trim() || null,
       address: address.trim() || null,
@@ -87,14 +91,25 @@ export function AddContactDialog({ open, onOpenChange, onSave, editContact }: Ad
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="company">Unternehmen</Label>
-            <Input
-              id="company"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              placeholder="Musterfirma GmbH"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="company">Unternehmen</Label>
+              <Input
+                id="company"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Musterfirma GmbH"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="position">Position</Label>
+              <Input
+                id="position"
+                value={position}
+                onChange={(e) => setPosition(e.target.value)}
+                placeholder="Geschäftsführer, CEO, etc."
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

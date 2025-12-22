@@ -1,61 +1,49 @@
 import { useState, useEffect } from 'react';
-import { Plus, Users, Search, Filter, Building2, UserCircle } from 'lucide-react';
+import { Plus, Users, Search, Building2, UserCircle, Network, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Contact, Order, ContactStatus, STATUS_CONFIG } from './types';
+import { Contact, Order, ContactStatus, ContactConnection, STATUS_CONFIG } from './types';
 import { ContactCard } from './ContactCard';
 import { AddContactDialog } from './AddContactDialog';
+import { LinkContactDialog } from './LinkContactDialog';
+import { ContactNetworkView } from './ContactNetworkView';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function ContactsSection() {
   const { user } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [connections, setConnections] = useState<ContactConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ContactStatus | 'all'>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'network'>('grid');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [editContact, setEditContact] = useState<Contact | null>(null);
+  const [linkSourceContact, setLinkSourceContact] = useState<Contact | null>(null);
 
   useEffect(() => {
-    if (user) {
-      fetchData();
-    }
+    if (user) fetchData();
   }, [user]);
 
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
 
-    const [contactsRes, ordersRes] = await Promise.all([
-      supabase
-        .from('contacts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name'),
-      supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user.id),
+    const [contactsRes, ordersRes, connectionsRes] = await Promise.all([
+      supabase.from('contacts').select('*').eq('user_id', user.id).order('name'),
+      supabase.from('orders').select('*').eq('user_id', user.id),
+      supabase.from('contact_connections').select('*').eq('user_id', user.id),
     ]);
 
-    if (contactsRes.error) {
-      toast.error('Fehler beim Laden der Kontakte');
-      console.error(contactsRes.error);
-    } else {
-      setContacts(contactsRes.data as Contact[]);
-    }
-
-    if (ordersRes.error) {
-      console.error(ordersRes.error);
-    } else {
-      setOrders(ordersRes.data as Order[]);
-    }
-
+    if (contactsRes.data) setContacts(contactsRes.data as Contact[]);
+    if (ordersRes.data) setOrders(ordersRes.data as Order[]);
+    if (connectionsRes.data) setConnections(connectionsRes.data as ContactConnection[]);
     setLoading(false);
   };
 
@@ -63,90 +51,55 @@ export function ContactsSection() {
     if (!user) return;
 
     if (contactData.id) {
-      // Update existing
-      const { error } = await supabase
-        .from('contacts')
-        .update({
-          name: contactData.name,
-          company: contactData.company,
-          email: contactData.email,
-          phone: contactData.phone,
-          address: contactData.address,
-          notes: contactData.notes,
-          status: contactData.status,
-        })
-        .eq('id', contactData.id);
+      const { error } = await supabase.from('contacts').update({
+        name: contactData.name, company: contactData.company, position: contactData.position,
+        email: contactData.email, phone: contactData.phone, address: contactData.address,
+        notes: contactData.notes, status: contactData.status,
+      }).eq('id', contactData.id);
 
-      if (error) {
-        toast.error('Fehler beim Aktualisieren');
-        console.error(error);
-      } else {
-        toast.success('Kontakt aktualisiert');
-        fetchData();
-      }
+      if (error) toast.error('Fehler beim Aktualisieren');
+      else { toast.success('Kontakt aktualisiert'); fetchData(); }
     } else {
-      // Create new
-      const { error } = await supabase
-        .from('contacts')
-        .insert({
-          user_id: user.id,
-          name: contactData.name!,
-          company: contactData.company,
-          email: contactData.email,
-          phone: contactData.phone,
-          address: contactData.address,
-          notes: contactData.notes,
-          status: contactData.status || 'idea',
-        });
+      const { error } = await supabase.from('contacts').insert({
+        user_id: user.id, name: contactData.name!, company: contactData.company,
+        position: contactData.position, email: contactData.email, phone: contactData.phone,
+        address: contactData.address, notes: contactData.notes, status: contactData.status || 'idea',
+      });
 
-      if (error) {
-        toast.error('Fehler beim Erstellen');
-        console.error(error);
-      } else {
-        toast.success('Kontakt erstellt');
-        fetchData();
-      }
+      if (error) toast.error('Fehler beim Erstellen');
+      else { toast.success('Kontakt erstellt'); fetchData(); }
     }
     setEditContact(null);
   };
 
   const handleDeleteContact = async (contact: Contact) => {
-    const { error } = await supabase
-      .from('contacts')
-      .delete()
-      .eq('id', contact.id);
-
-    if (error) {
-      toast.error('Fehler beim Löschen');
-      console.error(error);
-    } else {
-      toast.success('Kontakt gelöscht');
-      fetchData();
-    }
+    const { error } = await supabase.from('contacts').delete().eq('id', contact.id);
+    if (error) toast.error('Fehler beim Löschen');
+    else { toast.success('Kontakt gelöscht'); fetchData(); }
   };
 
-  const handleEditContact = (contact: Contact) => {
-    setEditContact(contact);
-    setDialogOpen(true);
+  const handleLinkContacts = async (fromId: string, toId: string, type: string, description: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('contact_connections').insert({
+      user_id: user.id, from_contact_id: fromId, to_contact_id: toId,
+      relationship_type: type, description: description || null,
+    });
+
+    if (error) toast.error('Fehler beim Verknüpfen');
+    else { toast.success('Kontakte verknüpft'); fetchData(); }
   };
 
-  const handleViewOrders = (contact: Contact) => {
-    // TODO: Navigate to orders page with filter
-    toast.info(`Aufträge für ${contact.name} anzeigen`);
+  const getConnectionCount = (contactId: string) => {
+    return connections.filter(c => c.from_contact_id === contactId || c.to_contact_id === contactId).length;
   };
 
   const filteredContacts = contacts.filter((contact) => {
-    const matchesSearch =
-      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+    const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.company?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || contact.status === statusFilter;
-    
     return matchesSearch && matchesStatus;
   });
 
-  // Group contacts by status
   const groupedContacts = {
     has_orders: filteredContacts.filter(c => c.status === 'has_orders'),
     in_exchange: filteredContacts.filter(c => c.status === 'in_exchange'),
@@ -154,175 +107,102 @@ export function ContactsSection() {
     idea: filteredContacts.filter(c => c.status === 'idea'),
   };
 
-  const stats = {
-    total: contacts.length,
-    companies: contacts.filter(c => c.company).length,
-    withOrders: contacts.filter(c => c.status === 'has_orders').length,
-  };
+  const stats = { total: contacts.length, companies: contacts.filter(c => c.company).length, connections: connections.length };
 
   if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-40 rounded-xl bg-muted/30 animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
+    return <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header Stats */}
+      {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0 }}
-          className="glass-card p-4 text-center"
-        >
-          <div className="flex justify-center mb-2">
-            <div className="p-2 rounded-lg bg-primary/20">
-              <Users className="w-5 h-5 text-primary" />
-            </div>
-          </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 text-center">
+          <div className="flex justify-center mb-2"><div className="p-2 rounded-lg bg-primary/20"><Users className="w-5 h-5 text-primary" /></div></div>
           <p className="text-2xl font-bold">{stats.total}</p>
           <p className="text-xs text-muted-foreground">Kontakte</p>
         </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass-card p-4 text-center"
-        >
-          <div className="flex justify-center mb-2">
-            <div className="p-2 rounded-lg bg-info/20">
-              <Building2 className="w-5 h-5 text-info" />
-            </div>
-          </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-4 text-center">
+          <div className="flex justify-center mb-2"><div className="p-2 rounded-lg bg-info/20"><Building2 className="w-5 h-5 text-info" /></div></div>
           <p className="text-2xl font-bold">{stats.companies}</p>
           <p className="text-xs text-muted-foreground">Unternehmen</p>
         </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card p-4 text-center"
-        >
-          <div className="flex justify-center mb-2">
-            <div className="p-2 rounded-lg bg-success/20">
-              <UserCircle className="w-5 h-5 text-success" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold">{stats.withOrders}</p>
-          <p className="text-xs text-muted-foreground">Mit Aufträgen</p>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-4 text-center">
+          <div className="flex justify-center mb-2"><div className="p-2 rounded-lg bg-success/20"><Network className="w-5 h-5 text-success" /></div></div>
+          <p className="text-2xl font-bold">{stats.connections}</p>
+          <p className="text-xs text-muted-foreground">Verknüpfungen</p>
         </motion.div>
       </div>
 
-      {/* Search & Filter Bar */}
+      {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Kontakte durchsuchen..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Kontakte durchsuchen..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
         </div>
-        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as ContactStatus | 'all')}>
-          <TabsList className="grid grid-cols-5">
-            <TabsTrigger value="all" className="text-xs">Alle</TabsTrigger>
-            <TabsTrigger value="has_orders" className="text-xs">Aufträge</TabsTrigger>
-            <TabsTrigger value="in_exchange" className="text-xs">Austausch</TabsTrigger>
-            <TabsTrigger value="contacted" className="text-xs">Kontaktiert</TabsTrigger>
-            <TabsTrigger value="idea" className="text-xs">Idee</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Button onClick={() => { setEditContact(null); setDialogOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" />
-          Kontakt
-        </Button>
+        <div className="flex gap-2">
+          <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')}><LayoutGrid className="w-4 h-4" /></Button>
+          <Button variant={viewMode === 'network' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('network')}><Network className="w-4 h-4" /></Button>
+        </div>
+        <Button onClick={() => { setEditContact(null); setDialogOpen(true); }}><Plus className="w-4 h-4 mr-2" />Kontakt</Button>
       </div>
 
-      {/* Contacts Grid */}
-      {filteredContacts.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center py-12"
-        >
-          <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-          <h3 className="font-medium text-muted-foreground mb-2">Keine Kontakte gefunden</h3>
-          <p className="text-sm text-muted-foreground/70 mb-4">
-            {searchQuery || statusFilter !== 'all'
-              ? 'Versuche andere Suchkriterien'
-              : 'Erstelle deinen ersten Kontakt'}
-          </p>
-          {!searchQuery && statusFilter === 'all' && (
-            <Button onClick={() => { setEditContact(null); setDialogOpen(true); }}>
-              <Plus className="w-4 h-4 mr-2" />
-              Kontakt erstellen
-            </Button>
-          )}
-        </motion.div>
-      ) : statusFilter === 'all' ? (
-        // Grouped view
-        <div className="space-y-6">
-          {Object.entries(groupedContacts).map(([status, contactGroup]) => {
-            if (contactGroup.length === 0) return null;
-            const config = STATUS_CONFIG[status as ContactStatus];
-            return (
-              <div key={status}>
-                <h3 className={`text-sm font-medium mb-3 ${config.color}`}>
-                  {config.label} ({contactGroup.length})
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <AnimatePresence>
-                    {contactGroup.map((contact) => (
-                      <ContactCard
-                        key={contact.id}
-                        contact={contact}
-                        orders={orders}
-                        onEdit={handleEditContact}
-                        onDelete={handleDeleteContact}
-                        onViewOrders={handleViewOrders}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {viewMode === 'network' ? (
+        <ContactNetworkView contacts={filteredContacts} connections={connections} onContactClick={(c) => { setEditContact(c); setDialogOpen(true); }} />
       ) : (
-        // Flat view for filtered
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <AnimatePresence>
-            {filteredContacts.map((contact) => (
-              <ContactCard
-                key={contact.id}
-                contact={contact}
-                orders={orders}
-                onEdit={handleEditContact}
-                onDelete={handleDeleteContact}
-                onViewOrders={handleViewOrders}
-              />
-            ))}
-          </AnimatePresence>
-        </div>
+        <>
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as ContactStatus | 'all')}>
+            <TabsList className="grid grid-cols-5">
+              <TabsTrigger value="all" className="text-xs">Alle</TabsTrigger>
+              <TabsTrigger value="has_orders" className="text-xs">Aufträge</TabsTrigger>
+              <TabsTrigger value="in_exchange" className="text-xs">Austausch</TabsTrigger>
+              <TabsTrigger value="contacted" className="text-xs">Kontaktiert</TabsTrigger>
+              <TabsTrigger value="idea" className="text-xs">Idee</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {filteredContacts.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="font-medium text-muted-foreground mb-2">Keine Kontakte gefunden</h3>
+            </div>
+          ) : statusFilter === 'all' ? (
+            <div className="space-y-6">
+              {Object.entries(groupedContacts).map(([status, contactGroup]) => {
+                if (contactGroup.length === 0) return null;
+                const config = STATUS_CONFIG[status as ContactStatus];
+                return (
+                  <div key={status}>
+                    <h3 className={`text-sm font-medium mb-3 ${config.color}`}>{config.label} ({contactGroup.length})</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <AnimatePresence>
+                        {contactGroup.map((contact) => (
+                          <ContactCard key={contact.id} contact={contact} orders={orders} onEdit={(c) => { setEditContact(c); setDialogOpen(true); }}
+                            onDelete={handleDeleteContact} onViewOrders={() => toast.info(`Aufträge für ${contact.name}`)}
+                            onLinkContacts={(c) => { setLinkSourceContact(c); setLinkDialogOpen(true); }} connectionCount={getConnectionCount(contact.id)} />
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {filteredContacts.map((contact) => (
+                  <ContactCard key={contact.id} contact={contact} orders={orders} onEdit={(c) => { setEditContact(c); setDialogOpen(true); }}
+                    onDelete={handleDeleteContact} onViewOrders={() => toast.info(`Aufträge für ${contact.name}`)}
+                    onLinkContacts={(c) => { setLinkSourceContact(c); setLinkDialogOpen(true); }} connectionCount={getConnectionCount(contact.id)} />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </>
       )}
 
-      <AddContactDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSave={handleSaveContact}
-        editContact={editContact}
-      />
+      <AddContactDialog open={dialogOpen} onOpenChange={setDialogOpen} onSave={handleSaveContact} editContact={editContact} />
+      <LinkContactDialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen} sourceContact={linkSourceContact} contacts={contacts} onSave={handleLinkContacts} />
     </div>
   );
 }

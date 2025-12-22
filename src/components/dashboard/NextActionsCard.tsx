@@ -25,19 +25,12 @@ export function NextActionsCard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchNextActions();
-    }
-  }, [user]);
-
   const fetchNextActions = async () => {
     if (!user) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Fetch upcoming tasks and homework
     const [tasksRes, homeworkRes] = await Promise.all([
       supabase
         .from('tasks')
@@ -70,7 +63,6 @@ export function NextActionsCard() {
       })),
     ];
 
-    // Sort by due date and priority
     allTasks.sort((a, b) => {
       if (a.due_date && b.due_date) {
         const dateCompare = new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
@@ -84,6 +76,32 @@ export function NextActionsCard() {
     setTasks(allTasks.slice(0, 4));
     setLoading(false);
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchNextActions();
+    }
+  }, [user]);
+
+  // Realtime subscriptions for auto-refresh
+  useEffect(() => {
+    if (!user) return;
+
+    const tasksChannel = supabase
+      .channel('next-tasks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, fetchNextActions)
+      .subscribe();
+
+    const homeworkChannel = supabase
+      .channel('next-homework')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'homework' }, fetchNextActions)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(homeworkChannel);
+    };
+  }, [user]);
 
   const formatDueDate = (dateStr: string | null) => {
     if (!dateStr) return 'Kein Datum';
