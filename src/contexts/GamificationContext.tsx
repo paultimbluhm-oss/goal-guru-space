@@ -6,7 +6,7 @@ import { checkAndUnlockAchievements, ACHIEVEMENT_DEFINITIONS } from '@/component
 import { useAuth } from '@/hooks/useAuth';
 
 interface CelebrationState {
-  type: 'xp' | 'levelUp' | 'streak' | 'achievement';
+  type: 'xp' | 'levelUp' | 'streak' | 'achievement' | 'taskComplete';
   amount?: number;
   message?: string;
 }
@@ -15,7 +15,7 @@ interface GamificationContextType {
   addXP: (amount: number, reason?: string) => Promise<void>;
   celebrateStreak: (days: number) => void;
   celebrateAchievement: (name: string) => void;
-  celebrateTaskComplete: () => void;
+  celebrateTaskComplete: (taskName?: string) => void;
   profile: ReturnType<typeof useProfile>['profile'];
   xpProgress: ReturnType<typeof useProfile>['xpProgress'];
   recentActivity: ReturnType<typeof useProfile>['recentActivity'];
@@ -70,24 +70,27 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     const result = await addXPBase(amount, reason);
     
     if (result) {
-      // Play XP sound and show animation
-      playXPSound();
-      showCelebration({
-        type: 'xp',
-        amount,
-        message: reason,
-      });
-      
-      // Check for level up
-      if (result.leveledUp) {
-        setTimeout(() => {
-          playLevelUpSound();
-          showCelebration({
-            type: 'levelUp',
-            amount: result.newLevel,
-            message: 'Du hast ein neues Level erreicht!',
-          });
-        }, 2200);
+      // Only show celebration for positive XP
+      if (amount > 0) {
+        // Play XP sound and show animation
+        playXPSound();
+        showCelebration({
+          type: 'xp',
+          amount,
+          message: reason,
+        });
+        
+        // Check for level up
+        if (result.leveledUp) {
+          setTimeout(() => {
+            playLevelUpSound();
+            showCelebration({
+              type: 'levelUp',
+              amount: result.newLevel,
+              message: 'Du hast ein neues Level erreicht!',
+            });
+          }, 2200);
+        }
       }
       
       // Refetch to update recent activity
@@ -112,9 +115,13 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
     });
   }, [showCelebration]);
 
-  const celebrateTaskComplete = useCallback(() => {
+  const celebrateTaskComplete = useCallback((taskName?: string) => {
     playTaskCompleteSound();
-  }, []);
+    showCelebration({
+      type: 'taskComplete',
+      message: taskName || 'Aufgabe erledigt!',
+    });
+  }, [showCelebration]);
 
   return (
     <GamificationContext.Provider value={{ 
