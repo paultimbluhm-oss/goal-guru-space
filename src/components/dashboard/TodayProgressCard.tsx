@@ -25,25 +25,17 @@ export function TodayProgressCard() {
     habitsTotal: 0,
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchTodayStats();
-    }
-  }, [user]);
-
   const fetchTodayStats = async () => {
     if (!user) return;
 
     const today = format(new Date(), 'yyyy-MM-dd');
 
     const [tasksRes, homeworkRes, habitsRes, habitCompletionsRes] = await Promise.all([
-      // Tasks: filter for today only (due_date is timestamp, use date comparison)
       supabase
         .from('tasks')
         .select('id, completed, due_date')
         .eq('user_id', user.id)
         .not('due_date', 'is', null),
-      // Homework: due_date is a date field, compare directly
       supabase
         .from('homework')
         .select('id, completed, due_date')
@@ -61,7 +53,6 @@ export function TodayProgressCard() {
         .eq('completed_date', today),
     ]);
 
-    // Filter tasks to only include those due today (compare date part only)
     const todaysTasks = (tasksRes.data || []).filter(t => {
       if (!t.due_date) return false;
       const taskDate = format(new Date(t.due_date), 'yyyy-MM-dd');
@@ -77,6 +68,38 @@ export function TodayProgressCard() {
       habitsTotal: habitsRes.data?.length || 0,
     });
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchTodayStats();
+    }
+  }, [user]);
+
+  // Realtime subscriptions for auto-refresh
+  useEffect(() => {
+    if (!user) return;
+
+    const tasksChannel = supabase
+      .channel('today-tasks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, fetchTodayStats)
+      .subscribe();
+
+    const homeworkChannel = supabase
+      .channel('today-homework')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'homework' }, fetchTodayStats)
+      .subscribe();
+
+    const habitsChannel = supabase
+      .channel('today-habits')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'habit_completions' }, fetchTodayStats)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(homeworkChannel);
+      supabase.removeChannel(habitsChannel);
+    };
+  }, [user]);
 
   const totalCompleted = stats.tasksCompleted + stats.homeworkCompleted + stats.habitsCompleted;
   const totalItems = stats.tasksTotal + stats.homeworkTotal + stats.habitsTotal;

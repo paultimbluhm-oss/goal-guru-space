@@ -5,11 +5,22 @@ export interface Contact {
   user_id: string;
   name: string;
   company: string | null;
+  position: string | null;
   email: string | null;
   phone: string | null;
   address: string | null;
   notes: string | null;
   status: ContactStatus;
+  created_at: string;
+}
+
+export interface ContactConnection {
+  id: string;
+  user_id: string;
+  from_contact_id: string;
+  to_contact_id: string;
+  relationship_type: string;
+  description: string | null;
   created_at: string;
 }
 
@@ -36,4 +47,14 @@ export const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
   { value: 'contacted', label: 'Kontaktiert' },
   { value: 'in_exchange', label: 'Im Austausch' },
   { value: 'has_orders', label: 'Hat Aufträge' },
+];
+
+export const RELATIONSHIP_TYPES = [
+  { value: 'recommended', label: 'Empfohlen von' },
+  { value: 'works_with', label: 'Arbeitet zusammen mit' },
+  { value: 'knows', label: 'Kennt' },
+  { value: 'introduced', label: 'Vorgestellt durch' },
+  { value: 'partner', label: 'Partner' },
+  { value: 'supplier', label: 'Lieferant' },
+  { value: 'customer', label: 'Kunde' },
 ];

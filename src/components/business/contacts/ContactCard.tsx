@@ -1,4 +1,4 @@
-import { Building2, Mail, Phone, MapPin, MoreVertical, Pencil, Trash2, FileText } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, MoreVertical, Pencil, Trash2, FileText, Briefcase, Link2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Contact, Order, STATUS_CONFIG } from './types';
@@ -17,9 +18,11 @@ interface ContactCardProps {
   onEdit: (contact: Contact) => void;
   onDelete: (contact: Contact) => void;
   onViewOrders: (contact: Contact) => void;
+  onLinkContacts?: (contact: Contact) => void;
+  connectionCount?: number;
 }
 
-export function ContactCard({ contact, orders, onEdit, onDelete, onViewOrders }: ContactCardProps) {
+export function ContactCard({ contact, orders, onEdit, onDelete, onViewOrders, onLinkContacts, connectionCount = 0 }: ContactCardProps) {
   const statusConfig = STATUS_CONFIG[contact.status];
   const contactOrders = orders.filter(o => o.contact_id === contact.id);
 
@@ -38,12 +41,28 @@ export function ContactCard({ contact, orders, onEdit, onDelete, onViewOrders }:
                 <Badge variant="outline" className={`${statusConfig.bgColor} ${statusConfig.color} border-0 text-xs`}>
                   {statusConfig.label}
                 </Badge>
+                {connectionCount > 0 && (
+                  <Badge variant="outline" className="bg-primary/20 text-primary border-0 text-xs">
+                    <Link2 className="w-3 h-3 mr-1" />
+                    {connectionCount}
+                  </Badge>
+                )}
               </div>
               
-              {contact.company && (
+              {(contact.company || contact.position) && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                  <Building2 className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{contact.company}</span>
+                  {contact.company && (
+                    <>
+                      <Building2 className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{contact.company}</span>
+                    </>
+                  )}
+                  {contact.position && (
+                    <>
+                      <Briefcase className="w-4 h-4 shrink-0 ml-2" />
+                      <span className="truncate">{contact.position}</span>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -110,10 +129,17 @@ export function ContactCard({ contact, orders, onEdit, onDelete, onViewOrders }:
                   <Pencil className="w-4 h-4 mr-2" />
                   Bearbeiten
                 </DropdownMenuItem>
+                {onLinkContacts && (
+                  <DropdownMenuItem onClick={() => onLinkContacts(contact)}>
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Verknüpfen
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => onViewOrders(contact)}>
                   <FileText className="w-4 h-4 mr-2" />
                   Aufträge anzeigen
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={() => onDelete(contact)}
                   className="text-destructive focus:text-destructive"

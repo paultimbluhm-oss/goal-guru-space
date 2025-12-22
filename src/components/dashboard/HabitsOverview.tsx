@@ -30,30 +30,51 @@ export function HabitsOverview() {
   const [completions, setCompletions] = useState<HabitCompletion[]>([]);
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user]);
-
   const fetchData = async () => {
+    if (!user) return;
     const [habitsRes, completionsRes] = await Promise.all([
       supabase
         .from('habits')
         .select('id, name, xp_reward')
-        .eq('user_id', user!.id)
+        .eq('user_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: true }),
       supabase
         .from('habit_completions')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', user.id)
         .eq('completed_date', today)
     ]);
 
     if (habitsRes.data) setHabits(habitsRes.data);
     if (completionsRes.data) setCompletions(completionsRes.data);
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
+
+  // Realtime subscription for auto-refresh
+  useEffect(() => {
+    if (!user) return;
+
+    const habitsChannel = supabase
+      .channel('habits-overview')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'habits' }, fetchData)
+      .subscribe();
+
+    const completionsChannel = supabase
+      .channel('habit-completions-overview')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'habit_completions' }, fetchData)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(habitsChannel);
+      supabase.removeChannel(completionsChannel);
+    };
+  }, [user]);
 
   const isCompletedToday = (habitId: string) => {
     return completions.some(c => c.habit_id === habitId);
