@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Trash2, Clock, Users, Minus, Plus, Soup, UtensilsCrossed, Cake, Coffee, ChefHat, Star, TrendingUp, Timer } from 'lucide-react';
+import { ArrowLeft, Trash2, Clock, Users, Minus, Plus, Soup, UtensilsCrossed, Cake, Coffee, ChefHat, Star, TrendingUp, Timer, Pencil, Cookie, Salad } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,13 +16,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { EditRecipeDialog } from './EditRecipeDialog';
 
 const categoryConfig: Record<string, { label: string; icon: typeof Soup; color: string }> = {
   vorspeise: { label: 'Vorspeise', icon: Soup, color: 'from-cyan-500 to-teal-600' },
   hauptspeise: { label: 'Hauptgericht', icon: UtensilsCrossed, color: 'from-orange-500 to-red-600' },
   nachspeise: { label: 'Nachspeise', icon: Cake, color: 'from-pink-500 to-rose-600' },
-  getraenk: { label: 'Getrank', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
-  sonstiges: { label: 'Sonstiges', icon: ChefHat, color: 'from-slate-500 to-zinc-600' },
+  getraenk: { label: 'Getränk', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
+  suesswaren: { label: 'Süßwaren', icon: Cookie, color: 'from-purple-500 to-pink-600' },
+  beilagen: { label: 'Beilagen', icon: Salad, color: 'from-green-500 to-emerald-600' },
 };
 
 interface Recipe {
@@ -61,6 +63,7 @@ export function RecipeDetailView({ recipe, onBack, onUpdate }: RecipeDetailViewP
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
   const [desiredServings, setDesiredServings] = useState(recipe.servings || 4);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const baseServings = recipe.servings || 4;
 
   useEffect(() => {
@@ -152,28 +155,43 @@ export function RecipeDetailView({ recipe, onBack, onUpdate }: RecipeDetailViewP
             )}
           </div>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-destructive shrink-0">
-              <Trash2 className="w-5 h-5" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Rezept loschen?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Diese Aktion kann nicht ruckgangig gemacht werden.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                Loschen
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => setEditDialogOpen(true)}>
+            <Pencil className="w-5 h-5" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-destructive">
+                <Trash2 className="w-5 h-5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Rezept löschen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Diese Aktion kann nicht rückgängig gemacht werden.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                  Löschen
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
+
+      <EditRecipeDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        recipe={recipe}
+        onSuccess={() => {
+          onUpdate();
+          onBack();
+        }}
+      />
 
       {recipe.description && (
         <p className="text-muted-foreground">{recipe.description}</p>
