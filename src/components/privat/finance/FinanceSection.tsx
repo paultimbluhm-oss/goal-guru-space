@@ -9,6 +9,7 @@ import { AddAccountDialog } from './AddAccountDialog';
 import { AddInvestmentDialog } from './AddInvestmentDialog';
 import { AddTransactionDialog } from './AddTransactionDialog';
 import { InvestmentCard } from './InvestmentCard';
+import { LoansSection } from './LoansSection';
 import { format, subDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -506,6 +507,9 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
           ))}
         </CollapsibleSection>
       )}
+
+      {/* Loans Section */}
+      <LoansSection onRefresh={fetchData} />
 
       {cashBills.length > 0 && (
         <CollapsibleSection

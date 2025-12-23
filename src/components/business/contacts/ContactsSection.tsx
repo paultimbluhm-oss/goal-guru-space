@@ -89,6 +89,22 @@ export function ContactsSection() {
     else { toast.success('Kontakte verknüpft'); fetchData(); }
   };
 
+  const handleUpdateConnection = async (id: string, type: string, description: string) => {
+    const { error } = await supabase.from('contact_connections')
+      .update({ relationship_type: type, description: description || null })
+      .eq('id', id);
+
+    if (error) toast.error('Fehler beim Aktualisieren');
+    else { toast.success('Verbindung aktualisiert'); fetchData(); }
+  };
+
+  const handleDeleteConnection = async (id: string) => {
+    const { error } = await supabase.from('contact_connections').delete().eq('id', id);
+
+    if (error) toast.error('Fehler beim Löschen');
+    else { toast.success('Verbindung gelöscht'); fetchData(); }
+  };
+
   const getConnectionCount = (contactId: string) => {
     return connections.filter(c => c.from_contact_id === contactId || c.to_contact_id === contactId).length;
   };
@@ -148,7 +164,13 @@ export function ContactsSection() {
       </div>
 
       {viewMode === 'network' ? (
-        <ContactNetworkView contacts={filteredContacts} connections={connections} onContactClick={(c) => { setEditContact(c); setDialogOpen(true); }} />
+        <ContactNetworkView 
+          contacts={filteredContacts} 
+          connections={connections} 
+          onContactClick={(c) => { setEditContact(c); setDialogOpen(true); }}
+          onUpdateConnection={handleUpdateConnection}
+          onDeleteConnection={handleDeleteConnection}
+        />
       ) : (
         <>
           <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as ContactStatus | 'all')}>
