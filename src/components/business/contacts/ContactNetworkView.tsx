@@ -1,23 +1,10 @@
-import { useMemo, useCallback, useState } from 'react';
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  Node,
-  Edge,
-  useNodesState,
-  useEdgesState,
-  ConnectionMode,
-  MarkerType,
-  Handle,
-  Position,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+import { useMemo, useState } from 'react';
 import { Contact, ContactConnection, RELATIONSHIP_TYPES, STATUS_CONFIG, POSITION_OPTIONS } from './types';
 import { Badge } from '@/components/ui/badge';
-import { Building2, User, Pencil } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Building2, User, ChevronDown, ChevronUp, Mail, Phone, MapPin } from 'lucide-react';
 import { EditConnectionDialog } from './EditConnectionDialog';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ContactNetworkViewProps {
   contacts: Contact[];
@@ -27,64 +14,20 @@ interface ContactNetworkViewProps {
   onDeleteConnection?: (id: string) => void;
 }
 
-// Custom node component for contacts
-function ContactNode({ data }: { data: { contact: Contact; connectionCount: number } }) {
-  const { contact, connectionCount } = data;
-  const statusConfig = STATUS_CONFIG[contact.status];
-  const positionLabel = POSITION_OPTIONS.find(p => p.value === contact.position)?.label || contact.position;
-
-  return (
-    <div className="relative">
-      <Handle type="target" position={Position.Top} className="!bg-primary" />
-      <Handle type="source" position={Position.Bottom} className="!bg-primary" />
-      <Handle type="target" position={Position.Left} className="!bg-primary" />
-      <Handle type="source" position={Position.Right} className="!bg-primary" />
-      
-      <div className="px-4 py-3 rounded-xl bg-card border border-border shadow-lg hover:shadow-xl hover:border-primary/50 transition-all cursor-pointer min-w-[180px]">
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`p-2 rounded-lg ${statusConfig.bgColor}`}>
-            <User className={`w-4 h-4 ${statusConfig.color}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm truncate">{contact.name}</p>
-            {positionLabel && (
-              <p className="text-xs text-muted-foreground truncate">{positionLabel}</p>
-            )}
-          </div>
-        </div>
-        
-        {contact.company && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-            <Building2 className="w-3 h-3" />
-            <span className="truncate">{contact.company}</span>
-          </div>
-        )}
-        
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={`${statusConfig.bgColor} ${statusConfig.color} border-0 text-[10px]`}>
-            {statusConfig.label}
-          </Badge>
-          {connectionCount > 0 && (
-            <Badge variant="outline" className="bg-primary/20 text-primary border-0 text-[10px]">
-              {connectionCount} Verbindungen
-            </Badge>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+interface NodePosition {
+  x: number;
+  y: number;
+  contact: Contact;
+  connectionCount: number;
 }
 
-const nodeTypes = {
-  contact: ContactNode,
-};
-
-// Force-directed layout algorithm
-function calculateForceDirectedLayout(contacts: Contact[], connections: ContactConnection[]) {
-  const width = 800;
-  const height = 600;
+// Calculate optimal static layout with no overlaps
+function calculateStaticLayout(contacts: Contact[], connections: ContactConnection[], containerWidth: number, containerHeight: number) {
+  const nodeWidth = 140;
+  const nodeHeight = 60;
+  const minSpacing = 80;
   
-  // Count connections per contact for importance
+  // Count connections per contact
   const connectionCounts: Record<string, number> = {};
   connections.forEach(conn => {
     connectionCounts[conn.from_contact_id] = (connectionCounts[conn.from_contact_id] || 0) + 1;
@@ -96,125 +39,295 @@ function calculateForceDirectedLayout(contacts: Contact[], connections: ContactC
     return (connectionCounts[b.id] || 0) - (connectionCounts[a.id] || 0);
   });
 
-  // Initialize positions
-  const positions: Record<string, { x: number; y: number }> = {};
+  const positions: NodePosition[] = [];
+  const centerX = containerWidth / 2;
+  const centerY = containerHeight / 2;
+
+  if (sortedContacts.length === 0) return { positions, connectionCounts };
+
+  // Group contacts by connection tier
+  const tiers: Contact[][] = [];
+  let currentTier: Contact[] = [];
+  let lastCount = -1;
+
+  sortedContacts.forEach(contact => {
+    const count = connectionCounts[contact.id] || 0;
+    if (count !== lastCount && currentTier.length > 0) {
+      tiers.push(currentTier);
+      currentTier = [];
+    }
+    currentTier.push(contact);
+    lastCount = count;
+  });
+  if (currentTier.length > 0) tiers.push(currentTier);
+
+  // Place each tier in concentric rings
+  let currentRadius = 0;
   
-  // Place the most connected contact in the center
-  if (sortedContacts.length > 0) {
-    const centerContact = sortedContacts[0];
-    positions[centerContact.id] = { x: width / 2, y: height / 2 };
-    
-    // Place connected contacts around it
-    const connectedIds = new Set<string>();
-    connections.forEach(conn => {
-      if (conn.from_contact_id === centerContact.id) connectedIds.add(conn.to_contact_id);
-      if (conn.to_contact_id === centerContact.id) connectedIds.add(conn.from_contact_id);
-    });
-    
-    // Arrange connected contacts in a circle around center
-    const connectedContacts = sortedContacts.filter(c => connectedIds.has(c.id));
-    const radius = Math.min(250, 150 + connectedContacts.length * 20);
-    connectedContacts.forEach((contact, i) => {
-      const angle = (2 * Math.PI * i) / connectedContacts.length - Math.PI / 2;
-      positions[contact.id] = {
-        x: width / 2 + radius * Math.cos(angle),
-        y: height / 2 + radius * Math.sin(angle),
-      };
-    });
-    
-    // Place remaining contacts in outer ring
-    const remaining = sortedContacts.filter(c => c.id !== centerContact.id && !connectedIds.has(c.id));
-    const outerRadius = radius + 180;
-    remaining.forEach((contact, i) => {
-      const angle = (2 * Math.PI * i) / remaining.length - Math.PI / 2;
-      positions[contact.id] = {
-        x: width / 2 + outerRadius * Math.cos(angle),
-        y: height / 2 + outerRadius * Math.sin(angle),
-      };
-    });
-  }
+  tiers.forEach((tier, tierIndex) => {
+    if (tierIndex === 0 && tier.length === 1) {
+      // Single most-connected contact at center
+      positions.push({
+        x: centerX,
+        y: centerY,
+        contact: tier[0],
+        connectionCount: connectionCounts[tier[0].id] || 0,
+      });
+      currentRadius = Math.max(nodeWidth, nodeHeight) + minSpacing;
+    } else {
+      // Calculate radius for this tier to avoid overlaps
+      const circumference = tier.length * (nodeWidth + minSpacing);
+      const neededRadius = Math.max(currentRadius + nodeHeight + minSpacing, circumference / (2 * Math.PI));
+      
+      tier.forEach((contact, i) => {
+        const angle = (2 * Math.PI * i) / tier.length - Math.PI / 2;
+        positions.push({
+          x: centerX + neededRadius * Math.cos(angle),
+          y: centerY + neededRadius * Math.sin(angle),
+          contact,
+          connectionCount: connectionCounts[contact.id] || 0,
+        });
+      });
+      
+      currentRadius = neededRadius + nodeHeight / 2;
+    }
+  });
 
-  // Apply force-directed refinement
-  const iterations = 50;
-  const repulsionStrength = 5000;
-  const attractionStrength = 0.1;
-  const minDistance = 200;
-
+  // Final pass: ensure no overlaps
+  const iterations = 100;
   for (let iter = 0; iter < iterations; iter++) {
-    const forces: Record<string, { fx: number; fy: number }> = {};
-    
-    // Initialize forces
-    contacts.forEach(c => {
-      forces[c.id] = { fx: 0, fy: 0 };
-    });
-
-    // Repulsion between all nodes
-    for (let i = 0; i < contacts.length; i++) {
-      for (let j = i + 1; j < contacts.length; j++) {
-        const c1 = contacts[i];
-        const c2 = contacts[j];
-        const p1 = positions[c1.id];
-        const p2 = positions[c2.id];
+    let moved = false;
+    for (let i = 0; i < positions.length; i++) {
+      for (let j = i + 1; j < positions.length; j++) {
+        const dx = positions[j].x - positions[i].x;
+        const dy = positions[j].y - positions[i].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = nodeWidth + minSpacing;
         
-        if (!p1 || !p2) continue;
-        
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-        
-        if (dist < minDistance) {
-          const force = repulsionStrength / (dist * dist);
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
+        if (dist < minDist && dist > 0) {
+          const overlap = (minDist - dist) / 2;
+          const moveX = (dx / dist) * overlap;
+          const moveY = (dy / dist) * overlap;
           
-          forces[c1.id].fx -= fx;
-          forces[c1.id].fy -= fy;
-          forces[c2.id].fx += fx;
-          forces[c2.id].fy += fy;
+          positions[i].x -= moveX;
+          positions[i].y -= moveY;
+          positions[j].x += moveX;
+          positions[j].y += moveY;
+          moved = true;
         }
       }
     }
-
-    // Attraction along edges
-    connections.forEach(conn => {
-      const p1 = positions[conn.from_contact_id];
-      const p2 = positions[conn.to_contact_id];
-      
-      if (!p1 || !p2) return;
-      
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      const force = dist * attractionStrength;
-      const fx = (dx / dist) * force;
-      const fy = (dy / dist) * force;
-      
-      if (forces[conn.from_contact_id]) {
-        forces[conn.from_contact_id].fx += fx;
-        forces[conn.from_contact_id].fy += fy;
-      }
-      if (forces[conn.to_contact_id]) {
-        forces[conn.to_contact_id].fx -= fx;
-        forces[conn.to_contact_id].fy -= fy;
-      }
-    });
-
-    // Apply forces with damping
-    const damping = 0.8 - (iter / iterations) * 0.5;
-    contacts.forEach(c => {
-      if (positions[c.id]) {
-        positions[c.id].x += forces[c.id].fx * damping;
-        positions[c.id].y += forces[c.id].fy * damping;
-        
-        // Keep within bounds
-        positions[c.id].x = Math.max(100, Math.min(width - 100, positions[c.id].x));
-        positions[c.id].y = Math.max(80, Math.min(height - 80, positions[c.id].y));
-      }
-    });
+    if (!moved) break;
   }
 
   return { positions, connectionCounts };
+}
+
+// Calculate edge path that curves around nodes
+function calculateEdgePath(
+  from: NodePosition,
+  to: NodePosition,
+  allPositions: NodePosition[],
+  nodeWidth: number,
+  nodeHeight: number
+): string {
+  const startX = from.x;
+  const startY = from.y;
+  const endX = to.x;
+  const endY = to.y;
+  
+  // Calculate control point for curved line
+  const midX = (startX + endX) / 2;
+  const midY = (startY + endY) / 2;
+  
+  // Curve away from center to avoid overlapping with nodes
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  
+  // Perpendicular offset for curve
+  const perpX = -dy / dist;
+  const perpY = dx / dist;
+  const curveAmount = Math.min(dist * 0.2, 40);
+  
+  const controlX = midX + perpX * curveAmount;
+  const controlY = midY + perpY * curveAmount;
+  
+  return `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`;
+}
+
+// Compact contact node component
+function CompactContactNode({ 
+  position, 
+  onClick,
+  isExpanded,
+  onToggleExpand 
+}: { 
+  position: NodePosition;
+  onClick: () => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+}) {
+  const { contact, connectionCount } = position;
+  const statusConfig = STATUS_CONFIG[contact.status];
+  const positionLabel = POSITION_OPTIONS.find(p => p.value === contact.position)?.label || contact.position;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="absolute transform -translate-x-1/2 -translate-y-1/2"
+      style={{ left: position.x, top: position.y, zIndex: isExpanded ? 100 : 10 }}
+    >
+      <div 
+        className={cn(
+          "rounded-lg bg-card border shadow-md transition-all duration-200 cursor-pointer",
+          isExpanded ? "border-primary shadow-lg" : "border-border hover:border-primary/50 hover:shadow-lg"
+        )}
+        style={{ minWidth: isExpanded ? 200 : 120 }}
+      >
+        {/* Compact Header - Always visible */}
+        <div 
+          className="px-3 py-2 flex items-center gap-2"
+          onClick={onClick}
+        >
+          <div className={cn("p-1.5 rounded-md", statusConfig.bgColor)}>
+            <User className={cn("w-3 h-3", statusConfig.color)} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-xs truncate">{contact.name}</p>
+            {connectionCount > 0 && (
+              <p className="text-[10px] text-primary">{connectionCount} Verb.</p>
+            )}
+          </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+            className="p-1 hover:bg-secondary/50 rounded"
+          >
+            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+        </div>
+        
+        {/* Expanded Details */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden border-t border-border"
+            >
+              <div className="px-3 py-2 space-y-1.5 text-xs">
+                {contact.company && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Building2 className="w-3 h-3" />
+                    <span className="truncate">{contact.company}</span>
+                  </div>
+                )}
+                {positionLabel && (
+                  <p className="text-muted-foreground truncate">{positionLabel}</p>
+                )}
+                {contact.email && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Mail className="w-3 h-3" />
+                    <span className="truncate">{contact.email}</span>
+                  </div>
+                )}
+                {contact.phone && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Phone className="w-3 h-3" />
+                    <span>{contact.phone}</span>
+                  </div>
+                )}
+                <div className="pt-1">
+                  <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0 text-[10px]")}>
+                    {statusConfig.label}
+                  </Badge>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+
+// Connection line component
+function ConnectionLine({ 
+  connection, 
+  fromPos, 
+  toPos,
+  allPositions,
+  onClick,
+  isSelected 
+}: { 
+  connection: ContactConnection;
+  fromPos: NodePosition;
+  toPos: NodePosition;
+  allPositions: NodePosition[];
+  onClick: () => void;
+  isSelected: boolean;
+}) {
+  const relationshipLabel = RELATIONSHIP_TYPES.find(r => r.value === connection.relationship_type)?.label || connection.relationship_type;
+  const path = calculateEdgePath(fromPos, toPos, allPositions, 140, 60);
+  
+  // Calculate label position
+  const midX = (fromPos.x + toPos.x) / 2;
+  const midY = (fromPos.y + toPos.y) / 2;
+  
+  // Slight offset for label
+  const dx = toPos.x - fromPos.x;
+  const dy = toPos.y - fromPos.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const perpX = -dy / dist;
+  const perpY = dx / dist;
+  const labelOffset = 12;
+  const labelX = midX + perpX * labelOffset;
+  const labelY = midY + perpY * labelOffset;
+
+  return (
+    <g className="cursor-pointer" onClick={onClick}>
+      {/* Invisible wider path for easier clicking */}
+      <path
+        d={path}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={20}
+      />
+      {/* Visible path */}
+      <path
+        d={path}
+        fill="none"
+        stroke={isSelected ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.5)"}
+        strokeWidth={isSelected ? 3 : 2}
+        strokeDasharray={isSelected ? "none" : "5,5"}
+        className="transition-all duration-200"
+      />
+      {/* Arrow marker */}
+      <circle
+        cx={toPos.x}
+        cy={toPos.y}
+        r={4}
+        fill="hsl(var(--primary))"
+        className="opacity-70"
+      />
+      {/* Label */}
+      <foreignObject
+        x={labelX - 50}
+        y={labelY - 10}
+        width={100}
+        height={20}
+        className="pointer-events-none"
+      >
+        <div className="flex justify-center">
+          <span className="bg-card/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-[9px] text-muted-foreground border border-border whitespace-nowrap">
+            {relationshipLabel}
+          </span>
+        </div>
+      </foreignObject>
+    </g>
+  );
 }
 
 export function ContactNetworkView({ 
@@ -224,68 +337,37 @@ export function ContactNetworkView({
   onUpdateConnection,
   onDeleteConnection 
 }: ContactNetworkViewProps) {
+  const [expandedContactId, setExpandedContactId] = useState<string | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<ContactConnection | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const { nodes, edges } = useMemo(() => {
-    const { positions, connectionCounts } = calculateForceDirectedLayout(contacts, connections);
+  // Calculate container dimensions based on contact count
+  const containerHeight = Math.max(500, Math.min(800, 300 + contacts.length * 50));
+  const containerWidth = 1200;
 
-    const nodes: Node[] = contacts.map((contact) => ({
-      id: contact.id,
-      type: 'contact',
-      position: positions[contact.id] || { x: 400, y: 300 },
-      data: {
-        contact,
-        connectionCount: connectionCounts[contact.id] || 0,
-      },
-    }));
+  const { positions, connectionCounts } = useMemo(() => {
+    return calculateStaticLayout(contacts, connections, containerWidth, containerHeight);
+  }, [contacts, connections, containerWidth, containerHeight]);
 
-    // Create edges
-    const edges: Edge[] = connections.map(conn => {
-      const relationshipLabel = RELATIONSHIP_TYPES.find(r => r.value === conn.relationship_type)?.label || conn.relationship_type;
-      return {
-        id: conn.id,
-        source: conn.from_contact_id,
-        target: conn.to_contact_id,
-        label: relationshipLabel,
-        type: 'smoothstep',
-        animated: true,
-        style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
-        labelStyle: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' },
-        labelBgStyle: { fill: 'hsl(var(--card))', fillOpacity: 0.9 },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: 'hsl(var(--primary))',
-        },
-      };
-    });
-
-    return { nodes, edges };
-  }, [contacts, connections]);
-
-  const [nodesState, setNodes, onNodesChange] = useNodesState(nodes);
-  const [edgesState, setEdges, onEdgesChange] = useEdgesState(edges);
-
-  // Update nodes when data changes
-  useMemo(() => {
-    setNodes(nodes);
-    setEdges(edges);
-  }, [nodes, edges, setNodes, setEdges]);
-
-  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    const contact = contacts.find(c => c.id === node.id);
-    if (contact && onContactClick) {
-      onContactClick(contact);
-    }
-  }, [contacts, onContactClick]);
-
-  const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
-    const connection = connections.find(c => c.id === edge.id);
-    if (connection) {
-      setSelectedConnection(connection);
-      setEditDialogOpen(true);
-    }
-  }, [connections]);
+  // Calculate viewBox to fit all nodes with padding
+  const viewBox = useMemo(() => {
+    if (positions.length === 0) return { minX: 0, minY: 0, width: containerWidth, height: containerHeight };
+    
+    const padding = 100;
+    const xs = positions.map(p => p.x);
+    const ys = positions.map(p => p.y);
+    const minX = Math.min(...xs) - padding;
+    const maxX = Math.max(...xs) + padding;
+    const minY = Math.min(...ys) - padding;
+    const maxY = Math.max(...ys) + padding;
+    
+    return {
+      minX,
+      minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }, [positions, containerWidth, containerHeight]);
 
   if (contacts.length === 0) {
     return (
@@ -297,27 +379,76 @@ export function ContactNetworkView({
 
   return (
     <>
-      <div className="h-[500px] rounded-xl border border-border bg-card/50 overflow-hidden relative">
-        <div className="absolute top-3 left-3 z-10 bg-card/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-muted-foreground">
-          Klicke auf Kontakte zum Bearbeiten • Klicke auf Verbindungen zum Bearbeiten/Löschen
+      <div 
+        className="rounded-xl border border-border bg-gradient-to-br from-card/80 to-secondary/20 overflow-hidden relative"
+        style={{ height: containerHeight }}
+      >
+        {/* Header */}
+        <div className="absolute top-3 left-3 z-20 bg-card/90 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-muted-foreground border border-border">
+          <span className="font-medium text-foreground">{contacts.length}</span> Kontakte • 
+          <span className="font-medium text-foreground ml-1">{connections.length}</span> Verbindungen
+          <br />
+          <span className="opacity-70">Klicke zum Bearbeiten</span>
         </div>
-        <ReactFlow
-          nodes={nodesState}
-          edges={edgesState}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={handleNodeClick}
-          onEdgeClick={handleEdgeClick}
-          nodeTypes={nodeTypes}
-          connectionMode={ConnectionMode.Loose}
-          fitView
-          minZoom={0.3}
-          maxZoom={1.5}
-          defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+
+        {/* SVG for connections - rendered FIRST so it's behind nodes */}
+        <svg 
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.width} ${viewBox.height}`}
+          preserveAspectRatio="xMidYMid meet"
+          style={{ zIndex: 1 }}
         >
-          <Background color="hsl(var(--muted-foreground))" gap={20} size={1} />
-          <Controls className="!bg-card !border-border" />
-        </ReactFlow>
+          <g className="pointer-events-auto">
+            {connections.map(conn => {
+              const fromPos = positions.find(p => p.contact.id === conn.from_contact_id);
+              const toPos = positions.find(p => p.contact.id === conn.to_contact_id);
+              if (!fromPos || !toPos) return null;
+              
+              return (
+                <ConnectionLine
+                  key={conn.id}
+                  connection={conn}
+                  fromPos={fromPos}
+                  toPos={toPos}
+                  allPositions={positions}
+                  onClick={() => {
+                    setSelectedConnection(conn);
+                    setEditDialogOpen(true);
+                  }}
+                  isSelected={selectedConnection?.id === conn.id}
+                />
+              );
+            })}
+          </g>
+        </svg>
+
+        {/* Nodes container with same viewBox transformation */}
+        <div 
+          className="absolute inset-0 overflow-hidden"
+          style={{ 
+            transform: `scale(${Math.min(1, containerWidth / viewBox.width, containerHeight / viewBox.height)})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          <div 
+            className="relative w-full h-full"
+            style={{
+              transform: `translate(${-viewBox.minX + (containerWidth - viewBox.width) / 2}px, ${-viewBox.minY + (containerHeight - viewBox.height) / 2}px)`,
+            }}
+          >
+            {positions.map(pos => (
+              <CompactContactNode
+                key={pos.contact.id}
+                position={pos}
+                onClick={() => onContactClick?.(pos.contact)}
+                isExpanded={expandedContactId === pos.contact.id}
+                onToggleExpand={() => setExpandedContactId(
+                  expandedContactId === pos.contact.id ? null : pos.contact.id
+                )}
+              />
+            ))}
+          </div>
+        </div>
       </div>
       
       <EditConnectionDialog
@@ -327,9 +458,11 @@ export function ContactNetworkView({
         contacts={contacts}
         onUpdate={(id, type, description) => {
           onUpdateConnection?.(id, type, description);
+          setSelectedConnection(null);
         }}
         onDelete={(id) => {
           onDeleteConnection?.(id);
+          setSelectedConnection(null);
         }}
       />
     </>
