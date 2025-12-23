@@ -808,6 +808,48 @@ export type Database = {
           },
         ]
       }
+      loans: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          is_returned: boolean | null
+          loan_date: string | null
+          loan_type: string
+          person_name: string
+          returned_date: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_returned?: boolean | null
+          loan_date?: string | null
+          loan_type?: string
+          person_name: string
+          returned_date?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_returned?: boolean | null
+          loan_date?: string | null
+          loan_type?: string
+          person_name?: string
+          returned_date?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       milestone_items: {
         Row: {
           completed: boolean | null

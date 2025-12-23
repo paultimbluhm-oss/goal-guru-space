@@ -58,3 +58,22 @@ export const RELATIONSHIP_TYPES = [
   { value: 'supplier', label: 'Lieferant' },
   { value: 'customer', label: 'Kunde' },
 ];
+
+export const POSITION_OPTIONS = [
+  { value: 'ceo', label: 'Geschäftsführer/CEO' },
+  { value: 'cto', label: 'CTO' },
+  { value: 'cfo', label: 'CFO' },
+  { value: 'coo', label: 'COO' },
+  { value: 'founder', label: 'Gründer/Inhaber' },
+  { value: 'director', label: 'Direktor' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'team_lead', label: 'Teamleiter' },
+  { value: 'employee', label: 'Mitarbeiter' },
+  { value: 'freelancer', label: 'Freelancer' },
+  { value: 'consultant', label: 'Berater' },
+  { value: 'sales', label: 'Vertrieb' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'developer', label: 'Entwickler' },
+  { value: 'designer', label: 'Designer' },
+  { value: 'other', label: 'Andere' },
+];

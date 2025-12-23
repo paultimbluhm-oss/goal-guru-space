@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Contact, ContactStatus, STATUS_OPTIONS } from './types';
+import { Contact, ContactStatus, STATUS_OPTIONS, POSITION_OPTIONS } from './types';
 
 interface AddContactDialogProps {
   open: boolean;
@@ -103,12 +103,19 @@ export function AddContactDialog({ open, onOpenChange, onSave, editContact }: Ad
             </div>
             <div className="space-y-2">
               <Label htmlFor="position">Position</Label>
-              <Input
-                id="position"
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
-                placeholder="Geschäftsführer, CEO, etc."
-              />
+              <Select value={position} onValueChange={setPosition}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Position auswählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Keine Angabe</SelectItem>
+                  {POSITION_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
