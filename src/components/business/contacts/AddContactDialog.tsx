@@ -103,12 +103,12 @@ export function AddContactDialog({ open, onOpenChange, onSave, editContact }: Ad
             </div>
             <div className="space-y-2">
               <Label htmlFor="position">Position</Label>
-              <Select value={position} onValueChange={setPosition}>
+              <Select value={position || "none"} onValueChange={(v) => setPosition(v === "none" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Position auswählen..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Keine Angabe</SelectItem>
+                  <SelectItem value="none">Keine Angabe</SelectItem>
                   {POSITION_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
