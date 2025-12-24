@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Users, Search, Building2, UserCircle, Network, LayoutGrid } from 'lucide-react';
+import { Plus, Users, Search, Building2, Network, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +11,10 @@ import { ContactCard } from './ContactCard';
 import { AddContactDialog } from './AddContactDialog';
 import { LinkContactDialog } from './LinkContactDialog';
 import { ContactNetworkView } from './ContactNetworkView';
+import { CompanyGroupView } from './CompanyGroupView';
 import { motion, AnimatePresence } from 'framer-motion';
+
+type ViewMode = 'companies' | 'grid' | 'network';
 
 export function ContactsSection() {
   const { user } = useAuth();
@@ -21,7 +24,7 @@ export function ContactsSection() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ContactStatus | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'network'>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('companies');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [editContact, setEditContact] = useState<Contact | null>(null);
@@ -116,14 +119,7 @@ export function ContactsSection() {
     return matchesSearch && matchesStatus;
   });
 
-  const groupedContacts = {
-    has_orders: filteredContacts.filter(c => c.status === 'has_orders'),
-    in_exchange: filteredContacts.filter(c => c.status === 'in_exchange'),
-    contacted: filteredContacts.filter(c => c.status === 'contacted'),
-    idea: filteredContacts.filter(c => c.status === 'idea'),
-  };
-
-  const stats = { total: contacts.length, companies: contacts.filter(c => c.company).length, connections: connections.length };
+  const stats = { total: contacts.length, companies: new Set(contacts.filter(c => c.company).map(c => c.company)).size, connections: connections.length };
 
   if (loading) {
     return <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />;
@@ -157,8 +153,15 @@ export function ContactsSection() {
           <Input placeholder="Kontakte durchsuchen..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
         </div>
         <div className="flex gap-2">
-          <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')}><LayoutGrid className="w-4 h-4" /></Button>
-          <Button variant={viewMode === 'network' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('network')}><Network className="w-4 h-4" /></Button>
+          <Button variant={viewMode === 'companies' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('companies')} title="Nach Unternehmen">
+            <Building2 className="w-4 h-4" />
+          </Button>
+          <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Rasteransicht">
+            <LayoutGrid className="w-4 h-4" />
+          </Button>
+          <Button variant={viewMode === 'network' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('network')} title="Netzwerkansicht">
+            <Network className="w-4 h-4" />
+          </Button>
         </div>
         <Button onClick={() => { setEditContact(null); setDialogOpen(true); }}><Plus className="w-4 h-4 mr-2" />Kontakt</Button>
       </div>
@@ -171,15 +174,42 @@ export function ContactsSection() {
           onUpdateConnection={handleUpdateConnection}
           onDeleteConnection={handleDeleteConnection}
         />
+      ) : viewMode === 'companies' ? (
+        <>
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as ContactStatus | 'all')}>
+            <TabsList className="flex flex-wrap h-auto gap-1">
+              <TabsTrigger value="all" className="text-xs">Alle</TabsTrigger>
+              <TabsTrigger value="has_orders" className="text-xs">Aufträge</TabsTrigger>
+              <TabsTrigger value="need_to_reply" className="text-xs">Antworten</TabsTrigger>
+              <TabsTrigger value="waiting_for_reply" className="text-xs">Wartend</TabsTrigger>
+              <TabsTrigger value="received_reply" className="text-xs">Antwort</TabsTrigger>
+              <TabsTrigger value="first_contact" className="text-xs">Angeschrieben</TabsTrigger>
+              <TabsTrigger value="idea" className="text-xs">Idee</TabsTrigger>
+              <TabsTrigger value="completed" className="text-xs">Abgeschlossen</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          <CompanyGroupView
+            contacts={filteredContacts}
+            orders={orders}
+            onEdit={(c) => { setEditContact(c); setDialogOpen(true); }}
+            onDelete={handleDeleteContact}
+            onLinkContacts={(c) => { setLinkSourceContact(c); setLinkDialogOpen(true); }}
+            connectionCount={getConnectionCount}
+          />
+        </>
       ) : (
         <>
           <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as ContactStatus | 'all')}>
-            <TabsList className="grid grid-cols-5">
+            <TabsList className="flex flex-wrap h-auto gap-1">
               <TabsTrigger value="all" className="text-xs">Alle</TabsTrigger>
               <TabsTrigger value="has_orders" className="text-xs">Aufträge</TabsTrigger>
-              <TabsTrigger value="in_exchange" className="text-xs">Austausch</TabsTrigger>
-              <TabsTrigger value="contacted" className="text-xs">Kontaktiert</TabsTrigger>
+              <TabsTrigger value="need_to_reply" className="text-xs">Antworten</TabsTrigger>
+              <TabsTrigger value="waiting_for_reply" className="text-xs">Wartend</TabsTrigger>
+              <TabsTrigger value="received_reply" className="text-xs">Antwort</TabsTrigger>
+              <TabsTrigger value="first_contact" className="text-xs">Angeschrieben</TabsTrigger>
               <TabsTrigger value="idea" className="text-xs">Idee</TabsTrigger>
+              <TabsTrigger value="completed" className="text-xs">Abgeschlossen</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -187,27 +217,6 @@ export function ContactsSection() {
             <div className="text-center py-12">
               <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
               <h3 className="font-medium text-muted-foreground mb-2">Keine Kontakte gefunden</h3>
-            </div>
-          ) : statusFilter === 'all' ? (
-            <div className="space-y-6">
-              {Object.entries(groupedContacts).map(([status, contactGroup]) => {
-                if (contactGroup.length === 0) return null;
-                const config = STATUS_CONFIG[status as ContactStatus];
-                return (
-                  <div key={status}>
-                    <h3 className={`text-sm font-medium mb-3 ${config.color}`}>{config.label} ({contactGroup.length})</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <AnimatePresence>
-                        {contactGroup.map((contact) => (
-                          <ContactCard key={contact.id} contact={contact} orders={orders} onEdit={(c) => { setEditContact(c); setDialogOpen(true); }}
-                            onDelete={handleDeleteContact} onViewOrders={() => toast.info(`Aufträge für ${contact.name}`)}
-                            onLinkContacts={(c) => { setLinkSourceContact(c); setLinkDialogOpen(true); }} connectionCount={getConnectionCount(contact.id)} />
-                        ))}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

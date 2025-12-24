@@ -1,4 +1,11 @@
-export type ContactStatus = 'idea' | 'contacted' | 'in_exchange' | 'has_orders';
+export type ContactStatus = 
+  | 'idea' 
+  | 'first_contact' 
+  | 'received_reply' 
+  | 'need_to_reply' 
+  | 'waiting_for_reply' 
+  | 'has_orders' 
+  | 'completed';
 
 export interface Contact {
   id: string;
@@ -35,18 +42,24 @@ export interface Order {
   created_at: string;
 }
 
-export const STATUS_CONFIG: Record<ContactStatus, { label: string; color: string; bgColor: string }> = {
-  idea: { label: 'Idee', color: 'text-muted-foreground', bgColor: 'bg-muted/50' },
-  contacted: { label: 'Kontaktiert', color: 'text-info', bgColor: 'bg-info/20' },
-  in_exchange: { label: 'Im Austausch', color: 'text-warning', bgColor: 'bg-warning/20' },
-  has_orders: { label: 'Hat Aufträge', color: 'text-success', bgColor: 'bg-success/20' },
+export const STATUS_CONFIG: Record<ContactStatus, { label: string; color: string; bgColor: string; order: number }> = {
+  idea: { label: 'Idee', color: 'text-muted-foreground', bgColor: 'bg-muted/50', order: 1 },
+  first_contact: { label: 'Erstmals angeschrieben', color: 'text-info', bgColor: 'bg-info/20', order: 2 },
+  received_reply: { label: 'Antwort erhalten', color: 'text-success', bgColor: 'bg-success/20', order: 3 },
+  need_to_reply: { label: 'Muss antworten', color: 'text-warning', bgColor: 'bg-warning/20', order: 4 },
+  waiting_for_reply: { label: 'Warte auf Antwort', color: 'text-info', bgColor: 'bg-info/20', order: 5 },
+  has_orders: { label: 'Hat Aufträge', color: 'text-primary', bgColor: 'bg-primary/20', order: 6 },
+  completed: { label: 'Abgeschlossen', color: 'text-muted-foreground', bgColor: 'bg-muted/30', order: 7 },
 };
 
 export const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
   { value: 'idea', label: 'Idee' },
-  { value: 'contacted', label: 'Kontaktiert' },
-  { value: 'in_exchange', label: 'Im Austausch' },
+  { value: 'first_contact', label: 'Erstmals angeschrieben' },
+  { value: 'received_reply', label: 'Antwort erhalten' },
+  { value: 'need_to_reply', label: 'Muss antworten' },
+  { value: 'waiting_for_reply', label: 'Warte auf Antwort' },
   { value: 'has_orders', label: 'Hat Aufträge' },
+  { value: 'completed', label: 'Abgeschlossen' },
 ];
 
 export const RELATIONSHIP_TYPES = [
