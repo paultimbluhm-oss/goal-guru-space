@@ -10,7 +10,7 @@ import { Contact, Order, ContactStatus, ContactConnection, STATUS_CONFIG } from 
 import { ContactCard } from './ContactCard';
 import { AddContactDialog } from './AddContactDialog';
 import { LinkContactDialog } from './LinkContactDialog';
-import { ContactNetworkView } from './ContactNetworkView';
+import { ContactTreeView } from './ContactTreeView';
 import { CompanyGroupView } from './CompanyGroupView';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -159,7 +159,7 @@ export function ContactsSection() {
           <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Rasteransicht">
             <LayoutGrid className="w-4 h-4" />
           </Button>
-          <Button variant={viewMode === 'network' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('network')} title="Netzwerkansicht">
+          <Button variant={viewMode === 'network' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('network')} title="Baumdiagramm">
             <Network className="w-4 h-4" />
           </Button>
         </div>
@@ -167,7 +167,7 @@ export function ContactsSection() {
       </div>
 
       {viewMode === 'network' ? (
-        <ContactNetworkView 
+        <ContactTreeView 
           contacts={filteredContacts} 
           connections={connections} 
           onContactClick={(c) => { setEditContact(c); setDialogOpen(true); }}

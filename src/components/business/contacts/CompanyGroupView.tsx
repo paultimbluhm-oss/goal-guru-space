@@ -72,7 +72,14 @@ export function CompanyGroupView({ contacts, orders, onEdit, onDelete, onLinkCon
   };
 
   const getStatusConfig = (status: ContactStatus) => {
-    return STATUS_CONFIG[status] || { label: status, color: 'text-muted-foreground', bgColor: 'bg-muted/50', order: 99 };
+    return STATUS_CONFIG[status] || { 
+      label: status, 
+      color: 'text-muted-foreground', 
+      bgColor: 'bg-muted/50', 
+      borderColor: 'border-muted',
+      dotColor: 'bg-muted-foreground',
+      order: 99 
+    };
   };
 
   const getStatusCounts = (contacts: Contact[]) => {
@@ -133,15 +140,16 @@ export function CompanyGroupView({ contacts, orders, onEdit, onDelete, onLinkCon
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex gap-1">
-                      {Object.entries(statusCounts).slice(0, 3).map(([status, count]) => {
+                    <div className="hidden sm:flex gap-1.5">
+                      {Object.entries(statusCounts).slice(0, 4).map(([status, count]) => {
                         const config = getStatusConfig(status as ContactStatus);
                         return (
                           <Badge 
                             key={status} 
                             variant="outline" 
-                            className={`${config.bgColor} ${config.color} border-0 text-xs`}
+                            className={`${config.bgColor} ${config.color} ${config.borderColor} text-xs font-medium px-2 py-0.5`}
                           >
+                            <span className={`w-2 h-2 rounded-full ${config.dotColor} mr-1.5`} />
                             {count}
                           </Badge>
                         );
@@ -173,10 +181,11 @@ export function CompanyGroupView({ contacts, orders, onEdit, onDelete, onLinkCon
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`w-3 h-3 rounded-full ${statusConfig.dotColor} flex-shrink-0`} />
                               <span className="font-medium">{contact.name}</span>
                               <Badge 
                                 variant="outline" 
-                                className={`${statusConfig.bgColor} ${statusConfig.color} border-0 text-xs`}
+                                className={`${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor} text-xs font-medium`}
                               >
                                 {statusConfig.label}
                               </Badge>
