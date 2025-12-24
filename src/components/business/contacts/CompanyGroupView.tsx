@@ -71,10 +71,17 @@ export function CompanyGroupView({ contacts, orders, onEdit, onDelete, onLinkCon
     });
   };
 
+  const getStatusConfig = (status: ContactStatus) => {
+    return STATUS_CONFIG[status] || { label: status, color: 'text-muted-foreground', bgColor: 'bg-muted/50', order: 99 };
+  };
+
   const getStatusCounts = (contacts: Contact[]) => {
-    const counts: Partial<Record<ContactStatus, number>> = {};
+    const counts: Partial<Record<string, number>> = {};
     contacts.forEach(c => {
-      counts[c.status] = (counts[c.status] || 0) + 1;
+      const config = getStatusConfig(c.status);
+      if (config) {
+        counts[c.status] = (counts[c.status] || 0) + 1;
+      }
     });
     return counts;
   };
@@ -127,15 +134,18 @@ export function CompanyGroupView({ contacts, orders, onEdit, onDelete, onLinkCon
                   
                   <div className="flex items-center gap-3">
                     <div className="hidden sm:flex gap-1">
-                      {Object.entries(statusCounts).slice(0, 3).map(([status, count]) => (
-                        <Badge 
-                          key={status} 
-                          variant="outline" 
-                          className={`${STATUS_CONFIG[status as ContactStatus]?.bgColor} ${STATUS_CONFIG[status as ContactStatus]?.color} border-0 text-xs`}
-                        >
-                          {count}
-                        </Badge>
-                      ))}
+                      {Object.entries(statusCounts).slice(0, 3).map(([status, count]) => {
+                        const config = getStatusConfig(status as ContactStatus);
+                        return (
+                          <Badge 
+                            key={status} 
+                            variant="outline" 
+                            className={`${config.bgColor} ${config.color} border-0 text-xs`}
+                          >
+                            {count}
+                          </Badge>
+                        );
+                      })}
                     </div>
                     {isExpanded ? (
                       <ChevronDown className="w-5 h-5 text-muted-foreground" />
@@ -150,7 +160,7 @@ export function CompanyGroupView({ contacts, orders, onEdit, onDelete, onLinkCon
                 <AnimatePresence>
                   <div className="mt-2 ml-4 pl-4 border-l-2 border-border/50 space-y-2">
                     {group.contacts.map((contact, cIdx) => {
-                      const statusConfig = STATUS_CONFIG[contact.status];
+                      const statusConfig = getStatusConfig(contact.status);
                       const connCount = connectionCount(contact.id);
                       
                       return (
