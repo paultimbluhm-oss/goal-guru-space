@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Contact, ContactConnection, RELATIONSHIP_TYPES, STATUS_CONFIG, ContactStatus } from './types';
-import { User, ChevronDown, ChevronRight } from 'lucide-react';
+import { User, Link2 } from 'lucide-react';
 import { EditConnectionDialog } from './EditConnectionDialog';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +19,12 @@ interface TreeNode {
   depth: number;
 }
 
+interface CrossConnection {
+  fromId: string;
+  toId: string;
+  connection: ContactConnection;
+}
+
 const getStatusConfig = (status: ContactStatus) => {
   return STATUS_CONFIG[status] || { 
     label: status, 
@@ -30,7 +36,11 @@ const getStatusConfig = (status: ContactStatus) => {
   };
 };
 
-function buildTree(contacts: Contact[], connections: ContactConnection[]): TreeNode[] {
+function buildTree(contacts: Contact[], connections: ContactConnection[]): { 
+  trees: TreeNode[]; 
+  crossConnections: CrossConnection[];
+  usedConnectionIds: Set<string>;
+} {
   // Find root nodes (contacts that aren't "to" in any connection)
   const toContactIds = new Set(connections.map(c => c.to_contact_id));
   
@@ -64,6 +74,7 @@ function buildTree(contacts: Contact[], connections: ContactConnection[]): TreeN
 
   const contactMap = new Map(contacts.map(c => [c.id, c]));
   const visited = new Set<string>();
+  const usedConnectionIds = new Set<string>();
 
   function buildNode(contactId: string, depth: number): TreeNode | null {
     if (visited.has(contactId)) return null;
@@ -79,6 +90,7 @@ function buildTree(contacts: Contact[], connections: ContactConnection[]): TreeN
       const childNode = buildNode(childId, depth + 1);
       if (childNode) {
         children.push({ node: childNode, connection });
+        usedConnectionIds.add(connection.id);
       }
     });
 
@@ -105,35 +117,64 @@ function buildTree(contacts: Contact[], connections: ContactConnection[]): TreeN
     }
   });
 
-  return trees;
+  // Find cross-connections (connections not used in tree hierarchy)
+  const crossConnections: CrossConnection[] = connections
+    .filter(conn => !usedConnectionIds.has(conn.id))
+    .map(conn => ({
+      fromId: conn.from_contact_id,
+      toId: conn.to_contact_id,
+      connection: conn,
+    }));
+
+  return { trees, crossConnections, usedConnectionIds };
 }
 
 function ContactBlock({ 
   contact, 
   onClick,
+  crossConnectionCount,
+  onCrossConnectionClick,
 }: { 
   contact: Contact;
   onClick: () => void;
+  crossConnectionCount?: number;
+  onCrossConnectionClick?: () => void;
 }) {
   const statusConfig = getStatusConfig(contact.status);
 
   return (
-    <motion.button
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className={cn(
-        "px-3 py-2 rounded-lg font-medium text-sm border-2 transition-all",
-        "hover:shadow-md active:shadow-sm",
-        "min-w-[80px] max-w-[160px] truncate text-center",
-        statusConfig.bgColor,
-        statusConfig.borderColor,
-        statusConfig.color,
+    <div className="relative">
+      <motion.button
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={onClick}
+        className={cn(
+          "px-4 py-2.5 rounded-lg font-medium text-sm border-2 transition-all",
+          "hover:shadow-lg active:shadow-md shadow-sm",
+          "min-w-[100px] max-w-[180px] truncate text-center",
+          statusConfig.bgColor,
+          statusConfig.borderColor,
+          statusConfig.color,
+        )}
+      >
+        {contact.name}
+      </motion.button>
+      
+      {/* Cross-connection indicator */}
+      {crossConnectionCount && crossConnectionCount > 0 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onCrossConnectionClick?.();
+          }}
+          className="absolute -top-2 -right-2 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow-md hover:scale-110 transition-transform"
+          title="Querverbindungen anzeigen"
+        >
+          <Link2 className="w-3 h-3" />
+        </button>
       )}
-    >
-      {contact.name}
-    </motion.button>
+    </div>
   );
 }
 
@@ -153,7 +194,7 @@ function ConnectionLabel({
         e.stopPropagation();
         onClick();
       }}
-      className="text-[10px] text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-full border border-border hover:border-primary hover:text-primary transition-colors"
+      className="text-[10px] text-muted-foreground bg-background px-2 py-1 rounded-full border-2 border-border hover:border-primary hover:text-primary transition-colors font-medium shadow-sm"
     >
       {label}
     </button>
@@ -166,12 +207,16 @@ function TreeBranch({
   onContactClick,
   onConnectionClick,
   isRoot = false,
+  crossConnectionCounts,
+  onShowCrossConnections,
 }: { 
   node: TreeNode;
   parentConnection?: ContactConnection;
   onContactClick: (contact: Contact) => void;
   onConnectionClick: (connection: ContactConnection) => void;
   isRoot?: boolean;
+  crossConnectionCounts: Record<string, number>;
+  onShowCrossConnections: (contactId: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const hasChildren = node.children.length > 0;
@@ -181,14 +226,14 @@ function TreeBranch({
       {/* Connection line from parent */}
       {!isRoot && (
         <div className="flex flex-col items-center">
-          <div className="w-px h-3 bg-border" />
+          <div className="w-0.5 h-4 bg-primary/40 rounded-full" />
           {parentConnection && (
             <ConnectionLabel 
               connection={parentConnection}
               onClick={() => onConnectionClick(parentConnection)}
             />
           )}
-          <div className="w-px h-3 bg-border" />
+          <div className="w-0.5 h-4 bg-primary/40 rounded-full" />
         </div>
       )}
 
@@ -197,22 +242,20 @@ function TreeBranch({
         <ContactBlock 
           contact={node.contact}
           onClick={() => onContactClick(node.contact)}
+          crossConnectionCount={crossConnectionCounts[node.contact.id]}
+          onCrossConnectionClick={() => onShowCrossConnections(node.contact.id)}
         />
         
-        {/* Expand/collapse button */}
+        {/* Expand/collapse indicator */}
         {hasChildren && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               setIsExpanded(!isExpanded);
             }}
-            className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-background border border-border rounded-full flex items-center justify-center hover:bg-secondary transition-colors z-10"
+            className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground hover:text-primary transition-colors"
           >
-            {isExpanded ? (
-              <ChevronDown className="w-3 h-3" />
-            ) : (
-              <ChevronRight className="w-3 h-3" />
-            )}
+            {isExpanded ? '▼' : '▶'}
           </button>
         )}
       </div>
@@ -224,23 +267,23 @@ function TreeBranch({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex flex-col items-center mt-2"
+            className="flex flex-col items-center mt-3"
           >
             {/* Vertical line to children */}
-            <div className="w-px h-4 bg-border" />
+            <div className="w-0.5 h-5 bg-primary/40 rounded-full" />
             
             {/* Horizontal connector if multiple children */}
             {node.children.length > 1 && (
               <div 
-                className="h-px bg-border" 
+                className="h-0.5 bg-primary/40 rounded-full" 
                 style={{ 
-                  width: `${Math.min(node.children.length * 120, 300)}px` 
+                  width: `${Math.min(node.children.length * 140, 400)}px` 
                 }} 
               />
             )}
             
             {/* Children row */}
-            <div className="flex flex-wrap justify-center gap-4 mt-0">
+            <div className="flex flex-wrap justify-center gap-6">
               {node.children.map(({ node: childNode, connection }) => (
                 <TreeBranch
                   key={childNode.contact.id}
@@ -248,6 +291,8 @@ function TreeBranch({
                   parentConnection={connection}
                   onContactClick={onContactClick}
                   onConnectionClick={onConnectionClick}
+                  crossConnectionCounts={crossConnectionCounts}
+                  onShowCrossConnections={onShowCrossConnections}
                 />
               ))}
             </div>
@@ -255,6 +300,81 @@ function TreeBranch({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function CrossConnectionsPanel({
+  contactId,
+  contactName,
+  crossConnections,
+  contacts,
+  onConnectionClick,
+  onClose,
+}: {
+  contactId: string;
+  contactName: string;
+  crossConnections: CrossConnection[];
+  contacts: Contact[];
+  onConnectionClick: (connection: ContactConnection) => void;
+  onClose: () => void;
+}) {
+  const relevantConnections = crossConnections.filter(
+    cc => cc.fromId === contactId || cc.toId === contactId
+  );
+
+  const contactMap = new Map(contacts.map(c => [c.id, c]));
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      className="bg-secondary/80 backdrop-blur-sm rounded-lg p-4 border-2 border-primary/30"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-semibold text-sm">Querverbindungen von {contactName}</h4>
+        <button 
+          onClick={onClose}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="space-y-2">
+        {relevantConnections.map(cc => {
+          const otherContactId = cc.fromId === contactId ? cc.toId : cc.fromId;
+          const otherContact = contactMap.get(otherContactId);
+          const relationshipLabel = RELATIONSHIP_TYPES.find(r => r.value === cc.connection.relationship_type)?.label 
+            || cc.connection.relationship_type;
+          const statusConfig = otherContact ? getStatusConfig(otherContact.status) : null;
+
+          return (
+            <button
+              key={cc.connection.id}
+              onClick={() => onConnectionClick(cc.connection)}
+              className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-background/50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 flex-1">
+                <Link2 className="w-4 h-4 text-primary" />
+                <span className="text-xs text-muted-foreground">{relationshipLabel}</span>
+                <span className="text-xs">→</span>
+                {otherContact && statusConfig && (
+                  <span className={cn(
+                    "px-2 py-0.5 rounded text-xs font-medium",
+                    statusConfig.bgColor,
+                    statusConfig.color,
+                    statusConfig.borderColor,
+                    "border"
+                  )}>
+                    {otherContact.name}
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </motion.div>
   );
 }
 
@@ -267,8 +387,26 @@ export function ContactTreeView({
 }: ContactTreeViewProps) {
   const [selectedConnection, setSelectedConnection] = useState<ContactConnection | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [showCrossConnectionsFor, setShowCrossConnectionsFor] = useState<string | null>(null);
 
-  const trees = useMemo(() => buildTree(contacts, connections), [contacts, connections]);
+  const { trees, crossConnections } = useMemo(
+    () => buildTree(contacts, connections), 
+    [contacts, connections]
+  );
+
+  // Count cross-connections per contact
+  const crossConnectionCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    crossConnections.forEach(cc => {
+      counts[cc.fromId] = (counts[cc.fromId] || 0) + 1;
+      counts[cc.toId] = (counts[cc.toId] || 0) + 1;
+    });
+    return counts;
+  }, [crossConnections]);
+
+  const selectedContactForCross = showCrossConnectionsFor 
+    ? contacts.find(c => c.id === showCrossConnectionsFor) 
+    : null;
 
   if (contacts.length === 0) {
     return (
@@ -289,6 +427,11 @@ export function ContactTreeView({
           <h3 className="font-semibold text-base sm:text-lg">Kontakt-Struktur</h3>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {contacts.length} Kontakte, {connections.length} Verbindungen
+            {crossConnections.length > 0 && (
+              <span className="ml-2 text-primary">
+                ({crossConnections.length} Querverbindungen)
+              </span>
+            )}
           </p>
         </div>
 
@@ -302,12 +445,31 @@ export function ContactTreeView({
           ))}
         </div>
 
+        {/* Cross-connections panel */}
+        <AnimatePresence>
+          {showCrossConnectionsFor && selectedContactForCross && (
+            <div className="mb-4">
+              <CrossConnectionsPanel
+                contactId={showCrossConnectionsFor}
+                contactName={selectedContactForCross.name}
+                crossConnections={crossConnections}
+                contacts={contacts}
+                onConnectionClick={(connection) => {
+                  setSelectedConnection(connection);
+                  setEditDialogOpen(true);
+                }}
+                onClose={() => setShowCrossConnectionsFor(null)}
+              />
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* Tree structure */}
         <div className="flex flex-col items-center gap-8 py-4 min-w-fit">
           {trees.map((tree, idx) => (
             <div key={tree.contact.id} className="w-full">
               {idx > 0 && (
-                <div className="border-t border-dashed border-border my-6" />
+                <div className="border-t-2 border-dashed border-border my-6" />
               )}
               <div className="flex justify-center">
                 <TreeBranch
@@ -318,6 +480,8 @@ export function ContactTreeView({
                     setSelectedConnection(connection);
                     setEditDialogOpen(true);
                   }}
+                  crossConnectionCounts={crossConnectionCounts}
+                  onShowCrossConnections={(id) => setShowCrossConnectionsFor(id)}
                 />
               </div>
             </div>
