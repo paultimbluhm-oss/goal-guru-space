@@ -45,18 +45,18 @@ export interface Order {
 export const STATUS_CONFIG: Record<ContactStatus, { label: string; color: string; bgColor: string; borderColor: string; dotColor: string; order: number }> = {
   idea: { 
     label: 'Idee', 
-    color: 'text-slate-600 dark:text-slate-300', 
-    bgColor: 'bg-slate-100 dark:bg-slate-800', 
-    borderColor: 'border-slate-300 dark:border-slate-600',
-    dotColor: 'bg-slate-400',
+    color: 'text-gray-600 dark:text-gray-400', 
+    bgColor: 'bg-gray-100 dark:bg-gray-800', 
+    borderColor: 'border-gray-300 dark:border-gray-600',
+    dotColor: 'bg-gray-500',
     order: 1 
   },
   first_contact: { 
     label: 'Erstanfrage gesendet', 
-    color: 'text-blue-700 dark:text-blue-300', 
-    bgColor: 'bg-blue-100 dark:bg-blue-900/50', 
-    borderColor: 'border-blue-400 dark:border-blue-600',
-    dotColor: 'bg-blue-500',
+    color: 'text-green-700 dark:text-green-300', 
+    bgColor: 'bg-green-100 dark:bg-green-900/50', 
+    borderColor: 'border-green-400 dark:border-green-600',
+    dotColor: 'bg-green-500',
     order: 2 
   },
   received_reply: { 
@@ -69,34 +69,34 @@ export const STATUS_CONFIG: Record<ContactStatus, { label: string; color: string
   },
   need_to_reply: { 
     label: 'Antwort ausstehend', 
-    color: 'text-amber-700 dark:text-amber-300', 
-    bgColor: 'bg-amber-100 dark:bg-amber-900/50', 
-    borderColor: 'border-amber-400 dark:border-amber-600',
-    dotColor: 'bg-amber-500',
+    color: 'text-red-700 dark:text-red-300', 
+    bgColor: 'bg-red-100 dark:bg-red-900/50', 
+    borderColor: 'border-red-400 dark:border-red-600',
+    dotColor: 'bg-red-500',
     order: 4 
   },
   waiting_for_reply: { 
     label: 'Warte auf Rückmeldung', 
-    color: 'text-violet-700 dark:text-violet-300', 
-    bgColor: 'bg-violet-100 dark:bg-violet-900/50', 
-    borderColor: 'border-violet-400 dark:border-violet-600',
-    dotColor: 'bg-violet-500',
+    color: 'text-blue-700 dark:text-blue-300', 
+    bgColor: 'bg-blue-100 dark:bg-blue-900/50', 
+    borderColor: 'border-blue-400 dark:border-blue-600',
+    dotColor: 'bg-blue-500',
     order: 5 
   },
   has_orders: { 
     label: 'Aktiver Kunde', 
-    color: 'text-green-700 dark:text-green-300', 
-    bgColor: 'bg-green-100 dark:bg-green-900/50', 
-    borderColor: 'border-green-400 dark:border-green-600',
-    dotColor: 'bg-green-500',
+    color: 'text-violet-700 dark:text-violet-300', 
+    bgColor: 'bg-violet-100 dark:bg-violet-900/50', 
+    borderColor: 'border-violet-400 dark:border-violet-600',
+    dotColor: 'bg-violet-500',
     order: 6 
   },
   completed: { 
     label: 'Abgeschlossen', 
-    color: 'text-gray-500 dark:text-gray-400', 
+    color: 'text-gray-600 dark:text-gray-400', 
     bgColor: 'bg-gray-100 dark:bg-gray-800', 
     borderColor: 'border-gray-300 dark:border-gray-600',
-    dotColor: 'bg-gray-400',
+    dotColor: 'bg-gray-500',
     order: 7 
   },
 };
