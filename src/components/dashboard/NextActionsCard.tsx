@@ -145,7 +145,7 @@ export function NextActionsCard() {
           <Target className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-base">Nächste Aufgaben</h3>
         </div>
-        <Link to="/privat" className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
+        <Link to="/privat?section=aufgaben" className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
           Alle anzeigen <ArrowRight className="w-3 h-3" />
         </Link>
       </div>

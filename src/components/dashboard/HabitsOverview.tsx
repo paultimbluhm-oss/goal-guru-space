@@ -37,8 +37,7 @@ export function HabitsOverview() {
         .from('habits')
         .select('id, name, xp_reward')
         .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true }),
+        .eq('is_active', true),
       supabase
         .from('habit_completions')
         .select('*')
@@ -46,7 +45,11 @@ export function HabitsOverview() {
         .eq('completed_date', today)
     ]);
 
-    if (habitsRes.data) setHabits(habitsRes.data);
+    if (habitsRes.data) {
+      // Sort by XP (highest first)
+      const sorted = habitsRes.data.sort((a, b) => (b.xp_reward || 0) - (a.xp_reward || 0));
+      setHabits(sorted);
+    }
     if (completionsRes.data) setCompletions(completionsRes.data);
   };
 
@@ -131,7 +134,7 @@ export function HabitsOverview() {
         </div>
         <div className="text-center py-6">
           <p className="text-muted-foreground mb-4">Noch keine Habits erstellt</p>
-          <Button onClick={() => navigate('/privat')} variant="outline" size="sm">
+          <Button onClick={() => navigate('/privat?section=habits')} variant="outline" size="sm">
             <Plus className="w-4 h-4 mr-2" />
             Habits erstellen
           </Button>
@@ -158,7 +161,7 @@ export function HabitsOverview() {
               <p className="text-xs text-muted-foreground">{completedCount}/{totalCount} erledigt</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/privat')} className="gap-1">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/privat?section=habits')} className="gap-1">
             Alle <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
@@ -184,26 +187,38 @@ export function HabitsOverview() {
           </div>
         )}
 
-        {/* Habits list */}
+        {/* Habits list - show incomplete first, then completed if space */}
         <div className="space-y-2">
-          {habits.slice(0, 5).map((habit) => {
-            const completed = isCompletedToday(habit.id);
-            return (
-              <div 
-                key={habit.id}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer hover:bg-secondary/50 ${
-                  completed ? 'bg-success/5' : 'bg-secondary/30'
-                }`}
-                onClick={() => toggleHabit(habit)}
-              >
-                <Checkbox checked={completed} className="pointer-events-none" />
-                <span className={`flex-1 text-sm ${completed ? 'line-through text-muted-foreground' : ''}`}>
-                  {habit.name}
-                </span>
-                <span className="text-xs text-primary">+{habit.xp_reward}</span>
-              </div>
-            );
-          })}
+          {(() => {
+            const incompleteHabits = habits.filter(h => !isCompletedToday(h.id));
+            const completedHabits = habits.filter(h => isCompletedToday(h.id));
+            
+            // Show up to 5 habits: prioritize incomplete, fill remaining with completed
+            const maxDisplay = 5;
+            const displayIncomplete = incompleteHabits.slice(0, maxDisplay);
+            const remainingSlots = maxDisplay - displayIncomplete.length;
+            const displayCompleted = remainingSlots > 0 ? completedHabits.slice(0, remainingSlots) : [];
+            const displayHabits = [...displayIncomplete, ...displayCompleted];
+            
+            return displayHabits.map((habit) => {
+              const completed = isCompletedToday(habit.id);
+              return (
+                <div 
+                  key={habit.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer hover:bg-secondary/50 ${
+                    completed ? 'bg-success/5' : 'bg-secondary/30'
+                  }`}
+                  onClick={() => toggleHabit(habit)}
+                >
+                  <Checkbox checked={completed} className="pointer-events-none" />
+                  <span className={`flex-1 text-sm ${completed ? 'line-through text-muted-foreground' : ''}`}>
+                    {habit.name}
+                  </span>
+                  <span className="text-xs text-primary">+{habit.xp_reward}</span>
+                </div>
+              );
+            });
+          })()}
         </div>
 
         {habits.length > 5 && (

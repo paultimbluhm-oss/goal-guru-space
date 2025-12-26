@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { User, Wallet, ListChecks, Calendar, Sparkles, ChefHat, Check, ChevronRight } from 'lucide-react';
@@ -22,11 +22,29 @@ const sections = [
 export default function Privat() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeSection, setActiveSection] = useState<string | null>(searchParams.get('section'));
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
   }, [user, loading, navigate]);
+
+  // Sync URL params with activeSection
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (section && sections.some(s => s.id === section)) {
+      setActiveSection(section);
+    }
+  }, [searchParams]);
+
+  const handleSetSection = (sectionId: string | null) => {
+    setActiveSection(sectionId);
+    if (sectionId) {
+      setSearchParams({ section: sectionId });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   if (loading || !user) return null;
 
@@ -34,7 +52,7 @@ export default function Privat() {
     return (
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <HabitsSection onBack={() => setActiveSection(null)} />
+          <HabitsSection onBack={() => handleSetSection(null)} />
         </div>
       </AppLayout>
     );
@@ -44,7 +62,7 @@ export default function Privat() {
     return (
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <FinanceSection onBack={() => setActiveSection(null)} />
+          <FinanceSection onBack={() => handleSetSection(null)} />
         </div>
       </AppLayout>
     );
@@ -54,7 +72,7 @@ export default function Privat() {
     return (
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <ChecklistSection onBack={() => setActiveSection(null)} />
+          <ChecklistSection onBack={() => handleSetSection(null)} />
         </div>
       </AppLayout>
     );
@@ -64,7 +82,7 @@ export default function Privat() {
     return (
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <TaskSection onBack={() => setActiveSection(null)} />
+          <TaskSection onBack={() => handleSetSection(null)} />
         </div>
       </AppLayout>
     );
@@ -74,7 +92,7 @@ export default function Privat() {
     return (
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <BoredomSection onBack={() => setActiveSection(null)} />
+          <BoredomSection onBack={() => handleSetSection(null)} />
         </div>
       </AppLayout>
     );
@@ -84,7 +102,7 @@ export default function Privat() {
     return (
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          <RecipesSection onBack={() => setActiveSection(null)} />
+          <RecipesSection onBack={() => handleSetSection(null)} />
         </div>
       </AppLayout>
     );
@@ -115,7 +133,7 @@ export default function Privat() {
           {sections.map((s, i) => (
             <div
               key={s.id}
-              onClick={() => setActiveSection(s.id)}
+              onClick={() => handleSetSection(s.id)}
               className="group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-4 md:p-5 hover:border-primary/50 transition-all duration-300 cursor-pointer fade-in"
               style={{ animationDelay: `${i * 0.05}s` }}
             >
