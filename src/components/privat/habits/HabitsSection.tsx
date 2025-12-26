@@ -206,11 +206,16 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
   };
 
   const getCompletionRate = (date: string) => {
-    if (habits.length === 0) return 0;
-    const completed = habits.filter(h => 
+    // Only consider habits that existed on this date (created_at <= date)
+    const habitsOnDate = habits.filter(h => {
+      const createdDate = format(new Date(h.created_at), 'yyyy-MM-dd');
+      return createdDate <= date;
+    });
+    if (habitsOnDate.length === 0) return 0;
+    const completed = habitsOnDate.filter(h => 
       completions.some(c => c.habit_id === h.id && c.completed_date === date)
     ).length;
-    return (completed / habits.length) * 100;
+    return (completed / habitsOnDate.length) * 100;
   };
 
   const completedToday = habits.filter(h => isCompletedToday(h.id)).length;
