@@ -1,7 +1,5 @@
 export type ContactStatus = 
   | 'idea' 
-  | 'first_contact' 
-  | 'received_reply' 
   | 'need_to_reply' 
   | 'waiting_for_reply' 
   | 'has_orders' 
@@ -51,29 +49,13 @@ export const STATUS_CONFIG: Record<ContactStatus, { label: string; color: string
     dotColor: 'bg-gray-500',
     order: 1 
   },
-  first_contact: { 
-    label: 'Erstanfrage gesendet', 
-    color: 'text-green-700 dark:text-green-300', 
-    bgColor: 'bg-green-100 dark:bg-green-900/50', 
-    borderColor: 'border-green-400 dark:border-green-600',
-    dotColor: 'bg-green-500',
-    order: 2 
-  },
-  received_reply: { 
-    label: 'Antwort erhalten', 
-    color: 'text-emerald-700 dark:text-emerald-300', 
-    bgColor: 'bg-emerald-100 dark:bg-emerald-900/50', 
-    borderColor: 'border-emerald-400 dark:border-emerald-600',
-    dotColor: 'bg-emerald-500',
-    order: 3 
-  },
   need_to_reply: { 
     label: 'Antwort ausstehend', 
     color: 'text-red-700 dark:text-red-300', 
     bgColor: 'bg-red-100 dark:bg-red-900/50', 
     borderColor: 'border-red-400 dark:border-red-600',
     dotColor: 'bg-red-500',
-    order: 4 
+    order: 2 
   },
   waiting_for_reply: { 
     label: 'Warte auf Rückmeldung', 
@@ -81,7 +63,7 @@ export const STATUS_CONFIG: Record<ContactStatus, { label: string; color: string
     bgColor: 'bg-blue-100 dark:bg-blue-900/50', 
     borderColor: 'border-blue-400 dark:border-blue-600',
     dotColor: 'bg-blue-500',
-    order: 5 
+    order: 3 
   },
   has_orders: { 
     label: 'Aktiver Kunde', 
@@ -89,7 +71,7 @@ export const STATUS_CONFIG: Record<ContactStatus, { label: string; color: string
     bgColor: 'bg-violet-100 dark:bg-violet-900/50', 
     borderColor: 'border-violet-400 dark:border-violet-600',
     dotColor: 'bg-violet-500',
-    order: 6 
+    order: 4 
   },
   completed: { 
     label: 'Abgeschlossen', 
@@ -97,14 +79,12 @@ export const STATUS_CONFIG: Record<ContactStatus, { label: string; color: string
     bgColor: 'bg-gray-100 dark:bg-gray-800', 
     borderColor: 'border-gray-300 dark:border-gray-600',
     dotColor: 'bg-gray-500',
-    order: 7 
+    order: 5 
   },
 };
 
 export const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
   { value: 'idea', label: 'Idee' },
-  { value: 'first_contact', label: 'Erstanfrage gesendet' },
-  { value: 'received_reply', label: 'Antwort erhalten' },
   { value: 'need_to_reply', label: 'Antwort ausstehend' },
   { value: 'waiting_for_reply', label: 'Warte auf Rückmeldung' },
   { value: 'has_orders', label: 'Aktiver Kunde' },

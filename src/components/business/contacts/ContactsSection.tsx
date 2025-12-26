@@ -179,11 +179,8 @@ export function ContactsSection() {
           <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as ContactStatus | 'all')}>
             <TabsList className="flex flex-wrap h-auto gap-1">
               <TabsTrigger value="all" className="text-xs">Alle</TabsTrigger>
-              <TabsTrigger value="has_orders" className="text-xs">Aufträge</TabsTrigger>
               <TabsTrigger value="need_to_reply" className="text-xs">Antworten</TabsTrigger>
               <TabsTrigger value="waiting_for_reply" className="text-xs">Wartend</TabsTrigger>
-              <TabsTrigger value="received_reply" className="text-xs">Antwort</TabsTrigger>
-              <TabsTrigger value="first_contact" className="text-xs">Angeschrieben</TabsTrigger>
               <TabsTrigger value="idea" className="text-xs">Idee</TabsTrigger>
               <TabsTrigger value="completed" className="text-xs">Abgeschlossen</TabsTrigger>
             </TabsList>
@@ -203,11 +200,8 @@ export function ContactsSection() {
           <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as ContactStatus | 'all')}>
             <TabsList className="flex flex-wrap h-auto gap-1">
               <TabsTrigger value="all" className="text-xs">Alle</TabsTrigger>
-              <TabsTrigger value="has_orders" className="text-xs">Aufträge</TabsTrigger>
               <TabsTrigger value="need_to_reply" className="text-xs">Antworten</TabsTrigger>
               <TabsTrigger value="waiting_for_reply" className="text-xs">Wartend</TabsTrigger>
-              <TabsTrigger value="received_reply" className="text-xs">Antwort</TabsTrigger>
-              <TabsTrigger value="first_contact" className="text-xs">Angeschrieben</TabsTrigger>
               <TabsTrigger value="idea" className="text-xs">Idee</TabsTrigger>
               <TabsTrigger value="completed" className="text-xs">Abgeschlossen</TabsTrigger>
             </TabsList>
