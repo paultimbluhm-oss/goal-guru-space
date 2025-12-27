@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trophy, Star, Check, Pencil, Trash2, X, Lightbulb, Gamepad2, Music, Palette, Book, Dumbbell, Code, Camera, ChefHat, Wrench, Languages, Brain, LucideIcon, Timer, Hash, Clock, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Plus, Trophy, Star, Check, Pencil, Trash2, X, Lightbulb, Gamepad2, Music, Palette, Book, Dumbbell, Code, Camera, ChefHat, Wrench, Languages, Brain, LucideIcon, Timer, Hash, Clock, TrendingUp, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useGamification } from '@/contexts/GamificationContext';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const iconMap: Record<string, LucideIcon> = {
   Lightbulb, Gamepad2, Music, Palette, Book, Dumbbell, Code, Camera, ChefHat, Wrench, Languages, Brain
@@ -57,6 +61,40 @@ interface ActivityDetailViewProps {
   onBack: () => void;
 }
 
+// Format seconds to readable time
+const formatTimeValue = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.round((seconds % 1) * 100);
+  if (mins > 0) {
+    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  }
+  return `${secs}.${ms.toString().padStart(2, '0')}s`;
+};
+
+// Parse time input (supports formats: "1:30.50", "90.5", "1:30", "90")
+const parseTimeInput = (input: string): number | null => {
+  const trimmed = input.trim();
+  
+  // Format: MM:SS.ms or M:SS.ms
+  const colonFormat = /^(\d+):(\d{1,2})(?:\.(\d{1,2}))?$/;
+  const colonMatch = trimmed.match(colonFormat);
+  if (colonMatch) {
+    const mins = parseInt(colonMatch[1]);
+    const secs = parseInt(colonMatch[2]);
+    const ms = colonMatch[3] ? parseInt(colonMatch[3].padEnd(2, '0')) : 0;
+    return mins * 60 + secs + ms / 100;
+  }
+  
+  // Format: SS.ms or just seconds
+  const num = parseFloat(trimmed);
+  if (!isNaN(num) && num >= 0) {
+    return num;
+  }
+  
+  return null;
+};
+
 export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -71,7 +109,9 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
   const [tempSkillName, setTempSkillName] = useState('');
   const [entryInputs, setEntryInputs] = useState<Record<string, string>>({});
+  const [entryDates, setEntryDates] = useState<Record<string, Date>>({});
   const [expandedSkillId, setExpandedSkillId] = useState<string | null>(null);
+  const [showChartForSkill, setShowChartForSkill] = useState<string | null>(null);
 
   const fetchData = async () => {
     if (!user) return;
@@ -177,46 +217,53 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
     const inputValue = entryInputs[skill.id];
     if (!inputValue) return;
 
-    const value = parseFloat(inputValue);
-    if (isNaN(value) || value <= 0) {
-      toast({ title: 'Ungültiger Wert', variant: 'destructive' });
-      return;
+    let value: number | null = null;
+    
+    if (skill.measurement_type === 'time_fastest') {
+      value = parseTimeInput(inputValue);
+      if (value === null) {
+        toast({ 
+          title: 'Ungültiges Zeitformat', 
+          description: 'Nutze z.B. "1:30.50" oder "90.5" (Sekunden)',
+          variant: 'destructive' 
+        });
+        return;
+      }
+    } else {
+      value = parseFloat(inputValue);
+      if (isNaN(value) || value <= 0) {
+        toast({ title: 'Ungültiger Wert', variant: 'destructive' });
+        return;
+      }
     }
 
     let xpEarned = 0;
     let newBestValue = skill.best_value;
     const entries = skillEntries[skill.id] || [];
+    const selectedDate = entryDates[skill.id] || new Date();
 
     if (skill.measurement_type === 'time_fastest') {
-      // For fastest time, lower is better
       if (skill.best_value === null || value < skill.best_value) {
         if (skill.best_value !== null) {
-          // Calculate improvement in seconds
           const improvement = skill.best_value - value;
-          // XP per 15 seconds improvement (or fraction)
-          xpEarned = Math.floor((improvement / 15) * skill.xp_per_improvement);
-          if (xpEarned < skill.xp_per_improvement) xpEarned = skill.xp_per_improvement; // Min XP for new record
+          xpEarned = Math.max(skill.xp_per_improvement, Math.floor((improvement / 15) * skill.xp_per_improvement));
         } else {
-          xpEarned = skill.xp_per_improvement; // First entry gets base XP
+          xpEarned = skill.xp_per_improvement;
         }
         newBestValue = value;
       }
     } else if (skill.measurement_type === 'time_duration') {
-      // For duration, accumulate time
       const currentTotal = entries.reduce((sum, e) => sum + e.value, 0);
       const newTotal = currentTotal + value;
-      // XP for every 30 minutes accumulated
       const oldMilestones = Math.floor(currentTotal / 30);
       const newMilestones = Math.floor(newTotal / 30);
       xpEarned = (newMilestones - oldMilestones) * skill.xp_per_improvement;
       newBestValue = newTotal;
     } else if (skill.measurement_type === 'count') {
-      // For count, higher is better
       if (skill.best_value === null || value > skill.best_value) {
         if (skill.best_value !== null) {
           const improvement = value - skill.best_value;
-          xpEarned = Math.floor(improvement * (skill.xp_per_improvement / 5));
-          if (xpEarned < skill.xp_per_improvement) xpEarned = skill.xp_per_improvement;
+          xpEarned = Math.max(skill.xp_per_improvement, Math.floor(improvement * (skill.xp_per_improvement / 5)));
         } else {
           xpEarned = skill.xp_per_improvement;
         }
@@ -224,15 +271,18 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
       }
     }
 
-    // Insert entry
+    // Insert entry with selected date
+    const entryDate = new Date(selectedDate);
+    entryDate.setHours(new Date().getHours(), new Date().getMinutes(), new Date().getSeconds());
+    
     await supabase.from('skill_entries').insert({
       skill_id: skill.id,
       user_id: user.id,
       value,
       xp_earned: xpEarned,
+      created_at: entryDate.toISOString(),
     });
 
-    // Update skill best value
     if (newBestValue !== skill.best_value) {
       await supabase
         .from('activity_skills')
@@ -240,7 +290,6 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
         .eq('id', skill.id);
     }
 
-    // Update activity XP and award user XP
     if (xpEarned > 0) {
       if (activity) {
         await supabase
@@ -258,6 +307,7 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
     }
 
     setEntryInputs(prev => ({ ...prev, [skill.id]: '' }));
+    setEntryDates(prev => ({ ...prev, [skill.id]: new Date() }));
     fetchData();
   };
 
@@ -278,7 +328,6 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
     const supabase = getSupabase();
     const skill = skills.find(s => s.id === skillId);
     
-    // Calculate total XP to subtract
     const entries = skillEntries[skillId] || [];
     const totalEntriesXP = entries.reduce((sum, e) => sum + (e.xp_earned || 0), 0);
     const skillXP = skill?.completed ? skill.xp_reward : 0;
@@ -297,18 +346,25 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
 
   const formatValue = (skill: Skill, value: number) => {
     if (skill.measurement_type === 'time_fastest') {
-      const minutes = Math.floor(value / 60);
-      const seconds = Math.floor(value % 60);
-      const ms = Math.round((value % 1) * 100);
-      if (minutes > 0) {
-        return `${minutes}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-      }
-      return `${seconds}.${ms.toString().padStart(2, '0')}s`;
+      return formatTimeValue(value);
     }
     if (skill.measurement_type === 'time_duration') {
       return `${value} Min`;
     }
     return `${value}x`;
+  };
+
+  const getChartData = (skill: Skill) => {
+    const entries = skillEntries[skill.id] || [];
+    return entries
+      .slice()
+      .reverse()
+      .map(entry => ({
+        date: format(new Date(entry.created_at), 'dd.MM', { locale: de }),
+        fullDate: format(new Date(entry.created_at), 'dd.MM.yyyy', { locale: de }),
+        value: entry.value,
+        displayValue: formatValue(skill, entry.value),
+      }));
   };
 
   if (loading || !activity) {
@@ -364,12 +420,15 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
           Skills & Meilensteine
         </h3>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {skills.map((skill, index) => {
             const MeasurementIcon = measurementTypes[skill.measurement_type as keyof typeof measurementTypes]?.icon || Check;
             const entries = skillEntries[skill.id] || [];
             const isExpanded = expandedSkillId === skill.id;
+            const showChart = showChartForSkill === skill.id;
             const hasProgress = skill.measurement_type !== 'completion' && skill.best_value !== null;
+            const chartData = getChartData(skill);
+            const selectedDate = entryDates[skill.id] || new Date();
             
             return (
               <div key={skill.id} className="space-y-2">
@@ -419,8 +478,11 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
                               {measurementTypes[skill.measurement_type as keyof typeof measurementTypes]?.label}
                               {skill.best_value !== null && (
                                 <span className="ml-2 text-primary font-medium">
-                                  Bester Wert: {formatValue(skill, skill.best_value)}
+                                  🏆 Bester: {formatValue(skill, skill.best_value)}
                                 </span>
+                              )}
+                              {entries.length > 0 && (
+                                <span className="ml-2">({entries.length} Einträge)</span>
                               )}
                             </div>
                           )}
@@ -449,56 +511,162 @@ export function ActivityDetailView({ activityId, onBack }: ActivityDetailViewPro
 
                   {/* Measurement Input for trackable skills */}
                   {skill.measurement_type !== 'completion' && (
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={entryInputs[skill.id] || ''}
-                        onChange={(e) => setEntryInputs(prev => ({ ...prev, [skill.id]: e.target.value }))}
-                        placeholder={skill.measurement_type === 'time_fastest' ? 'Zeit in Sekunden' : 
-                                   skill.measurement_type === 'time_duration' ? 'Minuten' : 'Anzahl'}
-                        className="flex-1"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') addEntry(skill);
-                        }}
-                      />
-                      <Button onClick={() => addEntry(skill)} disabled={!entryInputs[skill.id]}>
-                        <Plus className="w-4 h-4 mr-1" />
-                        Eintrag
-                      </Button>
-                      {entries.length > 0 && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setExpandedSkillId(isExpanded ? null : skill.id)}
-                        >
-                          <TrendingUp className="w-4 h-4 mr-1" />
-                          {entries.length}
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {/* Date Picker */}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-[130px] justify-start text-left font-normal">
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {format(selectedDate, 'dd.MM.yyyy', { locale: de })}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={(date) => date && setEntryDates(prev => ({ ...prev, [skill.id]: date }))}
+                              disabled={(date) => date > new Date()}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+
+                        {/* Time/Value Input */}
+                        <Input
+                          value={entryInputs[skill.id] || ''}
+                          onChange={(e) => setEntryInputs(prev => ({ ...prev, [skill.id]: e.target.value }))}
+                          placeholder={
+                            skill.measurement_type === 'time_fastest' 
+                              ? 'z.B. 1:30.50 oder 90.5' 
+                              : skill.measurement_type === 'time_duration' 
+                                ? 'Minuten' 
+                                : 'Anzahl'
+                          }
+                          className="flex-1 min-w-[140px]"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') addEntry(skill);
+                          }}
+                        />
+                        <Button onClick={() => addEntry(skill)} disabled={!entryInputs[skill.id]}>
+                          <Plus className="w-4 h-4 mr-1" />
+                          Hinzufügen
                         </Button>
+                      </div>
+
+                      {/* Action buttons for history and chart */}
+                      {entries.length > 0 && (
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setExpandedSkillId(isExpanded ? null : skill.id)}
+                            className={isExpanded ? 'bg-primary/10' : ''}
+                          >
+                            <TrendingUp className="w-4 h-4 mr-1" />
+                            Verlauf ({entries.length})
+                          </Button>
+                          {skill.measurement_type === 'time_fastest' && entries.length >= 2 && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setShowChartForSkill(showChart ? null : skill.id)}
+                              className={showChart ? 'bg-primary/10' : ''}
+                            >
+                              📈 Diagramm
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
 
+                {/* Progress Chart */}
+                {showChart && chartData.length >= 2 && (
+                  <div className="glass-card p-4 space-y-2">
+                    <div className="text-sm font-medium">Zeitverlauf</div>
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis 
+                            dataKey="date" 
+                            className="text-xs fill-muted-foreground"
+                            tick={{ fontSize: 11 }}
+                          />
+                          <YAxis 
+                            className="text-xs fill-muted-foreground"
+                            tick={{ fontSize: 11 }}
+                            tickFormatter={(val) => formatTimeValue(val)}
+                            domain={['dataMin - 5', 'dataMax + 5']}
+                          />
+                          <Tooltip 
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                  <div className="bg-popover border border-border rounded-lg p-2 shadow-lg">
+                                    <div className="text-sm font-medium">{data.fullDate}</div>
+                                    <div className="text-primary font-bold">{data.displayValue}</div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="value" 
+                            stroke="hsl(var(--primary))" 
+                            strokeWidth={2}
+                            dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
+                            activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {skill.best_value && entries.length > 1 && (
+                      <div className="text-xs text-center text-muted-foreground">
+                        Verbesserung: {formatTimeValue(entries[entries.length - 1].value - skill.best_value)} schneller als beim ersten Mal
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Entry History */}
                 {isExpanded && entries.length > 0 && (
-                  <div className="ml-8 glass-card p-3 space-y-2">
-                    <div className="text-sm font-medium">Verlauf</div>
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {entries.slice(0, 10).map((entry, i) => (
-                        <div key={entry.id} className="flex justify-between text-sm py-1 border-b border-border/50 last:border-0">
-                          <span className="text-muted-foreground">
-                            {format(new Date(entry.created_at), 'dd.MM.yy HH:mm', { locale: de })}
-                          </span>
-                          <span className="font-medium">{formatValue(skill, entry.value)}</span>
-                          {entry.xp_earned > 0 && (
-                            <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500">
-                              +{entry.xp_earned} XP
-                            </Badge>
-                          )}
-                        </div>
-                      ))}
+                  <div className="ml-4 glass-card p-3 space-y-2">
+                    <div className="text-sm font-medium">Alle Einträge</div>
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                      {entries.map((entry, i) => {
+                        const isRecord = entry.value === skill.best_value && skill.measurement_type === 'time_fastest';
+                        return (
+                          <div 
+                            key={entry.id} 
+                            className={cn(
+                              "flex justify-between items-center text-sm py-2 px-2 rounded-md border-b border-border/50 last:border-0",
+                              isRecord && "bg-yellow-500/10"
+                            )}
+                          >
+                            <span className="text-muted-foreground">
+                              {format(new Date(entry.created_at), 'dd.MM.yyyy HH:mm', { locale: de })}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={cn("font-medium", isRecord && "text-yellow-500")}>
+                                {isRecord && '🏆 '}
+                                {formatValue(skill, entry.value)}
+                              </span>
+                              {entry.xp_earned > 0 && (
+                                <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500">
+                                  +{entry.xp_earned} XP
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
