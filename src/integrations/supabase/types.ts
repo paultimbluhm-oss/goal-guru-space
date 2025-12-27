@@ -98,38 +98,47 @@ export type Database = {
       activity_skills: {
         Row: {
           activity_id: string
+          best_value: number | null
           completed: boolean | null
           completed_at: string | null
           created_at: string | null
           description: string | null
           id: string
+          measurement_type: string | null
           name: string
           order_index: number | null
           user_id: string
+          xp_per_improvement: number | null
           xp_reward: number | null
         }
         Insert: {
           activity_id: string
+          best_value?: number | null
           completed?: boolean | null
           completed_at?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
+          measurement_type?: string | null
           name: string
           order_index?: number | null
           user_id: string
+          xp_per_improvement?: number | null
           xp_reward?: number | null
         }
         Update: {
           activity_id?: string
+          best_value?: number | null
           completed?: boolean | null
           completed_at?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
+          measurement_type?: string | null
           name?: string
           order_index?: number | null
           user_id?: string
+          xp_per_improvement?: number | null
           xp_reward?: number | null
         }
         Relationships: [
@@ -1405,6 +1414,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      skill_entries: {
+        Row: {
+          created_at: string | null
+          id: string
+          skill_id: string
+          user_id: string
+          value: number
+          xp_earned: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          skill_id: string
+          user_id: string
+          value: number
+          xp_earned?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          skill_id?: string
+          user_id?: string
+          value?: number
+          xp_earned?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_entries_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "activity_skills"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subjects: {
         Row: {
