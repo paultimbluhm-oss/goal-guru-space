@@ -2,23 +2,24 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { User, Wallet, ListChecks, Calendar, Sparkles, ChefHat, Check, ChevronRight } from 'lucide-react';
+import { User, Wallet, ListChecks, Calendar, Sparkles, ChefHat, Check, ChevronRight, Gift } from 'lucide-react';
 import { FinanceSection } from '@/components/privat/finance/FinanceSection';
 import { ChecklistSection } from '@/components/privat/checklists';
 import { TaskSection } from '@/components/privat/tasks';
 import { BoredomSection } from '@/components/privat/boredom';
 import { RecipesSection } from '@/components/privat/recipes';
 import { HabitsSection } from '@/components/privat/habits';
+import { GiftsSection } from '@/components/privat/gifts';
 
 const sections = [
   { id: 'habits', icon: Check, label: 'Habits', desc: 'Tägliche Gewohnheiten tracken', color: 'from-emerald-500 to-green-600' },
   { id: 'finanzen', icon: Wallet, label: 'Finanzen', desc: 'Konten, Ausgaben, Investments', color: 'from-amber-500 to-orange-600' },
+  { id: 'geschenke', icon: Gift, label: 'Geschenke', desc: 'Ideen & Einkäufe verwalten', color: 'from-pink-500 to-rose-600' },
   { id: 'checklisten', icon: ListChecks, label: 'Checklisten', desc: 'Eigene Listen erstellen', color: 'from-blue-500 to-indigo-600' },
   { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', desc: 'Planer & To-Dos', color: 'from-violet-500 to-purple-600' },
-  { id: 'langeweile', icon: Sparkles, label: 'Langeweile', desc: 'Projekte & Skills lernen', color: 'from-pink-500 to-rose-600' },
+  { id: 'langeweile', icon: Sparkles, label: 'Langeweile', desc: 'Projekte & Skills lernen', color: 'from-cyan-500 to-teal-600' },
   { id: 'rezepte', icon: ChefHat, label: 'Rezepte', desc: 'Kochbuch mit Portionsrechner', color: 'from-red-500 to-orange-600' },
 ];
-
 export default function Privat() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -103,6 +104,16 @@ export default function Privat() {
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <RecipesSection onBack={() => handleSetSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'geschenke') {
+    return (
+      <AppLayout>
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+          <GiftsSection onBack={() => handleSetSection(null)} />
         </div>
       </AppLayout>
     );

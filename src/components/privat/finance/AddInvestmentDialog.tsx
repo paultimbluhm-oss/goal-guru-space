@@ -48,6 +48,12 @@ interface ExistingInvestment {
   currency: string;
 }
 
+interface Account {
+  id: string;
+  name: string;
+  balance: number;
+}
+
 const investmentTypes = [
   { value: 'etf', label: 'ETF' },
   { value: 'stock', label: 'Aktie' },
@@ -81,15 +87,32 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
   const [historicalPrice, setHistoricalPrice] = useState<number | null>(null);
   const [fetchingPrice, setFetchingPrice] = useState(false);
   
+  // Account selection for both new and existing
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountNew, setSelectedAccountNew] = useState<string>('');
+  const [selectedAccountExisting, setSelectedAccountExisting] = useState<string>('');
+  
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
 
-  // Fetch existing investments when dialog opens
+  // Fetch existing investments and accounts when dialog opens
   useEffect(() => {
     if (open && user) {
       fetchExistingInvestments();
+      fetchAccounts();
     }
   }, [open, user]);
+
+  const fetchAccounts = async () => {
+    if (!user) return;
+    const supabaseClient = getSupabase();
+    const { data } = await supabaseClient
+      .from('accounts')
+      .select('id, name, balance')
+      .eq('user_id', user.id)
+      .order('name');
+    if (data) setAccounts(data);
+  };
 
   const fetchExistingInvestments = async () => {
     if (!user) return;
@@ -236,6 +259,7 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
 
     setLoading(true);
     const supabaseClient = getSupabase();
+    const purchasePriceNum = parseFloat(purchasePrice);
 
     const { error } = await supabaseClient.from('investments').insert({
       user_id: user.id,
@@ -243,13 +267,33 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
       symbol: selectedAsset.symbol,
       investment_type: investmentType,
       quantity: parseFloat(quantity),
-      purchase_price: parseFloat(purchasePrice),
+      purchase_price: purchasePriceNum,
       currency: currency,
+      source_account_id: selectedAccountNew || null,
     });
 
     if (error) {
       toast.error('Fehler beim Hinzufügen');
     } else {
+      // Deduct from account if selected
+      if (selectedAccountNew) {
+        const account = accounts.find(a => a.id === selectedAccountNew);
+        if (account) {
+          await supabaseClient.from('accounts').update({
+            balance: account.balance - purchasePriceNum,
+          }).eq('id', selectedAccountNew);
+
+          await supabaseClient.from('transactions').insert({
+            user_id: user.id,
+            account_id: selectedAccountNew,
+            amount: purchasePriceNum,
+            transaction_type: 'expense',
+            category: 'Investment',
+            description: `Investment: ${selectedAsset.name}`,
+          });
+        }
+      }
+      
       toast.success('Investment hinzugefügt');
       setOpen(false);
       resetForm();
@@ -284,6 +328,25 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
     if (error) {
       toast.error('Fehler beim Hinzufügen');
     } else {
+      // Deduct from account if selected
+      if (selectedAccountExisting) {
+        const account = accounts.find(a => a.id === selectedAccountExisting);
+        if (account) {
+          await supabaseClient.from('accounts').update({
+            balance: account.balance - amountNum,
+          }).eq('id', selectedAccountExisting);
+
+          await supabaseClient.from('transactions').insert({
+            user_id: user.id,
+            account_id: selectedAccountExisting,
+            amount: amountNum,
+            transaction_type: 'expense',
+            category: 'Investment',
+            description: `Investment: ${selectedExisting.name}`,
+          });
+        }
+      }
+
       toast.success(`${newQuantity.toFixed(8)} ${selectedExisting.name} hinzugefügt`);
       setOpen(false);
       resetForm();
@@ -305,6 +368,8 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
     setAddAmount('');
     setAddDate(new Date());
     setHistoricalPrice(null);
+    setSelectedAccountNew('');
+    setSelectedAccountExisting('');
   };
 
   const currencySymbol = currency === 'EUR' ? '€' : '$';
@@ -436,6 +501,25 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
                         required
                       />
                     </div>
+
+                    {accounts.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Von Konto abbuchen (optional)</Label>
+                        <Select value={selectedAccountExisting} onValueChange={setSelectedAccountExisting}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Kein Konto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Kein Konto</SelectItem>
+                            {accounts.map((acc) => (
+                              <SelectItem key={acc.id} value={acc.id}>
+                                {acc.name} ({acc.balance.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     {fetchingPrice ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -628,6 +712,25 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
                       />
                     </div>
                   </div>
+
+                  {accounts.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Von Konto abbuchen (optional)</Label>
+                      <Select value={selectedAccountNew} onValueChange={setSelectedAccountNew}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Kein Konto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Kein Konto</SelectItem>
+                          {accounts.map((acc) => (
+                            <SelectItem key={acc.id} value={acc.id}>
+                              {acc.name} ({acc.balance.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {quantity && purchasePrice && selectedAsset.price && (
                     <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">

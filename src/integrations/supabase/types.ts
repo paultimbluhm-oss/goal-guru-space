@@ -557,6 +557,87 @@ export type Database = {
         }
         Relationships: []
       }
+      gift_ideas: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          price: number | null
+          purchased: boolean | null
+          purchased_date: string | null
+          recipient_id: string
+          title: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          price?: number | null
+          purchased?: boolean | null
+          purchased_date?: string | null
+          recipient_id: string
+          title: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          price?: number | null
+          purchased?: boolean | null
+          purchased_date?: string | null
+          recipient_id?: string
+          title?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_ideas_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_ideas_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "gift_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_recipients: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       grades: {
         Row: {
           created_at: string | null
@@ -747,6 +828,7 @@ export type Database = {
           purchase_date: string | null
           purchase_price: number
           quantity: number
+          source_account_id: string | null
           symbol: string | null
           user_id: string
         }
@@ -759,6 +841,7 @@ export type Database = {
           purchase_date?: string | null
           purchase_price: number
           quantity: number
+          source_account_id?: string | null
           symbol?: string | null
           user_id: string
         }
@@ -771,10 +854,19 @@ export type Database = {
           purchase_date?: string | null
           purchase_price?: number
           quantity?: number
+          source_account_id?: string | null
           symbol?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "investments_source_account_id_fkey"
+            columns: ["source_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lesson_absences: {
         Row: {
