@@ -34,10 +34,12 @@ export function InvestmentCard({
   const [deleting, setDeleting] = useState(false);
 
   const currency = investment.currency || 'EUR';
+  // purchase_price in DB is the TOTAL purchase value, not per-unit
   const purchaseValue = investment.purchase_price;
+  // Current value = quantity * current price per unit
   const currentValue = currentPrice ? investment.quantity * currentPrice : null;
-  const profitLoss = currentValue ? currentValue - purchaseValue : null;
-  const profitLossPercent = profitLoss && purchaseValue ? (profitLoss / purchaseValue) * 100 : null;
+  const profitLoss = currentValue !== null ? currentValue - purchaseValue : null;
+  const profitLossPercent = profitLoss !== null && purchaseValue > 0 ? (profitLoss / purchaseValue) * 100 : null;
   const isProfit = profitLoss !== null && profitLoss >= 0;
 
   const handleDelete = async () => {

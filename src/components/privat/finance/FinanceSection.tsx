@@ -245,8 +245,12 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
 
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
   const totalInvestments = investments.reduce((sum, inv) => {
-    const price = prices[inv.id] || inv.purchase_price;
-    return sum + inv.quantity * price;
+    // If we have a current price, calculate current value (quantity * current price)
+    // Otherwise use the purchase_price as total value (it's already the total, not per-unit)
+    if (prices[inv.id]) {
+      return sum + inv.quantity * prices[inv.id];
+    }
+    return sum + inv.purchase_price;
   }, 0);
 
   // Save balance when totals change

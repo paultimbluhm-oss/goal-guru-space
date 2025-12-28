@@ -39,13 +39,36 @@ const transactionTypes = [
 ];
 
 const categories = [
+  // Einnahmen
   'Gehalt',
+  'Taschengeld',
+  'Geschenk',
+  'Rückzahlung',
+  // Ausgaben - Essen
+  'Snacks',
+  'Fast Food',
+  'Restaurant',
   'Lebensmittel',
-  'Transport',
+  'Getränke',
+  // Ausgaben - Technik
+  'Technik',
+  'Smart Home',
+  'Gaming',
+  'Software',
+  // Ausgaben - Freizeit
   'Unterhaltung',
-  'Miete',
-  'Versicherung',
+  'Kino',
+  'Streaming',
+  'Bücher',
+  // Ausgaben - Transport
+  'Transport',
+  'Tanken',
+  // Ausgaben - Kleidung
+  'Kleidung',
+  'Schuhe',
+  // Sonstiges
   'Investition',
+  'Sparen',
   'Sonstiges',
 ];
 
