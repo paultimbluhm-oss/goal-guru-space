@@ -186,9 +186,10 @@ export function AddInvestmentDialog({ onInvestmentAdded }: AddInvestmentDialogPr
       if (!isOpen) resetForm();
     }}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-2">
-          <Plus className="w-4 h-4" />
-          Investment
+        <Button size="sm" variant="secondary" className="gap-1.5 h-7 px-2 text-xs">
+          <Plus className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Investment</span>
+          <span className="sm:hidden">Invest</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">

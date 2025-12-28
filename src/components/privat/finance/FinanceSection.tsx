@@ -343,74 +343,68 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-6">
-        <div className="absolute -top-32 -right-32 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl" />
-        <div className="absolute inset-0 industrial-grid opacity-20" />
+    <div className="space-y-3 sm:space-y-4">
+      {/* Compact Mobile Header */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-3 sm:p-5">
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl" />
         
         <div className="relative z-10">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={onBack}>
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/5 border border-amber-500/20">
-                <Wallet className="w-6 h-6 text-amber-400" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">Finanzen</h1>
-                <p className="text-sm text-muted-foreground">Dein Vermögensüberblick</p>
-              </div>
+          {/* Title Row */}
+          <div className="flex items-center gap-2 mb-3">
+            <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 shrink-0">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/5 border border-amber-500/20">
+              <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
             </div>
-            <div className="hidden sm:flex gap-2">
-              <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
-              <AddInvestmentDialog onInvestmentAdded={fetchData} />
-              <AddAccountDialog onAccountAdded={fetchData} />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold truncate">Finanzen</h1>
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl p-4 border border-primary/20">
-              <p className="text-xs text-muted-foreground mb-1">Gesamtvermögen</p>
-              <p className="text-2xl font-bold text-primary">{formatCurrency(totalBalance + totalInvestments)}</p>
+          {/* Main Total - Prominent */}
+          <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg p-3 border border-primary/20 mb-3">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Gesamtvermögen</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary">{formatCurrency(totalBalance + totalInvestments)}</p>
+          </div>
+
+          {/* Secondary Stats - Compact Row */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-secondary/30 rounded-lg p-2 sm:p-3 border border-border/50">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Konten</p>
+              <p className="text-sm sm:text-lg font-bold">{formatCurrency(totalBalance)}</p>
             </div>
-            <div className="bg-secondary/30 rounded-xl p-4 border border-border/50">
-              <p className="text-xs text-muted-foreground mb-1">Konten & Bargeld</p>
-              <p className="text-2xl font-bold">{formatCurrency(totalBalance)}</p>
+            <div className="bg-secondary/30 rounded-lg p-2 sm:p-3 border border-border/50">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Investments</p>
+              <p className="text-sm sm:text-lg font-bold">{formatCurrency(totalInvestments)}</p>
             </div>
-            <div className="bg-secondary/30 rounded-xl p-4 border border-border/50">
-              <p className="text-xs text-muted-foreground mb-1">Investments</p>
-              <p className="text-2xl font-bold">{formatCurrency(totalInvestments)}</p>
-            </div>
+          </div>
+
+          {/* Action Buttons - Integrated */}
+          <div className="flex gap-1.5 mt-3 flex-wrap">
+            <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
+            <AddInvestmentDialog onInvestmentAdded={fetchData} />
+            <AddAccountDialog onAccountAdded={fetchData} />
           </div>
         </div>
       </div>
 
-      {/* Mobile buttons */}
-      <div className="flex gap-2 sm:hidden flex-wrap">
-        <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
-        <AddInvestmentDialog onInvestmentAdded={fetchData} />
-        <AddAccountDialog onAccountAdded={fetchData} />
-      </div>
-
-      {/* Charts */}
+      {/* Charts - Mobile Optimized */}
       {balanceHistory.length > 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
           {/* 90-Day Chart */}
           <Card className="glass-card overflow-hidden">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-primary" />
-                Letzte 90 Tage
+            <CardHeader className="p-2 sm:p-3 pb-1">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-primary" />
+                Letzte {Math.min(90, balanceHistory.length)} Tage
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 pb-4">
-              <div className="h-48">
+            <CardContent className="p-0 pb-2">
+              <div className="h-32 sm:h-40">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={last90Days} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <AreaChart data={last90Days} margin={{ top: 5, right: 10, left: 5, bottom: 0 }}>
                     <defs>
                       <linearGradient id="gradient90" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -421,16 +415,16 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                       dataKey="date" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
                       tickFormatter={(value) => format(new Date(value), 'dd.MM', { locale: de })}
                       interval="preserveStartEnd"
                     />
                     <YAxis 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => `${(value/1000).toFixed(0)}k`}
-                      width={40}
+                      tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => `${(value/1000).toFixed(1)}k`}
+                      width={35}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Area 
@@ -448,16 +442,16 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
 
           {/* All-Time Chart */}
           <Card className="glass-card overflow-hidden">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-accent" />
-                Gesamtverlauf ({allTimeData.length} Tage)
+            <CardHeader className="p-2 sm:p-3 pb-1">
+              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-accent" />
+                Gesamtverlauf ({allTimeData.length} Einträge)
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 pb-4">
-              <div className="h-48">
+            <CardContent className="p-0 pb-2">
+              <div className="h-32 sm:h-40">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={allTimeData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <AreaChart data={allTimeData} margin={{ top: 5, right: 10, left: 5, bottom: 0 }}>
                     <defs>
                       <linearGradient id="gradientAll" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
@@ -468,16 +462,16 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                       dataKey="date" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => format(new Date(value), 'MMM yy', { locale: de })}
+                      tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => format(new Date(value), 'dd.MM', { locale: de })}
                       interval="preserveStartEnd"
                     />
                     <YAxis 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => `${(value/1000).toFixed(0)}k`}
-                      width={40}
+                      tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => `${(value/1000).toFixed(1)}k`}
+                      width={35}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Area 
@@ -550,39 +544,41 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       {/* Stocks & ETFs */}
       <Collapsible open={stocksOpen} onOpenChange={setStocksOpen}>
         <CollapsibleTrigger asChild>
-          <div className="group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-4 cursor-pointer hover:border-primary/30 transition-all">
+          <div className="group relative overflow-hidden rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 p-2.5 sm:p-3 cursor-pointer hover:border-primary/30 transition-all">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 opacity-5" />
             <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600">
-                  <TrendingUp className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
+                  <TrendingUp className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Aktien & ETFs</h3>
-                  <p className="text-xs text-muted-foreground">{stockInvestments.length} Positionen</p>
+                  <h3 className="font-semibold text-sm">Aktien & ETFs</h3>
+                  <p className="text-[10px] text-muted-foreground">{stockInvestments.length} Positionen</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-lg">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm sm:text-base">
                   {formatCurrency(stockInvestments.reduce((sum, inv) => {
-                    const price = prices[inv.id] || inv.purchase_price;
-                    return sum + inv.quantity * price;
+                    if (prices[inv.id]) {
+                      return sum + inv.quantity * prices[inv.id];
+                    }
+                    return sum + inv.purchase_price;
                   }, 0))}
                 </span>
                 <ChevronDown className={cn(
-                  "w-5 h-5 text-muted-foreground transition-transform duration-200",
+                  "w-4 h-4 text-muted-foreground transition-transform duration-200",
                   stocksOpen && "rotate-180"
                 )} />
               </div>
             </div>
           </div>
         </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3 space-y-2">
+        <CollapsibleContent className="pt-2 space-y-1.5">
           {stockInvestments.length === 0 ? (
             <Card className="glass-card">
-              <CardContent className="py-6 text-center">
-                <TrendingUp className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-                <p className="text-muted-foreground text-sm">Keine Aktien oder ETFs vorhanden</p>
+              <CardContent className="py-4 text-center">
+                <TrendingUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-muted-foreground text-xs">Keine Aktien oder ETFs</p>
               </CardContent>
             </Card>
           ) : (
@@ -603,50 +599,52 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       {/* Crypto */}
       <Collapsible open={cryptoOpen} onOpenChange={setCryptoOpen}>
         <CollapsibleTrigger asChild>
-          <div className="group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-4 cursor-pointer hover:border-primary/30 transition-all">
+          <div className="group relative overflow-hidden rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 p-2.5 sm:p-3 cursor-pointer hover:border-primary/30 transition-all">
             <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-600 opacity-5" />
             <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600">
-                  <Bitcoin className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600">
+                  <Bitcoin className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Kryptowährungen</h3>
-                  <p className="text-xs text-muted-foreground">{cryptoInvestments.length} Positionen</p>
+                  <h3 className="font-semibold text-sm">Kryptowährungen</h3>
+                  <p className="text-[10px] text-muted-foreground">{cryptoInvestments.length} Positionen</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-lg">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm sm:text-base">
                   {formatCurrency(cryptoInvestments.reduce((sum, inv) => {
-                    const price = prices[inv.id] || inv.purchase_price;
-                    return sum + inv.quantity * price;
+                    if (prices[inv.id]) {
+                      return sum + inv.quantity * prices[inv.id];
+                    }
+                    return sum + inv.purchase_price;
                   }, 0))}
                 </span>
                 <ChevronDown className={cn(
-                  "w-5 h-5 text-muted-foreground transition-transform duration-200",
+                  "w-4 h-4 text-muted-foreground transition-transform duration-200",
                   cryptoOpen && "rotate-180"
                 )} />
               </div>
             </div>
           </div>
         </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3 space-y-2">
-          <div className="flex justify-end mb-2">
+        <CollapsibleContent className="pt-2 space-y-1.5">
+          <div className="flex justify-end mb-1">
             <Button
               variant="outline"
               size="sm"
               onClick={() => fetchPrices(cryptoInvestments)}
-              className="gap-2 text-xs"
+              className="gap-1.5 text-xs h-7 px-2"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className="w-3 h-3" />
               Kurse aktualisieren
             </Button>
           </div>
           {cryptoInvestments.length === 0 ? (
             <Card className="glass-card">
-              <CardContent className="py-6 text-center">
-                <Bitcoin className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-                <p className="text-muted-foreground text-sm">Keine Kryptowährungen vorhanden</p>
+              <CardContent className="py-4 text-center">
+                <Bitcoin className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-muted-foreground text-xs">Keine Kryptowährungen</p>
               </CardContent>
             </Card>
           ) : (
@@ -664,19 +662,19 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Recent Transactions */}
+      {/* Recent Transactions - Compact */}
       <Card className="glass-card overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <ArrowUpDown className="w-4 h-4" />
+        <CardHeader className="p-2 sm:p-3 pb-1">
+          <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-1.5">
+            <ArrowUpDown className="w-3.5 h-3.5" />
             Letzte Transaktionen
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {transactions.length === 0 ? (
-            <div className="py-8 text-center">
-              <ArrowUpDown className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-muted-foreground text-sm">Keine Transaktionen vorhanden</p>
+            <div className="py-6 text-center">
+              <ArrowUpDown className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-muted-foreground text-xs">Keine Transaktionen</p>
             </div>
           ) : (
             <div className="divide-y divide-border/50">
@@ -684,19 +682,19 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                 const account = accounts.find((a) => a.id === tx.account_id);
                 const isIncome = tx.transaction_type === 'income';
                 return (
-                  <div key={tx.id} className="flex items-center justify-between gap-2 p-3 md:p-4 group hover:bg-secondary/20 transition-colors">
+                  <div key={tx.id} className="flex items-center justify-between gap-2 p-2 sm:p-3 group hover:bg-secondary/20 transition-colors">
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">
+                      <div className="font-medium text-xs sm:text-sm truncate">
                         {tx.description || tx.category || 'Transaktion'}
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">
+                      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">
                         {account?.name} • {format(new Date(tx.date), 'dd.MM.yy', { locale: de })}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <div
                         className={cn(
-                          'font-semibold text-sm',
+                          'font-semibold text-xs sm:text-sm',
                           isIncome ? 'text-success' : 'text-destructive'
                         )}
                       >
@@ -709,10 +707,10 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
+                        className="h-6 w-6 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
                         onClick={() => deleteTransaction(tx.id)}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
