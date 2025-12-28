@@ -64,11 +64,11 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
   const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({});
   
   // Collapsible states
-  const [bankOpen, setBankOpen] = useState(true);
+  const [bankOpen, setBankOpen] = useState(false);
   const [cashBillsOpen, setCashBillsOpen] = useState(false);
   const [cashCoinsOpen, setCashCoinsOpen] = useState(false);
-  const [stocksOpen, setStocksOpen] = useState(true);
-  const [cryptoOpen, setCryptoOpen] = useState(true);
+  const [stocksOpen, setStocksOpen] = useState(false);
+  const [cryptoOpen, setCryptoOpen] = useState(false);
 
   const fetchData = async () => {
     if (!user) return;
@@ -308,30 +308,30 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
   }) => (
     <Collapsible open={open} onOpenChange={onOpenChange}>
       <CollapsibleTrigger asChild>
-        <div className={`group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-4 cursor-pointer hover:border-primary/30 transition-all`}>
+        <div className={`group relative overflow-hidden rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 p-2.5 sm:p-3 cursor-pointer hover:border-primary/30 transition-all`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-5`} />
           <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${color}`}>
-                <Icon className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2">
+              <div className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-br ${color}`}>
+                <Icon className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="font-semibold">{title}</h3>
-                <p className="text-xs text-muted-foreground">{count} Einträge</p>
+                <h3 className="font-semibold text-sm">{title}</h3>
+                <p className="text-[10px] text-muted-foreground">{count} Einträge</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="font-bold text-lg">{formatCurrency(total)}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm sm:text-base">{formatCurrency(total)}</span>
               <ChevronDown className={cn(
-                "w-5 h-5 text-muted-foreground transition-transform duration-200",
+                "w-4 h-4 text-muted-foreground transition-transform duration-200",
                 open && "rotate-180"
               )} />
             </div>
           </div>
         </div>
       </CollapsibleTrigger>
-      <CollapsibleContent className="pt-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <CollapsibleContent className="pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {children}
         </div>
       </CollapsibleContent>
