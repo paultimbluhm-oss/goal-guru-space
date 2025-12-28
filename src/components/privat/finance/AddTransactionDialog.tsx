@@ -182,9 +182,10 @@ export function AddTransactionDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="gap-2">
-          <Plus className="w-4 h-4" />
-          Transaktion
+        <Button size="sm" variant="outline" className="gap-1.5 h-7 px-2 text-xs">
+          <Plus className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Transaktion</span>
+          <span className="sm:hidden">+€</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
