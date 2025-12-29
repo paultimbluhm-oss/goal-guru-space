@@ -111,8 +111,8 @@ export default function Privat() {
   return (
     <AppLayout>
       <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-        {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-6 md:p-8">
+        {/* Hero Header - Desktop only */}
+        <div className="hidden md:block relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-6 md:p-8">
           <div className="absolute -top-32 -right-32 w-64 h-64 bg-accent/10 rounded-full blur-3xl" />
           <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute inset-0 industrial-grid opacity-20" />
