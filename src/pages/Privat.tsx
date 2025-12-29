@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Wallet, ListChecks, Calendar, ChefHat, Check, Gift } from 'lucide-react';
+import { Wallet, ListChecks, Calendar, ChefHat, Check, Gift, BookHeart } from 'lucide-react';
 import { FinanceSection } from '@/components/privat/finance/FinanceSection';
 import { ChecklistSection } from '@/components/privat/checklists';
 import { TaskSection } from '@/components/privat/tasks';
 import { RecipesSection } from '@/components/privat/recipes';
 import { HabitsSection } from '@/components/privat/habits';
 import { GiftsSection } from '@/components/privat/gifts';
+import { JournalSection } from '@/components/privat/journal';
 
 const sections = [
   { id: 'habits', icon: Check, label: 'Habits', color: 'from-emerald-500 to-green-600' },
+  { id: 'journal', icon: BookHeart, label: 'Journal', color: 'from-purple-500 to-indigo-600' },
   { id: 'finanzen', icon: Wallet, label: 'Finanzen', color: 'from-amber-500 to-orange-600' },
   { id: 'checklisten', icon: ListChecks, label: 'Checklisten', color: 'from-blue-500 to-indigo-600' },
   { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', color: 'from-violet-500 to-purple-600' },
@@ -52,6 +54,16 @@ export default function Privat() {
       <AppLayout>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <HabitsSection onBack={() => handleSetSection(null)} />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (activeSection === 'journal') {
+    return (
+      <AppLayout>
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+          <JournalSection onBack={() => handleSetSection(null)} />
         </div>
       </AppLayout>
     );
