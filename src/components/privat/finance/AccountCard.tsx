@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -54,24 +53,28 @@ const typeLabels: Record<string, string> = {
 export function AccountCard({ account, onUpdated }: AccountCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [newBalance, setNewBalance] = useState(account.balance.toString());
+  const [newName, setNewName] = useState(account.name);
   const [loading, setLoading] = useState(false);
 
   const Icon = typeIcons[account.account_type] || Landmark;
 
-  const handleUpdateBalance = async (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const supabase = getSupabase();
 
     const { error } = await supabase
       .from('accounts')
-      .update({ balance: parseFloat(newBalance) || 0 })
+      .update({ 
+        balance: parseFloat(newBalance) || 0,
+        name: newName.trim() || account.name,
+      })
       .eq('id', account.id);
 
     if (error) {
       toast.error('Fehler beim Aktualisieren');
     } else {
-      toast.success('Kontostand aktualisiert');
+      toast.success('Konto aktualisiert');
       setEditOpen(false);
       onUpdated();
     }
@@ -93,42 +96,55 @@ export function AccountCard({ account, onUpdated }: AccountCardProps) {
   };
 
   return (
-    <Card className="glass-card border-border/50 group">
-      <CardHeader className="pb-1 md:pb-2 p-3 md:p-6 flex flex-row items-center justify-between gap-2">
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <div className="p-1.5 md:p-2 rounded-lg bg-primary/20 shrink-0">
-            <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <CardTitle className="text-sm md:text-base truncate">{account.name}</CardTitle>
-            <p className="text-xs text-muted-foreground truncate">
-              {typeLabels[account.account_type] || account.account_type}
-            </p>
-          </div>
+    <div className="bg-card/50 rounded-lg border border-border/50 p-2.5 group">
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className="p-1.5 rounded-md bg-primary/20 shrink-0">
+          <Icon className="w-3.5 h-3.5 text-primary" />
         </div>
-        <div className="flex gap-0.5 md:gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm leading-tight">{account.name}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {typeLabels[account.account_type] || account.account_type}
+          </p>
+        </div>
+        <div className="flex gap-0.5 opacity-50 group-hover:opacity-100 transition-opacity shrink-0">
+          <Dialog open={editOpen} onOpenChange={(open) => {
+            setEditOpen(open);
+            if (open) {
+              setNewBalance(account.balance.toString());
+              setNewName(account.name);
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 md:h-8 md:w-8">
-                <Edit className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <Button variant="ghost" size="icon" className="h-6 w-6">
+                <Edit className="w-3 h-3" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[95vw] sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Kontostand bearbeiten</DialogTitle>
+            <DialogContent className="max-w-sm p-4">
+              <DialogHeader className="pb-2">
+                <DialogTitle className="text-lg">Konto bearbeiten</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleUpdateBalance} className="space-y-4">
+              <form onSubmit={handleUpdate} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Neuer Kontostand (€)</Label>
+                  <Label className="text-xs">Name</Label>
+                  <Input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Kontostand (€)</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={newBalance}
                     onChange={(e) => setNewBalance(e.target.value)}
+                    className="h-10"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  Speichern
+                <Button type="submit" className="w-full h-10" disabled={loading}>
+                  {loading ? 'Speichere...' : 'Speichern'}
                 </Button>
               </form>
             </DialogContent>
@@ -136,26 +152,24 @@ export function AccountCard({ account, onUpdated }: AccountCardProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 md:h-8 md:w-8 text-destructive"
+            className="h-6 w-6 text-destructive"
             onClick={handleDelete}
           >
-            <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <Trash2 className="w-3 h-3" />
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
-        <div
-          className={cn(
-            'text-lg md:text-2xl font-bold',
-            account.balance >= 0 ? 'text-success' : 'text-destructive'
-          )}
-        >
-          {account.balance.toLocaleString('de-DE', {
-            style: 'currency',
-            currency: 'EUR',
-          })}
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div
+        className={cn(
+          'text-base font-bold',
+          account.balance >= 0 ? 'text-success' : 'text-destructive'
+        )}
+      >
+        {account.balance.toLocaleString('de-DE', {
+          style: 'currency',
+          currency: 'EUR',
+        })}
+      </div>
+    </div>
   );
 }

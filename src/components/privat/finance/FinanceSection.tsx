@@ -322,13 +322,13 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         </div>
       </div>
 
-      {/* Chart - Compact */}
+      {/* Chart - Compact with Y-Axis labels */}
       {balanceHistory.length > 1 && (
         <Card className="overflow-hidden border-border/50">
           <CardContent className="p-2">
-            <div className="h-24">
+            <div className="h-28">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={last90Days} margin={{ top: 5, right: 5, left: 5, bottom: 0 }}>
+                <AreaChart data={last90Days} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradient90" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -343,7 +343,14 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
                     tickFormatter={(value) => format(new Date(value), 'dd.MM', { locale: de })}
                     interval="preserveStartEnd"
                   />
-                  <YAxis hide />
+                  <YAxis 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => `${(value/1000).toFixed(1)}k`}
+                    width={32}
+                    domain={['dataMin - 100', 'dataMax + 100']}
+                  />
                   <Tooltip content={<CustomTooltip />} />
                   <Area 
                     type="monotone" 
