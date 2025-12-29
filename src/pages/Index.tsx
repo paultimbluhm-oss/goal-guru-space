@@ -67,9 +67,9 @@ export default function Index() {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 lg:p-8 space-y-4 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 space-y-3 md:space-y-4 max-w-7xl mx-auto">
         {/* Top Row: Two Ring Widgets */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <LevelRingWidget
             xp={profile?.xp || 0}
             level={profile?.level || 1}
@@ -78,26 +78,25 @@ export default function Index() {
           <ProgressRingWidget />
         </div>
 
-        {/* Details Row: Time + Tasks + Homework + Habits */}
+        {/* Details Row: Tasks + Homework + Habits breakdown */}
         <TodayDetailsCard />
 
-        {/* Main Content: Actions + Habits */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Quick Stats: Important numbers (open tasks, grades, wealth) */}
+        <QuickStats
+          tasksPending={stats.tasksPending}
+          averageGrade={stats.averageGrade}
+          totalBalance={stats.totalBalance}
+          loadingPrices={stats.loadingPrices}
+        />
+
+        {/* Main Content: Actions + Habits side by side on desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
           <NextActionsCard />
           <HabitsOverview />
         </div>
 
-        {/* Bottom: Achievements + Quick Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <AchievementsCard />
-          <QuickStats
-            tasksCompleted={stats.tasksCompleted}
-            tasksPending={stats.tasksPending}
-            averageGrade={stats.averageGrade}
-            totalBalance={stats.totalBalance}
-            loadingPrices={stats.loadingPrices}
-          />
-        </div>
+        {/* Bottom: Achievements */}
+        <AchievementsCard />
       </div>
     </AppLayout>
   );

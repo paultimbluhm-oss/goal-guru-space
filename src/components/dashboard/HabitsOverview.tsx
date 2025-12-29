@@ -187,25 +187,19 @@ export function HabitsOverview() {
           </div>
         )}
 
-        {/* Habits list - show incomplete first, then completed if space */}
+        {/* Habits list - show ALL habits, incomplete first */}
         <div className="space-y-2">
           {(() => {
             const incompleteHabits = habits.filter(h => !isCompletedToday(h.id));
             const completedHabits = habits.filter(h => isCompletedToday(h.id));
-            
-            // Show up to 5 habits: prioritize incomplete, fill remaining with completed
-            const maxDisplay = 5;
-            const displayIncomplete = incompleteHabits.slice(0, maxDisplay);
-            const remainingSlots = maxDisplay - displayIncomplete.length;
-            const displayCompleted = remainingSlots > 0 ? completedHabits.slice(0, remainingSlots) : [];
-            const displayHabits = [...displayIncomplete, ...displayCompleted];
+            const displayHabits = [...incompleteHabits, ...completedHabits];
             
             return displayHabits.map((habit) => {
               const completed = isCompletedToday(habit.id);
               return (
                 <div 
                   key={habit.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer hover:bg-secondary/50 ${
+                  className={`flex items-center gap-3 p-2.5 rounded-lg transition-all cursor-pointer hover:bg-secondary/50 ${
                     completed ? 'bg-success/5' : 'bg-secondary/30'
                   }`}
                   onClick={() => toggleHabit(habit)}
@@ -220,12 +214,6 @@ export function HabitsOverview() {
             });
           })()}
         </div>
-
-        {habits.length > 5 && (
-          <p className="text-xs text-muted-foreground text-center mt-3">
-            +{habits.length - 5} weitere Habits
-          </p>
-        )}
       </div>
     </Card>
   );
