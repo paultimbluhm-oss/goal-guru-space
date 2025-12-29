@@ -74,6 +74,27 @@ export function ProgressRingWidget() {
     });
   };
 
+  // Check if streak should be reset (yesterday wasn't completed)
+  const checkStreakReset = async () => {
+    if (!user || !profile) return;
+    
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+    
+    const lastActiveDate = profile.last_active_date;
+    
+    // If last active was before yesterday and streak > 0, reset it
+    if (lastActiveDate && lastActiveDate !== today && lastActiveDate !== yesterdayStr && profile.streak_days > 0) {
+      await supabase
+        .from('profiles')
+        .update({ streak_days: 0 })
+        .eq('user_id', user.id);
+      refetch();
+    }
+  };
+
   // Update streak when 100% is reached for the first time today
   const updateStreakIfComplete = async () => {
     if (!user || !profile || hasUpdatedStreakRef.current) return;
@@ -104,13 +125,6 @@ export function ProgressRingWidget() {
       // If last active was yesterday, continue streak. Otherwise start fresh at 1.
       if (lastActiveDate === yesterdayStr) {
         newStreak = (profile.streak_days || 0) + 1;
-      } else if (lastActiveDate === today) {
-        // Already active today but streak not set - set to 1
-        newStreak = Math.max(profile.streak_days || 0, 1);
-        if (profile.streak_days >= 1) {
-          // Already has streak for today, don't update
-          return;
-        }
       } else {
         // First day or streak was broken - start at 1
         newStreak = 1;
@@ -129,6 +143,13 @@ export function ProgressRingWidget() {
       refetch();
     }
   };
+
+  // Check for streak reset on mount
+  useEffect(() => {
+    if (profile) {
+      checkStreakReset();
+    }
+  }, [profile?.last_active_date]);
 
   useEffect(() => {
     if (user) {
