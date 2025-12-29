@@ -28,8 +28,9 @@ export function NextActionsCard() {
   const fetchNextActions = async () => {
     if (!user) return;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
     const [tasksRes, homeworkRes] = await Promise.all([
       supabase
@@ -37,30 +38,35 @@ export function NextActionsCard() {
         .select('id, title, due_date, priority, xp_reward')
         .eq('user_id', user.id)
         .eq('completed', false)
-        .gte('due_date', today.toISOString())
+        .not('due_date', 'is', null)
         .order('due_date', { ascending: true })
-        .limit(5),
+        .limit(10),
       supabase
         .from('homework')
         .select('id, title, due_date, priority, xp_reward, subjects(name)')
         .eq('user_id', user.id)
         .eq('completed', false)
-        .gte('due_date', today.toISOString())
+        .not('due_date', 'is', null)
         .order('due_date', { ascending: true })
-        .limit(5),
+        .limit(10),
     ]);
 
+    // Filter to only show today's tasks/homework
     const allTasks: Task[] = [
-      ...(tasksRes.data || []).map(t => ({ ...t, type: 'task' as const })),
-      ...(homeworkRes.data || []).map(h => ({
-        id: h.id,
-        title: h.title,
-        due_date: h.due_date,
-        priority: h.priority,
-        type: 'homework' as const,
-        subject_name: (h.subjects as any)?.name,
-        xp_reward: h.xp_reward,
-      })),
+      ...(tasksRes.data || [])
+        .filter(t => t.due_date && format(new Date(t.due_date), 'yyyy-MM-dd') === today)
+        .map(t => ({ ...t, type: 'task' as const })),
+      ...(homeworkRes.data || [])
+        .filter(h => h.due_date && format(new Date(h.due_date), 'yyyy-MM-dd') === today)
+        .map(h => ({
+          id: h.id,
+          title: h.title,
+          due_date: h.due_date,
+          priority: h.priority,
+          type: 'homework' as const,
+          subject_name: (h.subjects as any)?.name,
+          xp_reward: h.xp_reward,
+        })),
     ];
 
     allTasks.sort((a, b) => {
@@ -140,13 +146,13 @@ export function NextActionsCard() {
 
   return (
     <div className="glass-card p-4 md:p-5">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Target className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-base">Nächste Aufgaben</h3>
+          <Target className="w-4 h-4 text-primary" />
+          <h3 className="font-semibold text-sm">Heute zu erledigen</h3>
         </div>
         <Link to="/privat?section=aufgaben" className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
-          Alle anzeigen <ArrowRight className="w-3 h-3" />
+          Alle <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
 
