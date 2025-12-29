@@ -117,11 +117,11 @@ export function NextActionsCard() {
     return format(date, 'EEE, dd. MMM', { locale: de });
   };
 
-  const getPriorityColor = (priority: string | null) => {
+  const getPriorityIndicator = (priority: string | null) => {
     switch (priority) {
-      case 'high': return 'text-destructive';
-      case 'medium': return 'text-warning';
-      default: return 'text-muted-foreground';
+      case 'high': return 'bg-rose-500';
+      case 'medium': return 'bg-amber-500';
+      default: return 'bg-emerald-500';
     }
   };
 
@@ -170,17 +170,20 @@ export function NextActionsCard() {
         </div>
       ) : (
         <AnimatePresence mode="popLayout">
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {tasks.map((task, i) => (
               <motion.div
                 key={task.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20, height: 0 }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.05 }}
                 layout
-                className="group flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-all border border-transparent hover:border-primary/30"
+                className="group flex items-center gap-3 p-2.5 rounded-xl bg-secondary/40 hover:bg-secondary/60 transition-all"
               >
+                {/* Priority indicator */}
+                <div className={`w-1 h-8 rounded-full ${getPriorityIndicator(task.priority)}`} />
+                
                 {/* Checkbox */}
                 <div 
                   onClick={(e) => completeTask(task, e)}
@@ -189,31 +192,23 @@ export function NextActionsCard() {
                   <Checkbox className="data-[state=checked]:bg-success data-[state=checked]:border-success" />
                 </div>
                 
-                <div className={`p-2 rounded-lg ${task.type === 'homework' ? 'bg-accent/20' : 'bg-primary/20'}`}>
-                  {task.type === 'homework' ? (
-                    <BookOpen className="w-4 h-4 text-accent" />
-                  ) : (
-                    <Target className="w-4 h-4 text-primary" />
-                  )}
-                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                  <p className="text-sm font-medium truncate">
                     {task.title}
                   </p>
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {task.subject_name && (
                       <span className="text-accent">{task.subject_name}</span>
                     )}
-                    <span className={getPriorityColor(task.priority)}>
-                      <Clock className="w-3 h-3 inline mr-1" />
-                      {formatDueDate(task.due_date)}
-                    </span>
-                    {task.xp_reward && (
-                      <span className="text-primary">+{task.xp_reward} XP</span>
+                    {task.type === 'homework' && (
+                      <span className="text-accent text-[10px]">HA</span>
                     )}
                   </div>
                 </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <span className="text-xs text-muted-foreground font-mono">
+                  +{task.xp_reward || 10}
+                </span>
               </motion.div>
             ))}
           </div>

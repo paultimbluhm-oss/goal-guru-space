@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Pencil, Trash2, Star, Clock } from 'lucide-react';
+import { Pencil, Trash2, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { TaskDialog } from './TaskDialog';
@@ -15,6 +14,7 @@ interface Task {
   priority: string;
   completed: boolean;
   xp_reward: number;
+  recurrence_type?: string | null;
 }
 
 interface TaskCardProps {
@@ -30,59 +30,63 @@ export function TaskCard({ task, onToggle, onDelete, onUpdate }: TaskCardProps) 
   const isOverdue = task.due_date && isPast(parseISO(task.due_date)) && !task.completed;
   const isDueToday = task.due_date && isToday(parseISO(task.due_date));
 
-  const priorityColors: Record<string, string> = {
-    high: 'bg-destructive/20 text-destructive',
-    medium: 'bg-yellow-500/20 text-yellow-600',
-    low: 'bg-green-500/20 text-green-600',
+  const priorityIndicator = {
+    high: 'bg-rose-500',
+    medium: 'bg-amber-500',
+    low: 'bg-emerald-500',
   };
 
   return (
     <>
       <div
-        className={`glass-card p-4 flex items-start gap-3 group transition-opacity ${
-          task.completed ? 'opacity-60' : ''
-        } ${isOverdue ? 'border-destructive/50' : ''}`}
+        className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${
+          task.completed 
+            ? 'bg-secondary/20 opacity-60' 
+            : isOverdue 
+              ? 'bg-rose-500/5 border border-rose-500/20' 
+              : 'bg-secondary/40 hover:bg-secondary/60'
+        }`}
       >
+        {/* Priority indicator */}
+        <div className={`w-1 h-8 rounded-full ${priorityIndicator[task.priority as keyof typeof priorityIndicator] || priorityIndicator.medium}`} />
+        
         <Checkbox
           checked={task.completed}
           onCheckedChange={onToggle}
-          className="mt-1"
+          className="shrink-0"
         />
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+          <div className="flex items-center gap-2">
+            <span className={`font-medium text-sm truncate ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
               {task.title}
             </span>
-            <Badge variant="outline" className={priorityColors[task.priority]}>
-              {task.priority === 'high' ? 'Hoch' : task.priority === 'medium' ? 'Mittel' : 'Niedrig'}
-            </Badge>
-            <Badge variant="outline" className="bg-primary/10 text-primary">
-              <Star className="w-3 h-3 mr-1" />
-              {task.xp_reward} XP
-            </Badge>
+            {task.recurrence_type && (
+              <Repeat className="w-3 h-3 text-muted-foreground shrink-0" />
+            )}
           </div>
 
-          {task.description && (
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
-          )}
-
           {task.due_date && (
-            <div className={`flex items-center gap-1 text-sm mt-2 ${
-              isOverdue ? 'text-destructive' : isDueToday ? 'text-primary' : 'text-muted-foreground'
+            <p className={`text-xs mt-0.5 ${
+              isOverdue ? 'text-rose-500' : isDueToday ? 'text-primary' : 'text-muted-foreground'
             }`}>
-              <Clock className="w-3 h-3" />
-              {format(parseISO(task.due_date), 'dd.MM.yyyy HH:mm', { locale: de })}
-            </div>
+              {format(parseISO(task.due_date), 'd. MMM', { locale: de })}
+            </p>
           )}
         </div>
 
+        {/* XP Badge - subtle */}
+        <span className="text-xs text-muted-foreground font-mono">
+          +{task.xp_reward}
+        </span>
+
+        {/* Actions - visible on hover/touch */}
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button size="icon" variant="ghost" onClick={() => setEditing(true)}>
-            <Pencil className="w-4 h-4" />
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)}>
+            <Pencil className="w-3.5 h-3.5" />
           </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete}>
-            <Trash2 className="w-4 h-4 text-destructive" />
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onDelete}>
+            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
           </Button>
         </div>
       </div>

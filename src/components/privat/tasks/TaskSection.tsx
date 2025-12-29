@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Calendar, Filter, CheckCircle2, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, CheckCircle2, Clock, AlertTriangle, ChevronDown, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,7 @@ interface Task {
   completed: boolean;
   xp_reward: number;
   created_at: string;
+  recurrence_type?: string | null;
   type: 'task';
 }
 
@@ -61,7 +62,7 @@ export function TaskSection({ onBack }: TaskSectionProps) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('today');
   const [showCompleted, setShowCompleted] = useState(false);
 
   const fetchData = async () => {
@@ -164,7 +165,6 @@ export function TaskSection({ onBack }: TaskSectionProps) {
     }
   };
 
-  // Combine and filter items
   const allItems: TaskItem[] = [...tasks, ...homework];
   
   const filterItems = (items: TaskItem[]) => {
@@ -192,9 +192,6 @@ export function TaskSection({ onBack }: TaskSectionProps) {
         break;
       case 'homework':
         filtered = filtered.filter(item => item.type === 'homework');
-        break;
-      case 'tasks':
-        filtered = filtered.filter(item => item.type === 'task');
         break;
     }
 
@@ -229,7 +226,7 @@ export function TaskSection({ onBack }: TaskSectionProps) {
         } else if (isPast(date)) {
           key = 'Überfällig';
         } else {
-          key = format(date, 'EEEE, d. MMMM', { locale: de });
+          key = format(date, 'EEEE, d. MMM', { locale: de });
         }
       }
       
@@ -237,7 +234,6 @@ export function TaskSection({ onBack }: TaskSectionProps) {
       groups[key].push(item);
     });
 
-    // Sort groups
     const order = ['Überfällig', 'Heute', 'Morgen'];
     const sortedKeys = Object.keys(groups).sort((a, b) => {
       const aIndex = order.indexOf(a);
@@ -255,148 +251,103 @@ export function TaskSection({ onBack }: TaskSectionProps) {
 
   const groupedItems = groupByDate(filteredItems);
 
+  const filterOptions = [
+    { value: 'today', label: 'Heute', count: todayCount },
+    { value: 'week', label: 'Diese Woche' },
+    { value: 'overdue', label: 'Überfällig', count: overdueCount, danger: overdueCount > 0 },
+    { value: 'all', label: 'Alle' },
+    { value: 'homework', label: 'Hausaufgaben' },
+  ];
+
+  const currentFilter = filterOptions.find(f => f.value === activeTab);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 pb-20 md:pb-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="p-3 rounded-xl bg-primary/20">
-            <Calendar className="w-6 h-6 text-primary" />
-          </div>
-          <h2 className="text-2xl font-bold">Aufgaben</h2>
+          <h2 className="text-lg font-semibold">Aufgaben</h2>
         </div>
-        {/* Desktop button */}
-        <Button onClick={() => setShowAddDialog(true)} className="hidden sm:flex">
-          <Plus className="w-4 h-4 mr-2" />
-          Neue Aufgabe
+        <Button onClick={() => setShowAddDialog(true)} size="sm" className="hidden md:flex">
+          <Plus className="w-4 h-4 mr-1" />
+          Neu
         </Button>
       </div>
 
-      {/* Stats - Compact on mobile */}
-      <div className="grid grid-cols-4 md:grid-cols-4 gap-2 md:gap-3">
-        <div className="glass-card p-2 md:p-4 flex flex-col md:flex-row items-center gap-1 md:gap-3">
-          <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-          <div className="text-center md:text-left">
-            <p className="text-lg md:text-2xl font-bold">{todayCount}</p>
-            <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">Heute fällig</p>
-          </div>
+      {/* Quick Stats - Minimal */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="p-3 rounded-xl bg-secondary/40 text-center">
+          <p className="text-xl font-bold">{todayCount}</p>
+          <p className="text-[10px] text-muted-foreground">Heute</p>
         </div>
-        <div className="glass-card p-2 md:p-4 flex flex-col md:flex-row items-center gap-1 md:gap-3">
-          <AlertTriangle className={`w-4 h-4 md:w-5 md:h-5 ${overdueCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
-          <div className="text-center md:text-left">
-            <p className="text-lg md:text-2xl font-bold">{overdueCount}</p>
-            <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">Überfällig</p>
-          </div>
+        <div className={`p-3 rounded-xl text-center ${overdueCount > 0 ? 'bg-rose-500/10' : 'bg-secondary/40'}`}>
+          <p className={`text-xl font-bold ${overdueCount > 0 ? 'text-rose-500' : ''}`}>{overdueCount}</p>
+          <p className="text-[10px] text-muted-foreground">Überfällig</p>
         </div>
-        <div className="glass-card p-2 md:p-4 flex flex-col md:flex-row items-center gap-1 md:gap-3">
-          <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
-          <div className="text-center md:text-left">
-            <p className="text-lg md:text-2xl font-bold">{allItems.filter(i => i.completed).length}</p>
-            <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">Erledigt</p>
-          </div>
-        </div>
-        <div className="glass-card p-2 md:p-4 flex flex-col md:flex-row items-center gap-1 md:gap-3">
-          <Calendar className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
-          <div className="text-center md:text-left">
-            <p className="text-lg md:text-2xl font-bold">{homework.filter(h => !h.completed).length}</p>
-            <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">Hausaufgaben</p>
-          </div>
+        <div className="p-3 rounded-xl bg-secondary/40 text-center">
+          <p className="text-xl font-bold">{allItems.filter(i => i.completed).length}</p>
+          <p className="text-[10px] text-muted-foreground">Erledigt</p>
         </div>
       </div>
 
-      {/* Filters - Dropdown on mobile, Tabs on desktop */}
+      {/* Filter Dropdown */}
       <div className="flex items-center gap-2">
-        {/* Mobile Dropdown */}
-        <div className="flex md:hidden flex-1 gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex-1 justify-between">
-                <span>
-                  {activeTab === 'all' && 'Alle'}
-                  {activeTab === 'today' && 'Heute'}
-                  {activeTab === 'week' && 'Diese Woche'}
-                  {activeTab === 'overdue' && `Überfällig${overdueCount > 0 ? ` (${overdueCount})` : ''}`}
-                  {activeTab === 'homework' && 'Hausaufgaben'}
-                  {activeTab === 'tasks' && 'Nur Aufgaben'}
-                </span>
-                <ChevronDown className="w-4 h-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48 bg-popover border border-border shadow-lg z-50">
-              <DropdownMenuItem onClick={() => setActiveTab('all')}>Alle</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('today')}>Heute</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('week')}>Diese Woche</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('overdue')} className={overdueCount > 0 ? 'text-destructive' : ''}>
-                Überfällig {overdueCount > 0 && `(${overdueCount})`}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('homework')}>Hausaufgaben</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setActiveTab('tasks')}>Nur Aufgaben</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            variant={showCompleted ? 'secondary' : 'outline'}
-            size="icon"
-            onClick={() => setShowCompleted(!showCompleted)}
-          >
-            <Filter className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {/* Desktop Tabs */}
-        <div className="hidden md:flex flex-1 flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1 bg-muted/50 p-1 rounded-lg">
-            {[
-              { value: 'all', label: 'Alle' },
-              { value: 'today', label: 'Heute' },
-              { value: 'week', label: 'Diese Woche' },
-              { value: 'overdue', label: `Überfällig${overdueCount > 0 ? ` (${overdueCount})` : ''}` },
-              { value: 'homework', label: 'Hausaufgaben' },
-              { value: 'tasks', label: 'Nur Aufgaben' },
-            ].map(tab => (
-              <Button
-                key={tab.value}
-                variant={activeTab === tab.value ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab(tab.value)}
-                className={tab.value === 'overdue' && overdueCount > 0 ? 'text-destructive' : ''}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="flex-1 justify-between h-9">
+              <span className="text-sm">{currentFilter?.label}</span>
+              <ChevronDown className="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 bg-popover border border-border shadow-lg z-50">
+            {filterOptions.map(opt => (
+              <DropdownMenuItem 
+                key={opt.value} 
+                onClick={() => setActiveTab(opt.value)}
+                className={opt.danger ? 'text-rose-500' : ''}
               >
-                {tab.label}
-              </Button>
+                {opt.label}
+                {opt.count !== undefined && opt.count > 0 && (
+                  <span className="ml-auto text-xs opacity-60">({opt.count})</span>
+                )}
+              </DropdownMenuItem>
             ))}
-          </div>
-          <Button
-            variant={showCompleted ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setShowCompleted(!showCompleted)}
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            {showCompleted ? 'Erledigte verstecken' : 'Erledigte zeigen'}
-          </Button>
-        </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
+        <Button
+          variant={showCompleted ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={() => setShowCompleted(!showCompleted)}
+          className="h-9 px-3"
+        >
+          <CheckCircle2 className="w-4 h-4" />
+        </Button>
       </div>
 
       {/* Task List */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Laden...</div>
+        <div className="text-center py-8 text-muted-foreground text-sm">Laden...</div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          <CheckCircle2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Keine Aufgaben in dieser Ansicht</p>
+          <ListTodo className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">Keine Aufgaben</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {groupedItems.map(group => (
             <div key={group.key}>
-              <h3 className={`text-sm font-semibold mb-3 ${
-                group.key === 'Überfällig' ? 'text-destructive' : 
+              <h3 className={`text-xs font-medium mb-2 ${
+                group.key === 'Überfällig' ? 'text-rose-500' : 
                 group.key === 'Heute' ? 'text-primary' : 
                 'text-muted-foreground'
               }`}>
                 {group.key}
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {group.items.map(item => (
                   item.type === 'task' ? (
                     <TaskCard
@@ -422,13 +373,12 @@ export function TaskSection({ onBack }: TaskSectionProps) {
         </div>
       )}
 
-      {/* Mobile button at bottom */}
+      {/* Floating Action Button - Mobile */}
       <Button 
-        className="w-full sm:hidden" 
+        className="md:hidden fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-40" 
         onClick={() => setShowAddDialog(true)}
       >
-        <Plus className="w-4 h-4 mr-2" />
-        Neue Aufgabe
+        <Plus className="w-6 h-6" />
       </Button>
 
       <TaskDialog
