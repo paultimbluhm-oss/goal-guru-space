@@ -507,7 +507,7 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
       )}
 
       {/* Loans Section */}
-      <LoansSection onRefresh={fetchData} />
+      <LoansSection onRefresh={fetchData} accounts={accounts} />
 
       {cashBills.length > 0 && (
         <CollapsibleSection

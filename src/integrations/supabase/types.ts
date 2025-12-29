@@ -920,7 +920,9 @@ export type Database = {
           loan_date: string | null
           loan_type: string
           person_name: string
+          return_account_id: string | null
           returned_date: string | null
+          source_account_id: string | null
           user_id: string
         }
         Insert: {
@@ -933,7 +935,9 @@ export type Database = {
           loan_date?: string | null
           loan_type?: string
           person_name: string
+          return_account_id?: string | null
           returned_date?: string | null
+          source_account_id?: string | null
           user_id: string
         }
         Update: {
@@ -946,10 +950,27 @@ export type Database = {
           loan_date?: string | null
           loan_type?: string
           person_name?: string
+          return_account_id?: string | null
           returned_date?: string | null
+          source_account_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "loans_return_account_id_fkey"
+            columns: ["return_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loans_source_account_id_fkey"
+            columns: ["source_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       milestone_items: {
         Row: {
