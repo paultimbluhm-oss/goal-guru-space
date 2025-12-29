@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { Flame } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
+import { useGamification } from '@/contexts/GamificationContext';
 
 interface TodayStats {
   tasksCompleted: number;
@@ -17,7 +18,8 @@ interface TodayStats {
 
 export function ProgressRingWidget() {
   const { user } = useAuth();
-  const { profile } = useProfile();
+  const { profile, refetch } = useProfile();
+  const { celebrateStreak } = useGamification();
   const [stats, setStats] = useState<TodayStats>({
     tasksCompleted: 0,
     tasksTotal: 0,
@@ -26,6 +28,7 @@ export function ProgressRingWidget() {
     habitsCompleted: 0,
     habitsTotal: 0,
   });
+  const hasUpdatedStreakRef = useRef(false);
 
   const fetchTodayStats = async () => {
     if (!user) return;
@@ -71,11 +74,46 @@ export function ProgressRingWidget() {
     });
   };
 
+  // Update streak when 100% is reached
+  const updateStreakIfComplete = async () => {
+    if (!user || !profile || hasUpdatedStreakRef.current) return;
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const totalCompleted = stats.tasksCompleted + stats.homeworkCompleted + stats.habitsCompleted;
+    const totalItems = stats.tasksTotal + stats.homeworkTotal + stats.habitsTotal;
+    
+    // All done for today (either 100% completed or nothing to do)
+    const allDone = totalItems === 0 || totalCompleted === totalItems;
+    
+    if (allDone && profile.last_active_date !== today) {
+      hasUpdatedStreakRef.current = true;
+      
+      const newStreak = (profile.streak_days || 0) + 1;
+      
+      await supabase
+        .from('profiles')
+        .update({ 
+          last_active_date: today,
+          streak_days: newStreak
+        })
+        .eq('user_id', user.id);
+      
+      // Celebrate and refresh
+      celebrateStreak(newStreak);
+      refetch();
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchTodayStats();
     }
   }, [user]);
+
+  // Check for streak update when stats change
+  useEffect(() => {
+    updateStreakIfComplete();
+  }, [stats, profile]);
 
   useEffect(() => {
     if (!user) return;
@@ -104,8 +142,10 @@ export function ProgressRingWidget() {
 
   const totalCompleted = stats.tasksCompleted + stats.homeworkCompleted + stats.habitsCompleted;
   const totalItems = stats.tasksTotal + stats.homeworkTotal + stats.habitsTotal;
-  const overallProgress = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
-  const allDone = totalItems > 0 && totalCompleted === totalItems;
+  
+  // If no items for today, show 100% (everything done)
+  const overallProgress = totalItems === 0 ? 100 : Math.round((totalCompleted / totalItems) * 100);
+  const allDone = totalItems === 0 || totalCompleted === totalItems;
   const streakDays = profile?.streak_days || 0;
 
   // Ring dimensions for the circular widget

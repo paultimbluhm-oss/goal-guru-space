@@ -182,8 +182,8 @@ export function HabitsOverview() {
 
         {allDone && (
           <div className="flex items-center gap-2 text-success text-sm mb-4 p-2 rounded-lg bg-success/10">
-            <Flame className="w-4 h-4" />
-            <span>Alle Habits erledigt! Streak gesichert! 🔥</span>
+            <Check className="w-4 h-4" />
+            <span>Alle Habits erledigt!</span>
           </div>
         )}
 
