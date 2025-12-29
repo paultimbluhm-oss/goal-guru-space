@@ -74,7 +74,7 @@ export function ProgressRingWidget() {
     });
   };
 
-  // Update streak when 100% is reached
+  // Update streak when 100% is reached for the first time today
   const updateStreakIfComplete = async () => {
     if (!user || !profile || hasUpdatedStreakRef.current) return;
 
@@ -84,11 +84,28 @@ export function ProgressRingWidget() {
     
     // All done for today (either 100% completed or nothing to do)
     const allDone = totalItems === 0 || totalCompleted === totalItems;
+    const lastActiveDate = profile.last_active_date;
     
-    if (allDone && profile.last_active_date !== today) {
+    // Only update streak if:
+    // 1. All items are done for today
+    // 2. We haven't already credited today's streak (last_active_date !== today)
+    if (allDone && lastActiveDate !== today) {
       hasUpdatedStreakRef.current = true;
       
-      const newStreak = (profile.streak_days || 0) + 1;
+      // Calculate new streak
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+      
+      let newStreak: number;
+      
+      // If last active was yesterday, continue streak. Otherwise start fresh at 1.
+      if (lastActiveDate === yesterdayStr) {
+        newStreak = (profile.streak_days || 0) + 1;
+      } else {
+        // Either first day or streak was broken - start at 1
+        newStreak = 1;
+      }
       
       await supabase
         .from('profiles')
