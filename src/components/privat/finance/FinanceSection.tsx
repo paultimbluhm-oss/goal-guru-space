@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, Wallet, TrendingUp, ArrowUpDown, RefreshCw, Trash2, ChevronDown, Banknote, Coins, Bitcoin, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Wallet, TrendingUp, ArrowUpDown, RefreshCw, ChevronDown, Banknote, Coins, Bitcoin, BarChart3, Edit2, History, Plus } from 'lucide-react';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { AccountCard } from './AccountCard';
 import { AddAccountDialog } from './AddAccountDialog';
 import { AddInvestmentDialog } from './AddInvestmentDialog';
 import { AddTransactionDialog } from './AddTransactionDialog';
+import { EditTransactionDialog } from './EditTransactionDialog';
 import { InvestmentCard } from './InvestmentCard';
 import { LoansSection } from './LoansSection';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -63,12 +64,14 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({});
   
-  // Collapsible states
-  const [bankOpen, setBankOpen] = useState(false);
-  const [cashBillsOpen, setCashBillsOpen] = useState(false);
-  const [cashCoinsOpen, setCashCoinsOpen] = useState(false);
-  const [stocksOpen, setStocksOpen] = useState(false);
-  const [cryptoOpen, setCryptoOpen] = useState(false);
+  // Section states
+  const [accountsOpen, setAccountsOpen] = useState(false);
+  const [investmentsOpen, setInvestmentsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  
+  // Edit transaction
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const fetchData = async () => {
     if (!user) return;
@@ -82,7 +85,7 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         .select('*')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
-        .limit(20),
+        .limit(50),
       supabase
         .from('balance_history')
         .select('*')
@@ -99,7 +102,6 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
     if (historyRes.data) setBalanceHistory(historyRes.data);
   };
 
-  // Save today's balance to history
   const saveBalanceHistory = async (accountsBalance: number, investmentsBalance: number) => {
     if (!user) return;
     const supabase = getSupabase();
@@ -115,15 +117,6 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
         accounts_balance: accountsBalance,
         investments_balance: investmentsBalance,
       }, { onConflict: 'user_id,date' });
-
-    // Refresh history
-    const { data } = await supabase
-      .from('balance_history')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: true });
-    
-    if (data) setBalanceHistory(data);
   };
 
   const fetchPrices = async (invs: Investment[]) => {
@@ -229,6 +222,20 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
     if (!confirm('Transaktion wirklich löschen?')) return;
     
     const supabaseClient = getSupabase();
+    const tx = transactions.find(t => t.id === id);
+    
+    if (tx) {
+      // Reverse the balance change
+      const account = accounts.find(a => a.id === tx.account_id);
+      if (account) {
+        const balanceChange = tx.transaction_type === 'income' ? -tx.amount : tx.amount;
+        await supabaseClient
+          .from('accounts')
+          .update({ balance: account.balance + balanceChange })
+          .eq('id', account.id);
+      }
+    }
+    
     const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
     
     if (error) {
@@ -245,15 +252,12 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
 
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
   const totalInvestments = investments.reduce((sum, inv) => {
-    // If we have a current price, calculate current value (quantity * current price)
-    // Otherwise use the purchase_price as total value (it's already the total, not per-unit)
     if (prices[inv.id]) {
       return sum + inv.quantity * prices[inv.id];
     }
     return sum + inv.purchase_price;
   }, 0);
 
-  // Save balance when totals change
   useEffect(() => {
     if (accounts.length > 0 || investments.length > 0) {
       saveBalanceHistory(totalBalance, totalInvestments);
@@ -268,21 +272,18 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
     (i) => i.investment_type === 'etf' || i.investment_type === 'stock'
   );
 
-  // Prepare chart data
   const last90Days = balanceHistory.slice(-90);
-  const allTimeData = balanceHistory;
-
   const formatCurrency = (value: number) => 
     value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-card/95 backdrop-blur border border-border rounded-lg p-3 shadow-xl">
-          <p className="text-xs text-muted-foreground mb-1">
-            {format(new Date(label), 'dd. MMM yyyy', { locale: de })}
+        <div className="bg-card/95 backdrop-blur border border-border rounded-lg p-2 shadow-xl">
+          <p className="text-[10px] text-muted-foreground">
+            {format(new Date(label), 'dd. MMM', { locale: de })}
           </p>
-          <p className="text-sm font-bold text-primary">
+          <p className="text-xs font-bold text-primary">
             {formatCurrency(payload[0].value)}
           </p>
         </div>
@@ -291,426 +292,238 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
     return null;
   };
 
-  const CollapsibleSection = ({ 
-    title, 
-    icon: Icon, 
-    color,
-    open, 
-    onOpenChange, 
-    total,
-    children,
-    count
-  }: { 
-    title: string; 
-    icon: any; 
-    color: string;
-    open: boolean; 
-    onOpenChange: (open: boolean) => void;
-    total: number;
-    children: React.ReactNode;
-    count: number;
-  }) => (
-    <Collapsible open={open} onOpenChange={onOpenChange}>
-      <CollapsibleTrigger asChild>
-        <div className={`group relative overflow-hidden rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 p-2.5 sm:p-3 cursor-pointer hover:border-primary/30 transition-all`}>
-          <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-5`} />
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-br ${color}`}>
-                <Icon className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">{title}</h3>
-                <p className="text-[10px] text-muted-foreground">{count} Einträge</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm sm:text-base">{formatCurrency(total)}</span>
-              <ChevronDown className={cn(
-                "w-4 h-4 text-muted-foreground transition-transform duration-200",
-                open && "rotate-180"
-              )} />
-            </div>
-          </div>
-        </div>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {children}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-
   return (
-    <div className="space-y-3 sm:space-y-4">
-      {/* Compact Mobile Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-3 sm:p-5">
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl" />
-        
-        <div className="relative z-10">
-          {/* Title Row */}
-          <div className="flex items-center gap-2 mb-3">
-            <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 shrink-0">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/5 border border-amber-500/20">
-              <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold truncate">Finanzen</h1>
-            </div>
-          </div>
-
-          {/* Main Total - Prominent */}
-          <div className="bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg p-3 border border-primary/20 mb-3">
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Gesamtvermögen</p>
-            <p className="text-xl sm:text-2xl font-bold text-primary">{formatCurrency(totalBalance + totalInvestments)}</p>
-          </div>
-
-          {/* Secondary Stats - Compact Row */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-secondary/30 rounded-lg p-2 sm:p-3 border border-border/50">
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Konten</p>
-              <p className="text-sm sm:text-lg font-bold">{formatCurrency(totalBalance)}</p>
-            </div>
-            <div className="bg-secondary/30 rounded-lg p-2 sm:p-3 border border-border/50">
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Investments</p>
-              <p className="text-sm sm:text-lg font-bold">{formatCurrency(totalInvestments)}</p>
-            </div>
-          </div>
-
-          {/* Action Buttons - Integrated */}
-          <div className="flex gap-1.5 mt-3 flex-wrap">
-            <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
-            <AddInvestmentDialog onInvestmentAdded={fetchData} />
-            <AddAccountDialog onAccountAdded={fetchData} />
-          </div>
+    <div className="space-y-2">
+      {/* Compact Header */}
+      <div className="flex items-center gap-2 mb-3">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 shrink-0">
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div className="flex-1">
+          <p className="text-xl font-bold">{formatCurrency(totalBalance + totalInvestments)}</p>
+          <p className="text-[10px] text-muted-foreground">Gesamtvermögen</p>
+        </div>
+        <div className="flex gap-1">
+          <AddTransactionDialog accounts={accounts} onTransactionAdded={fetchData} />
+          <AddInvestmentDialog onInvestmentAdded={fetchData} />
+          <AddAccountDialog onAccountAdded={fetchData} />
         </div>
       </div>
 
-      {/* Charts - Mobile Optimized */}
-      {balanceHistory.length > 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
-          {/* 90-Day Chart */}
-          <Card className="glass-card overflow-hidden">
-            <CardHeader className="p-2 sm:p-3 pb-1">
-              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5 text-primary" />
-                Letzte {Math.min(90, balanceHistory.length)} Tage
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 pb-2">
-              <div className="h-32 sm:h-40">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={last90Days} margin={{ top: 5, right: 10, left: 5, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradient90" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis 
-                      dataKey="date" 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => format(new Date(value), 'dd.MM', { locale: de })}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => `${(value/1000).toFixed(1)}k`}
-                      width={35}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area 
-                      type="monotone" 
-                      dataKey="total_balance" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      fill="url(#gradient90)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* All-Time Chart */}
-          <Card className="glass-card overflow-hidden">
-            <CardHeader className="p-2 sm:p-3 pb-1">
-              <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-accent" />
-                Gesamtverlauf ({allTimeData.length} Einträge)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 pb-2">
-              <div className="h-32 sm:h-40">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={allTimeData} margin={{ top: 5, right: 10, left: 5, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradientAll" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis 
-                      dataKey="date" 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => format(new Date(value), 'dd.MM', { locale: de })}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => `${(value/1000).toFixed(1)}k`}
-                      width={35}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area 
-                      type="monotone" 
-                      dataKey="total_balance" 
-                      stroke="hsl(var(--accent))" 
-                      strokeWidth={2}
-                      fill="url(#gradientAll)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Quick Stats Row */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-secondary/30 rounded-lg p-2 border border-border/50">
+          <p className="text-[10px] text-muted-foreground">Konten</p>
+          <p className="text-sm font-bold">{formatCurrency(totalBalance)}</p>
         </div>
+        <div className="bg-secondary/30 rounded-lg p-2 border border-border/50">
+          <p className="text-[10px] text-muted-foreground">Investments</p>
+          <p className="text-sm font-bold">{formatCurrency(totalInvestments)}</p>
+        </div>
+      </div>
+
+      {/* Chart - Compact */}
+      {balanceHistory.length > 1 && (
+        <Card className="overflow-hidden border-border/50">
+          <CardContent className="p-2">
+            <div className="h-24">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={last90Days} margin={{ top: 5, right: 5, left: 5, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradient90" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => format(new Date(value), 'dd.MM', { locale: de })}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis hide />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area 
+                    type="monotone" 
+                    dataKey="total_balance" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={1.5}
+                    fill="url(#gradient90)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Collapsible Account Sections */}
-      {bankAccounts.length > 0 && (
-        <CollapsibleSection
-          title="Bankkonten"
-          icon={Banknote}
-          color="from-blue-500 to-indigo-600"
-          open={bankOpen}
-          onOpenChange={setBankOpen}
-          total={bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0)}
-          count={bankAccounts.length}
-        >
-          {bankAccounts.map((acc) => (
-            <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
-          ))}
-        </CollapsibleSection>
-      )}
-
-      {/* Loans Section */}
-      <LoansSection onRefresh={fetchData} accounts={accounts} />
-
-      {cashBills.length > 0 && (
-        <CollapsibleSection
-          title="Bargeld (Scheine)"
-          icon={Banknote}
-          color="from-green-500 to-emerald-600"
-          open={cashBillsOpen}
-          onOpenChange={setCashBillsOpen}
-          total={cashBills.reduce((sum, a) => sum + (a.balance || 0), 0)}
-          count={cashBills.length}
-        >
-          {cashBills.map((acc) => (
-            <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
-          ))}
-        </CollapsibleSection>
-      )}
-
-      {cashCoins.length > 0 && (
-        <CollapsibleSection
-          title="Bargeld (Münzen)"
-          icon={Coins}
-          color="from-yellow-500 to-amber-600"
-          open={cashCoinsOpen}
-          onOpenChange={setCashCoinsOpen}
-          total={cashCoins.reduce((sum, a) => sum + (a.balance || 0), 0)}
-          count={cashCoins.length}
-        >
-          {cashCoins.map((acc) => (
-            <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
-          ))}
-        </CollapsibleSection>
-      )}
-
-      {/* Stocks & ETFs */}
-      <Collapsible open={stocksOpen} onOpenChange={setStocksOpen}>
+      {/* Accounts Section */}
+      <Collapsible open={accountsOpen} onOpenChange={setAccountsOpen}>
         <CollapsibleTrigger asChild>
-          <div className="group relative overflow-hidden rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 p-2.5 sm:p-3 cursor-pointer hover:border-primary/30 transition-all">
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-purple-600 opacity-5" />
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
-                  <TrendingUp className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">Aktien & ETFs</h3>
-                  <p className="text-[10px] text-muted-foreground">{stockInvestments.length} Positionen</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm sm:text-base">
-                  {formatCurrency(stockInvestments.reduce((sum, inv) => {
-                    if (prices[inv.id]) {
-                      return sum + inv.quantity * prices[inv.id];
-                    }
-                    return sum + inv.purchase_price;
-                  }, 0))}
-                </span>
-                <ChevronDown className={cn(
-                  "w-4 h-4 text-muted-foreground transition-transform duration-200",
-                  stocksOpen && "rotate-180"
-                )} />
-              </div>
+          <div className="flex items-center justify-between p-2 bg-card/50 rounded-lg border border-border/50 cursor-pointer hover:bg-card/80 transition-colors">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-primary" />
+              <span className="font-medium text-sm">Konten</span>
+              <span className="text-xs text-muted-foreground">({accounts.length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm">{formatCurrency(totalBalance)}</span>
+              <ChevronDown className={cn("w-4 h-4 transition-transform", accountsOpen && "rotate-180")} />
             </div>
           </div>
         </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2 space-y-1.5">
-          {stockInvestments.length === 0 ? (
-            <Card className="glass-card">
-              <CardContent className="py-4 text-center">
-                <TrendingUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-muted-foreground text-xs">Keine Aktien oder ETFs</p>
-              </CardContent>
-            </Card>
-          ) : (
-            stockInvestments.map((inv) => (
-              <InvestmentCard
-                key={inv.id}
-                investment={inv}
-                currentPrice={prices[inv.id] || null}
-                loading={loadingPrices[inv.id] || false}
-                onDeleted={fetchData}
-                onRefresh={() => refreshPrice(inv)}
-              />
-            ))
+        <CollapsibleContent className="pt-2 space-y-2">
+          {/* Bank Accounts - 2 column grid */}
+          {bankAccounts.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {bankAccounts.map((acc) => (
+                <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
+              ))}
+            </div>
+          )}
+          
+          {/* Cash - 2 column grid */}
+          {(cashBills.length > 0 || cashCoins.length > 0) && (
+            <div className="grid grid-cols-2 gap-2">
+              {cashBills.map((acc) => (
+                <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
+              ))}
+              {cashCoins.map((acc) => (
+                <AccountCard key={acc.id} account={acc} onUpdated={fetchData} />
+              ))}
+            </div>
+          )}
+          
+          <LoansSection onRefresh={fetchData} accounts={accounts} />
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Investments Section */}
+      <Collapsible open={investmentsOpen} onOpenChange={setInvestmentsOpen}>
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between p-2 bg-card/50 rounded-lg border border-border/50 cursor-pointer hover:bg-card/80 transition-colors">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-accent" />
+              <span className="font-medium text-sm">Investments</span>
+              <span className="text-xs text-muted-foreground">({investments.length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm">{formatCurrency(totalInvestments)}</span>
+              <ChevronDown className={cn("w-4 h-4 transition-transform", investmentsOpen && "rotate-180")} />
+            </div>
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-2 space-y-2">
+          {/* Stocks & ETFs */}
+          {stockInvestments.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground px-1">Aktien & ETFs</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {stockInvestments.map((inv) => (
+                  <InvestmentCard
+                    key={inv.id}
+                    investment={inv}
+                    currentPrice={prices[inv.id] || null}
+                    loading={loadingPrices[inv.id] || false}
+                    onDeleted={fetchData}
+                    onRefresh={() => refreshPrice(inv)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Crypto */}
+          {cryptoInvestments.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs text-muted-foreground">Kryptowährungen</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fetchPrices(cryptoInvestments)}
+                  className="h-6 px-2 text-xs"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Aktualisieren
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {cryptoInvestments.map((inv) => (
+                  <InvestmentCard
+                    key={inv.id}
+                    investment={inv}
+                    currentPrice={prices[inv.id] || null}
+                    loading={loadingPrices[inv.id] || false}
+                    onDeleted={fetchData}
+                    onRefresh={() => refreshPrice(inv)}
+                  />
+                ))}
+              </div>
+            </div>
           )}
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Crypto */}
-      <Collapsible open={cryptoOpen} onOpenChange={setCryptoOpen}>
+      {/* Transaction History Section */}
+      <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
         <CollapsibleTrigger asChild>
-          <div className="group relative overflow-hidden rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 p-2.5 sm:p-3 cursor-pointer hover:border-primary/30 transition-all">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-600 opacity-5" />
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600">
-                  <Bitcoin className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">Kryptowährungen</h3>
-                  <p className="text-[10px] text-muted-foreground">{cryptoInvestments.length} Positionen</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm sm:text-base">
-                  {formatCurrency(cryptoInvestments.reduce((sum, inv) => {
-                    if (prices[inv.id]) {
-                      return sum + inv.quantity * prices[inv.id];
-                    }
-                    return sum + inv.purchase_price;
-                  }, 0))}
-                </span>
-                <ChevronDown className={cn(
-                  "w-4 h-4 text-muted-foreground transition-transform duration-200",
-                  cryptoOpen && "rotate-180"
-                )} />
-              </div>
+          <div className="flex items-center justify-between p-2 bg-card/50 rounded-lg border border-border/50 cursor-pointer hover:bg-card/80 transition-colors">
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium text-sm">Verlauf</span>
+              <span className="text-xs text-muted-foreground">({transactions.length})</span>
             </div>
+            <ChevronDown className={cn("w-4 h-4 transition-transform", historyOpen && "rotate-180")} />
           </div>
         </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2 space-y-1.5">
-          <div className="flex justify-end mb-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchPrices(cryptoInvestments)}
-              className="gap-1.5 text-xs h-7 px-2"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Kurse aktualisieren
-            </Button>
-          </div>
-          {cryptoInvestments.length === 0 ? (
-            <Card className="glass-card">
-              <CardContent className="py-4 text-center">
-                <Bitcoin className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-muted-foreground text-xs">Keine Kryptowährungen</p>
-              </CardContent>
-            </Card>
-          ) : (
-            cryptoInvestments.map((inv) => (
-              <InvestmentCard
-                key={inv.id}
-                investment={inv}
-                currentPrice={prices[inv.id] || null}
-                loading={loadingPrices[inv.id] || false}
-                onDeleted={fetchData}
-                onRefresh={() => refreshPrice(inv)}
-              />
-            ))
-          )}
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Recent Transactions - Compact */}
-      <Card className="glass-card overflow-hidden">
-        <CardHeader className="p-2 sm:p-3 pb-1">
-          <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-1.5">
-            <ArrowUpDown className="w-3.5 h-3.5" />
-            Letzte Transaktionen
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
+        <CollapsibleContent className="pt-2">
           {transactions.length === 0 ? (
-            <div className="py-6 text-center">
-              <ArrowUpDown className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-muted-foreground text-xs">Keine Transaktionen</p>
+            <div className="py-4 text-center text-muted-foreground text-xs">
+              Keine Transaktionen
             </div>
           ) : (
-            <div className="divide-y divide-border/50">
+            <div className="divide-y divide-border/30 rounded-lg border border-border/50 overflow-hidden">
               {transactions.map((tx) => {
                 const account = accounts.find((a) => a.id === tx.account_id);
                 const isIncome = tx.transaction_type === 'income';
                 return (
-                  <div key={tx.id} className="flex items-center justify-between gap-2 p-2 sm:p-3 group hover:bg-secondary/20 transition-colors">
+                  <div 
+                    key={tx.id} 
+                    className="flex items-center gap-2 p-2 bg-card/30 hover:bg-card/50 transition-colors group"
+                  >
+                    <div className={cn(
+                      "w-1 h-8 rounded-full shrink-0",
+                      isIncome ? "bg-emerald-500" : "bg-rose-400"
+                    )} />
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-xs sm:text-sm truncate">
+                      <div className="font-medium text-xs truncate">
                         {tx.description || tx.category || 'Transaktion'}
                       </div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                      <div className="text-[10px] text-muted-foreground">
                         {account?.name} • {format(new Date(tx.date), 'dd.MM.yy', { locale: de })}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <div
-                        className={cn(
-                          'font-semibold text-xs sm:text-sm',
-                          isIncome ? 'text-success' : 'text-destructive'
-                        )}
-                      >
-                        {isIncome ? '+' : '-'}
-                        {tx.amount.toLocaleString('de-DE', {
-                          style: 'currency',
-                          currency: 'EUR',
-                        })}
-                      </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={cn(
+                        "font-semibold text-xs",
+                        isIncome ? "text-emerald-500" : "text-rose-400"
+                      )}>
+                        {isIncome ? '+' : '-'}{tx.amount.toLocaleString('de-DE', { minimumFractionDigits: 2 })}€
+                      </span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
-                        onClick={() => deleteTransaction(tx.id)}
+                        className="h-6 w-6 opacity-50 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingTransaction(tx);
+                          setEditDialogOpen(true);
+                        }}
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Edit2 className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
@@ -718,8 +531,17 @@ export function FinanceSection({ onBack }: FinanceSectionProps) {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Edit Transaction Dialog */}
+      <EditTransactionDialog
+        transaction={editingTransaction}
+        accounts={accounts}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onTransactionUpdated={fetchData}
+      />
     </div>
   );
 }

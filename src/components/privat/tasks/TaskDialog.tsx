@@ -3,10 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Clock, Repeat, ChevronDown } from 'lucide-react';
+import { CalendarIcon, Repeat, ChevronDown, FileText } from 'lucide-react';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfDay, addDays } from 'date-fns';
@@ -35,12 +35,14 @@ export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogPr
   const { user } = useAuth();
   const { toast } = useToast();
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [priority, setPriority] = useState('medium');
   const [recurrence, setRecurrence] = useState<string>('none');
   const [loading, setLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [showDescription, setShowDescription] = useState(false);
 
   const isEditMode = !!task;
 
@@ -48,9 +50,11 @@ export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogPr
     if (open) {
       if (task) {
         setTitle(task.title);
+        setDescription(task.description || '');
         setPriority(task.priority);
         setRecurrence(task.recurrence_type || 'none');
         setShowMore(!!task.recurrence_type);
+        setShowDescription(!!task.description);
         
         if (task.due_date) {
           setSelectedDate(startOfDay(new Date(task.due_date)));
@@ -59,10 +63,12 @@ export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogPr
         }
       } else {
         setTitle('');
+        setDescription('');
         setSelectedDate(undefined);
         setPriority('medium');
         setRecurrence('none');
         setShowMore(false);
+        setShowDescription(false);
       }
     }
   }, [open, task]);
@@ -92,6 +98,7 @@ export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogPr
 
     const taskData = {
       title: title.trim(),
+      description: description.trim() || null,
       due_date: dueDate,
       priority,
       recurrence_type: recurrence === 'none' ? null : recurrence,
@@ -115,7 +122,6 @@ export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogPr
       const { error } = await supabase.from('tasks').insert({
         user_id: user.id,
         ...taskData,
-        description: null,
         completed: false,
       });
 
@@ -244,7 +250,34 @@ export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogPr
             </div>
           </div>
 
-          {/* More Options Toggle */}
+          {/* Description Toggle */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDescription(!showDescription)}
+            className="w-full justify-between text-xs text-muted-foreground h-8"
+          >
+            <span className="flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5" />
+              Beschreibung
+              {description && <span className="text-primary">•</span>}
+            </span>
+            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showDescription && "rotate-180")} />
+          </Button>
+
+          {showDescription && (
+            <div className="animate-in slide-in-from-top-2">
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Zusätzliche Details..."
+                className="text-sm min-h-[60px] resize-none"
+              />
+            </div>
+          )}
+
+          {/* Recurrence Toggle */}
           <Button
             type="button"
             variant="ghost"
@@ -255,6 +288,7 @@ export function TaskDialog({ open, onOpenChange, onSuccess, task }: TaskDialogPr
             <span className="flex items-center gap-2">
               <Repeat className="w-3.5 h-3.5" />
               Wiederholung
+              {recurrence !== 'none' && <span className="text-primary">•</span>}
             </span>
             <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showMore && "rotate-180")} />
           </Button>
