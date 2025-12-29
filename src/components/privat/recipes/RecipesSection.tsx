@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Plus, ChefHat, Soup, UtensilsCrossed, Cake, Wine, Coffee, Clock, Users, TrendingUp, BookOpen, Star, Filter, Cookie, Salad } from 'lucide-react';
+import { ArrowLeft, Plus, ChefHat, Soup, UtensilsCrossed, Cake, Coffee, Clock, Users, TrendingUp, Star, Cookie, Salad, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { AddRecipeDialog } from './AddRecipeDialog';
 import { RecipeDetailView } from './RecipeDetailView';
@@ -28,12 +27,12 @@ interface RecipesSectionProps {
 type SortOption = 'newest' | 'taste' | 'health';
 
 const categoryConfig: Record<string, { label: string; icon: typeof Soup; color: string }> = {
-  vorspeise: { label: 'Vorspeisen', icon: Soup, color: 'from-cyan-500 to-teal-600' },
-  hauptspeise: { label: 'Hauptgerichte', icon: UtensilsCrossed, color: 'from-orange-500 to-red-600' },
-  nachspeise: { label: 'Nachspeisen', icon: Cake, color: 'from-pink-500 to-rose-600' },
-  getraenk: { label: 'Getränke', icon: Coffee, color: 'from-amber-500 to-yellow-600' },
-  suesswaren: { label: 'Süßwaren', icon: Cookie, color: 'from-purple-500 to-pink-600' },
-  beilagen: { label: 'Beilagen', icon: Salad, color: 'from-green-500 to-emerald-600' },
+  vorspeise: { label: 'Vorspeisen', icon: Soup, color: 'bg-cyan-500' },
+  hauptspeise: { label: 'Hauptgerichte', icon: UtensilsCrossed, color: 'bg-orange-500' },
+  nachspeise: { label: 'Nachspeisen', icon: Cake, color: 'bg-pink-500' },
+  getraenk: { label: 'Getränke', icon: Coffee, color: 'bg-amber-500' },
+  suesswaren: { label: 'Süßwaren', icon: Cookie, color: 'bg-purple-500' },
+  beilagen: { label: 'Beilagen', icon: Salad, color: 'bg-green-500' },
 };
 
 const categoryOrder = ['hauptspeise', 'vorspeise', 'nachspeise', 'getraenk', 'suesswaren', 'beilagen'];
@@ -88,13 +87,6 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
     return grouped;
   }, [recipes]);
 
-  const stats = useMemo(() => {
-    const totalTime = recipes.reduce((sum, r) => sum + (r.prep_time_minutes || 0) + (r.cook_time_minutes || 0), 0);
-    const avgTaste = recipes.filter(r => r.taste_rating).reduce((sum, r) => sum + (r.taste_rating || 0), 0) / (recipes.filter(r => r.taste_rating).length || 1);
-    const avgHealth = recipes.filter(r => r.health_rating).reduce((sum, r) => sum + (r.health_rating || 0), 0) / (recipes.filter(r => r.health_rating).length || 1);
-    return { totalTime, avgTaste, avgHealth };
-  }, [recipes]);
-
   const getCategoryIcon = (category: string | null) => {
     if (!category || !categoryConfig[category]) return ChefHat;
     return categoryConfig[category].icon;
@@ -113,236 +105,129 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Header - Compact */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7">
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg shadow-orange-500/25">
-              <ChefHat className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg border-2 border-red-500 text-red-500">
+              <ChefHat className="w-4 h-4" strokeWidth={1.5} />
             </div>
-            <div>
-              <h2 className="text-xl font-bold">Rezepte</h2>
-              <p className="text-sm text-muted-foreground">Dein digitales Kochbuch</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold">Rezepte</h2>
+              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {recipes.length}
+              </span>
             </div>
           </div>
         </div>
         <AddRecipeDialog open={dialogOpen} onOpenChange={setDialogOpen} onSuccess={fetchRecipes} />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/80">
-          <div className="absolute -top-8 -right-8 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl" />
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/20">
-                <BookOpen className="w-4 h-4 text-orange-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Rezepte</p>
-                <p className="text-xl font-bold">{recipes.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Filters Row - Compact */}
+      <div className="flex gap-2">
+        {/* Category Dropdown */}
+        <Select value={activeCategory} onValueChange={setActiveCategory}>
+          <SelectTrigger className="h-8 text-xs flex-1">
+            <SelectValue placeholder="Kategorie" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle Kategorien</SelectItem>
+            {categoryOrder.map(catKey => {
+              const config = categoryConfig[catKey];
+              const count = recipesByCategory[catKey]?.length || 0;
+              return (
+                <SelectItem key={catKey} value={catKey}>
+                  {config.label} ({count})
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
 
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/80">
-          <div className="absolute -top-8 -right-8 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/20">
-                <Star className="w-4 h-4 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Geschmack</p>
-                <p className="text-xl font-bold">{stats.avgTaste.toFixed(1)}/5</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/80">
-          <div className="absolute -top-8 -right-8 w-24 h-24 bg-green-500/10 rounded-full blur-2xl" />
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/20">
-                <TrendingUp className="w-4 h-4 text-green-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Gesundheit</p>
-                <p className="text-xl font-bold">{stats.avgHealth.toFixed(1)}/5</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/80">
-          <div className="absolute -top-8 -right-8 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/20">
-                <Clock className="w-4 h-4 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Gesamtzeit</p>
-                <p className="text-xl font-bold">{Math.round(stats.totalTime / 60)}h</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Category Overview Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {categoryOrder.map(catKey => {
-          const config = categoryConfig[catKey];
-          const Icon = config.icon;
-          const count = recipesByCategory[catKey]?.length || 0;
-          const isActive = activeCategory === catKey;
-          
-          return (
-            <Card 
-              key={catKey}
-              onClick={() => setActiveCategory(isActive ? 'all' : catKey)}
-              className={`cursor-pointer transition-all duration-300 border-border/50 ${
-                isActive 
-                  ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' 
-                  : 'hover:border-primary/30'
-              }`}
-            >
-              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${config.color} shadow-lg`}>
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{config.label}</p>
-                  <p className="text-xs text-muted-foreground">{count} Rezepte</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Filter & Sort */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-2 mr-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Sortieren:</span>
-        </div>
-        <Badge
-          variant={sortBy === 'newest' ? 'default' : 'outline'}
-          className="cursor-pointer"
-          onClick={() => setSortBy('newest')}
-        >
-          Neueste
-        </Badge>
-        <Badge
-          variant={sortBy === 'taste' ? 'default' : 'outline'}
-          className="cursor-pointer"
-          onClick={() => setSortBy('taste')}
-        >
-          Leckerste
-        </Badge>
-        <Badge
-          variant={sortBy === 'health' ? 'default' : 'outline'}
-          className="cursor-pointer"
-          onClick={() => setSortBy('health')}
-        >
-          Gesundeste
-        </Badge>
-        {activeCategory !== 'all' && (
-          <Badge
-            variant="secondary"
-            className="cursor-pointer ml-auto"
-            onClick={() => setActiveCategory('all')}
-          >
-            Filter zurucksetzen
-          </Badge>
-        )}
+        {/* Sort Dropdown */}
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+          <SelectTrigger className="h-8 text-xs w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Neueste</SelectItem>
+            <SelectItem value="taste">Leckerste</SelectItem>
+            <SelectItem value="health">Gesündeste</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Recipes List */}
       {sortedRecipes.length === 0 ? (
-        <Card className="p-8 border-border/50 text-center bg-gradient-to-br from-card to-muted/20">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center">
-            <ChefHat className="w-8 h-8 text-orange-500" />
+        <Card className="p-6 border-border/50 text-center">
+          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-red-500/20 flex items-center justify-center">
+            <ChefHat className="w-6 h-6 text-red-500" />
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {activeCategory !== 'all' 
-              ? `Keine ${categoryConfig[activeCategory]?.label || 'Rezepte'} vorhanden`
-              : 'Noch keine Rezepte erstellt'
+              ? `Keine ${categoryConfig[activeCategory]?.label || 'Rezepte'}`
+              : 'Noch keine Rezepte'
             }
           </p>
-          <p className="text-sm text-muted-foreground mt-1">Erstelle dein erstes Rezept!</p>
           <Button 
-            className="mt-4 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700" 
+            size="sm"
+            className="mt-3" 
             onClick={() => setDialogOpen(true)}
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Erstes Rezept erstellen
+            <Plus className="w-3 h-3 mr-1" />
+            Rezept erstellen
           </Button>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-2">
           {sortedRecipes.map((recipe) => {
             const Icon = getCategoryIcon(recipe.category);
             const config = recipe.category ? categoryConfig[recipe.category] : null;
             const totalTime = (recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0);
             
             return (
-              <Card
+              <div
                 key={recipe.id}
-                className="overflow-hidden cursor-pointer hover:border-primary/50 transition-all duration-300 border-border/50 group"
+                className="flex items-center gap-3 p-2.5 rounded-lg border bg-card border-border/50 cursor-pointer hover:border-primary/30 transition-all"
                 onClick={() => setSelectedRecipe(recipe)}
               >
-                <div className={`h-2 bg-gradient-to-r ${config?.color || 'from-slate-500 to-zinc-600'}`} />
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="font-semibold group-hover:text-primary transition-colors">{recipe.name}</h3>
-                    <div className={`p-1.5 rounded-lg bg-gradient-to-br ${config?.color || 'from-slate-500 to-zinc-600'}`}>
-                      <Icon className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  </div>
-                  {recipe.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                      {recipe.description}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                {/* Category Color Bar */}
+                <div className={`w-1 h-12 rounded-full ${config?.color || 'bg-zinc-500'}`} />
+                
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{recipe.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
                     {recipe.servings && (
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3 h-3" /> {recipe.servings} Portionen
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Users className="w-2.5 h-2.5" /> {recipe.servings}
                       </span>
                     )}
                     {totalTime > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {totalTime} Min
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Clock className="w-2.5 h-2.5" /> {totalTime}m
+                      </span>
+                    )}
+                    {recipe.taste_rating && (
+                      <span className="text-[10px] text-amber-500 flex items-center gap-0.5">
+                        <Star className="w-2.5 h-2.5" /> {recipe.taste_rating}
+                      </span>
+                    )}
+                    {recipe.health_rating && (
+                      <span className="text-[10px] text-green-500 flex items-center gap-0.5">
+                        <TrendingUp className="w-2.5 h-2.5" /> {recipe.health_rating}
                       </span>
                     )}
                   </div>
-                  {(recipe.taste_rating || recipe.health_rating) && (
-                    <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/50">
-                      {recipe.taste_rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-amber-500" />
-                          <span className="text-xs font-medium">{recipe.taste_rating}/5</span>
-                        </div>
-                      )}
-                      {recipe.health_rating && (
-                        <div className="flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3 text-green-500" />
-                          <span className="text-xs font-medium">{recipe.health_rating}/5</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+
+                <div className={`p-1.5 rounded-lg ${config?.color || 'bg-zinc-500'}`}>
+                  <Icon className="w-3.5 h-3.5 text-white" />
+                </div>
+              </div>
             );
           })}
         </div>
@@ -350,10 +235,10 @@ export function RecipesSection({ onBack }: RecipesSectionProps) {
 
       {/* Mobile FAB */}
       <Button 
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-2xl sm:hidden bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700" 
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full shadow-xl sm:hidden" 
         onClick={() => setDialogOpen(true)}
       >
-        <Plus className="w-6 h-6" />
+        <Plus className="w-5 h-5" />
       </Button>
     </div>
   );
