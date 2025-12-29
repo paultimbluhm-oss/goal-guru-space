@@ -10,7 +10,6 @@ import {
   Menu,
   X,
   Settings,
-  CalendarDays,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,7 +23,6 @@ import {
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/kalender', icon: CalendarDays, label: 'Kalender' },
   { to: '/schule', icon: GraduationCap, label: 'Schule' },
   { to: '/privat', icon: User, label: 'Privat' },
   { to: '/business', icon: Briefcase, label: 'Business' },
