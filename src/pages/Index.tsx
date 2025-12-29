@@ -4,13 +4,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useStats } from '@/hooks/useStats';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { CompactLevelCard } from '@/components/dashboard/CompactLevelCard';
-import { TodayProgressCard } from '@/components/dashboard/TodayProgressCard';
+import { LevelRingWidget } from '@/components/dashboard/LevelRingWidget';
+import { ProgressRingWidget } from '@/components/dashboard/ProgressRingWidget';
+import { TodayDetailsCard } from '@/components/dashboard/TodayDetailsCard';
 import { NextActionsCard } from '@/components/dashboard/NextActionsCard';
 import { HabitsOverview } from '@/components/dashboard/HabitsOverview';
 import { AchievementsCard, checkAndUnlockAchievements } from '@/components/dashboard/AchievementsCard';
 import { QuickStats } from '@/components/dashboard/QuickStats';
-import { TimeProgressCard } from '@/components/dashboard/TimeProgressCard';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -68,20 +68,18 @@ export default function Index() {
   return (
     <AppLayout>
       <div className="p-4 md:p-6 lg:p-8 space-y-4 max-w-7xl mx-auto">
-        {/* Top Row: Level + Time Progress */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <CompactLevelCard
-              xp={profile?.xp || 0}
-              level={profile?.level || 1}
-              streakDays={profile?.streak_days || 0}
-            />
-          </div>
-          <TimeProgressCard />
+        {/* Top Row: Two Ring Widgets */}
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          <LevelRingWidget
+            xp={profile?.xp || 0}
+            level={profile?.level || 1}
+            streakDays={profile?.streak_days || 0}
+          />
+          <ProgressRingWidget />
         </div>
 
-        {/* Today's Progress */}
-        <TodayProgressCard />
+        {/* Details Row: Time + Tasks + Homework + Habits */}
+        <TodayDetailsCard />
 
         {/* Main Content: Actions + Habits */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
