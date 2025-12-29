@@ -44,7 +44,7 @@ export function LoansSection({ onRefresh, accounts: propAccounts }: LoansSection
   const { user } = useAuth();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [accounts, setAccounts] = useState<Account[]>(propAccounts || []);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [returnAccountId, setReturnAccountId] = useState<string>('');
@@ -99,22 +99,7 @@ export function LoansSection({ onRefresh, accounts: propAccounts }: LoansSection
     const supabase = getSupabase();
     const today = new Date().toISOString().split('T')[0];
 
-    // Update the loan
-    const { error } = await supabase
-      .from('loans')
-      .update({ 
-        is_returned: true, 
-        returned_date: today,
-        return_account_id: returnAccountId || null,
-      })
-      .eq('id', selectedLoan.id);
-    
-    if (error) {
-      toast.error('Fehler beim Aktualisieren');
-      return;
-    }
-
-    // If we have an account selected, update the balance
+    // If we have an account selected, update the balance first
     if (returnAccountId) {
       const account = accounts.find(a => a.id === returnAccountId);
       if (account) {
@@ -154,6 +139,17 @@ export function LoansSection({ onRefresh, accounts: propAccounts }: LoansSection
       }
     }
 
+    // Delete the loan instead of marking as returned
+    const { error } = await supabase
+      .from('loans')
+      .delete()
+      .eq('id', selectedLoan.id);
+    
+    if (error) {
+      toast.error('Fehler beim Löschen');
+      return;
+    }
+
     toast.success(selectedLoan.loan_type === 'lent' ? 'Geld zurückerhalten!' : 'Geld zurückgezahlt!');
     setReturnDialogOpen(false);
     setSelectedLoan(null);
@@ -180,10 +176,24 @@ export function LoansSection({ onRefresh, accounts: propAccounts }: LoansSection
   const formatCurrency = (value: number) => 
     value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
+  // Only show loans that are not returned (returned ones are now deleted)
   const activeLoans = loans.filter(l => !l.is_returned);
   const lentTotal = activeLoans.filter(l => l.loan_type === 'lent').reduce((sum, l) => sum + l.amount, 0);
   const borrowedTotal = activeLoans.filter(l => l.loan_type === 'borrowed').reduce((sum, l) => sum + l.amount, 0);
   const netBalance = lentTotal - borrowedTotal;
+
+  // Don't render if there are no active loans
+  if (activeLoans.length === 0) {
+    return (
+      <div className="flex items-center justify-between p-2 bg-card/30 rounded-lg border border-border/30">
+        <div className="flex items-center gap-2">
+          <HandCoins className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Keine offenen Kredite</span>
+        </div>
+        <AddLoanDialog onLoanAdded={fetchLoans} accounts={accounts} />
+      </div>
+    );
+  }
 
   return (
     <>
