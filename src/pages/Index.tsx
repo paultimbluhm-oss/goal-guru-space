@@ -81,9 +81,8 @@ export default function Index() {
         {/* Details Row: Tasks + Homework + Habits breakdown */}
         <TodayDetailsCard />
 
-        {/* Quick Stats: Important numbers (open tasks, grades, wealth) */}
+        {/* Quick Stats: Grade average and wealth */}
         <QuickStats
-          tasksPending={stats.tasksPending}
           averageGrade={stats.averageGrade}
           totalBalance={stats.totalBalance}
           loadingPrices={stats.loadingPrices}

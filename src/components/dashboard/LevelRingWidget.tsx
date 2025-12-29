@@ -54,34 +54,39 @@ export function LevelRingWidget({ xp, level, streakDays }: LevelRingWidgetProps)
   return (
     <>
       <div 
-        className="glass-card p-4 cursor-pointer hover:bg-white/5 transition-all flex flex-col items-center justify-center"
+        className="flex items-center justify-center p-2 cursor-pointer"
         onClick={() => setDialogOpen(true)}
       >
-        {/* Level Ring */}
         <div className="relative">
-          <svg className="w-20 h-20 md:w-24 md:h-24 transform -rotate-90" viewBox="0 0 100 100">
+          {/* SVG Ring as the widget border */}
+          <svg 
+            className="w-24 h-24 md:w-28 md:h-28 transform -rotate-90" 
+            viewBox="0 0 96 96"
+          >
+            {/* Background circle with fill */}
             <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
+              cx="48"
+              cy="48"
+              r="45"
+              fill="hsl(var(--card))"
               stroke="hsl(var(--secondary))"
               strokeWidth="6"
-              className="opacity-40"
+              className="opacity-60"
             />
+            {/* Progress ring */}
             <motion.circle
-              cx="50"
-              cy="50"
-              r="42"
+              cx="48"
+              cy="48"
+              r="45"
               fill="none"
               stroke="url(#levelGradient)"
               strokeWidth="6"
               strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 42}
-              initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-              animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - percentage / 100) }}
+              strokeDasharray={2 * Math.PI * 45}
+              initial={{ strokeDashoffset: 2 * Math.PI * 45 }}
+              animate={{ strokeDashoffset: 2 * Math.PI * 45 * (1 - percentage / 100) }}
               transition={{ duration: 1, ease: 'easeOut' }}
-              className="drop-shadow-[0_0_8px_hsl(var(--xp)/0.5)]"
+              className="drop-shadow-[0_0_8px_hsl(280_80%_60%/0.5)]"
             />
             <defs>
               <linearGradient id="levelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -90,6 +95,7 @@ export function LevelRingWidget({ xp, level, streakDays }: LevelRingWidgetProps)
               </linearGradient>
             </defs>
           </svg>
+          {/* Content inside */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl md:text-3xl font-bold text-level font-mono">{level}</span>
           </div>
