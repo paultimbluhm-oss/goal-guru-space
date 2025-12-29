@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Calendar, Filter, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, Filter, CheckCircle2, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useGamification } from '@/contexts/GamificationContext';
@@ -10,6 +9,12 @@ import { HomeworkCard } from './HomeworkCard';
 import { TaskDialog } from './TaskDialog';
 import { format, isToday, isTomorrow, isPast, isThisWeek, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Task {
   id: string;
@@ -269,60 +274,107 @@ export function TaskSection({ onBack }: TaskSectionProps) {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="glass-card p-4 flex items-center gap-3">
-          <Clock className="w-5 h-5 text-primary" />
-          <div>
-            <p className="text-2xl font-bold">{todayCount}</p>
-            <p className="text-sm text-muted-foreground">Heute fällig</p>
+      {/* Stats - Compact on mobile */}
+      <div className="grid grid-cols-4 md:grid-cols-4 gap-2 md:gap-3">
+        <div className="glass-card p-2 md:p-4 flex flex-col md:flex-row items-center gap-1 md:gap-3">
+          <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+          <div className="text-center md:text-left">
+            <p className="text-lg md:text-2xl font-bold">{todayCount}</p>
+            <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">Heute fällig</p>
           </div>
         </div>
-        <div className="glass-card p-4 flex items-center gap-3">
-          <AlertTriangle className={`w-5 h-5 ${overdueCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
-          <div>
-            <p className="text-2xl font-bold">{overdueCount}</p>
-            <p className="text-sm text-muted-foreground">Überfällig</p>
+        <div className="glass-card p-2 md:p-4 flex flex-col md:flex-row items-center gap-1 md:gap-3">
+          <AlertTriangle className={`w-4 h-4 md:w-5 md:h-5 ${overdueCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+          <div className="text-center md:text-left">
+            <p className="text-lg md:text-2xl font-bold">{overdueCount}</p>
+            <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">Überfällig</p>
           </div>
         </div>
-        <div className="glass-card p-4 flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-green-500" />
-          <div>
-            <p className="text-2xl font-bold">{allItems.filter(i => i.completed).length}</p>
-            <p className="text-sm text-muted-foreground">Erledigt</p>
+        <div className="glass-card p-2 md:p-4 flex flex-col md:flex-row items-center gap-1 md:gap-3">
+          <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
+          <div className="text-center md:text-left">
+            <p className="text-lg md:text-2xl font-bold">{allItems.filter(i => i.completed).length}</p>
+            <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">Erledigt</p>
           </div>
         </div>
-        <div className="glass-card p-4 flex items-center gap-3">
-          <Calendar className="w-5 h-5 text-blue-500" />
-          <div>
-            <p className="text-2xl font-bold">{homework.filter(h => !h.completed).length}</p>
-            <p className="text-sm text-muted-foreground">Hausaufgaben</p>
+        <div className="glass-card p-2 md:p-4 flex flex-col md:flex-row items-center gap-1 md:gap-3">
+          <Calendar className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
+          <div className="text-center md:text-left">
+            <p className="text-lg md:text-2xl font-bold">{homework.filter(h => !h.completed).length}</p>
+            <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">Hausaufgaben</p>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-          <TabsList className="flex-wrap h-auto">
-            <TabsTrigger value="all">Alle</TabsTrigger>
-            <TabsTrigger value="today">Heute</TabsTrigger>
-            <TabsTrigger value="week">Diese Woche</TabsTrigger>
-            <TabsTrigger value="overdue" className={overdueCount > 0 ? 'text-destructive' : ''}>
-              Überfällig {overdueCount > 0 && `(${overdueCount})`}
-            </TabsTrigger>
-            <TabsTrigger value="homework">Hausaufgaben</TabsTrigger>
-            <TabsTrigger value="tasks">Nur Aufgaben</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Button
-          variant={showCompleted ? 'secondary' : 'outline'}
-          size="sm"
-          onClick={() => setShowCompleted(!showCompleted)}
-        >
-          <Filter className="w-4 h-4 mr-2" />
-          {showCompleted ? 'Erledigte verstecken' : 'Erledigte zeigen'}
-        </Button>
+      {/* Filters - Dropdown on mobile, Tabs on desktop */}
+      <div className="flex items-center gap-2">
+        {/* Mobile Dropdown */}
+        <div className="flex md:hidden flex-1 gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex-1 justify-between">
+                <span>
+                  {activeTab === 'all' && 'Alle'}
+                  {activeTab === 'today' && 'Heute'}
+                  {activeTab === 'week' && 'Diese Woche'}
+                  {activeTab === 'overdue' && `Überfällig${overdueCount > 0 ? ` (${overdueCount})` : ''}`}
+                  {activeTab === 'homework' && 'Hausaufgaben'}
+                  {activeTab === 'tasks' && 'Nur Aufgaben'}
+                </span>
+                <ChevronDown className="w-4 h-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48 bg-popover border border-border shadow-lg z-50">
+              <DropdownMenuItem onClick={() => setActiveTab('all')}>Alle</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setActiveTab('today')}>Heute</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setActiveTab('week')}>Diese Woche</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setActiveTab('overdue')} className={overdueCount > 0 ? 'text-destructive' : ''}>
+                Überfällig {overdueCount > 0 && `(${overdueCount})`}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setActiveTab('homework')}>Hausaufgaben</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setActiveTab('tasks')}>Nur Aufgaben</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant={showCompleted ? 'secondary' : 'outline'}
+            size="icon"
+            onClick={() => setShowCompleted(!showCompleted)}
+          >
+            <Filter className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Desktop Tabs */}
+        <div className="hidden md:flex flex-1 flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1 bg-muted/50 p-1 rounded-lg">
+            {[
+              { value: 'all', label: 'Alle' },
+              { value: 'today', label: 'Heute' },
+              { value: 'week', label: 'Diese Woche' },
+              { value: 'overdue', label: `Überfällig${overdueCount > 0 ? ` (${overdueCount})` : ''}` },
+              { value: 'homework', label: 'Hausaufgaben' },
+              { value: 'tasks', label: 'Nur Aufgaben' },
+            ].map(tab => (
+              <Button
+                key={tab.value}
+                variant={activeTab === tab.value ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab(tab.value)}
+                className={tab.value === 'overdue' && overdueCount > 0 ? 'text-destructive' : ''}
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant={showCompleted ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setShowCompleted(!showCompleted)}
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            {showCompleted ? 'Erledigte verstecken' : 'Erledigte zeigen'}
+          </Button>
+        </div>
       </div>
 
       {/* Task List */}

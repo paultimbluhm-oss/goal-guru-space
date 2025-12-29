@@ -73,7 +73,10 @@ export function Sidebar() {
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
-        <span className="ml-3 text-lg font-semibold">{pageTitle}</span>
+        <NavLink to="/" className="flex items-center gap-2 ml-2">
+          <Warehouse className="w-5 h-5 text-primary" />
+        </NavLink>
+        <span className="ml-2 text-lg font-semibold">{pageTitle}</span>
       </div>
 
       {/* Mobile Overlay */}
