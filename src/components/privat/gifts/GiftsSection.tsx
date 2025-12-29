@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, Plus, Gift, User, ChevronDown, Trash2, ExternalLink, ShoppingCart, Check, Euro } from 'lucide-react';
+import { ArrowLeft, Plus, Gift, User, ChevronDown, Trash2, ExternalLink, Check, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 
 interface GiftRecipient {
   id: string;
@@ -53,12 +51,10 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [expandedRecipients, setExpandedRecipients] = useState<Set<string>>(new Set());
   
-  // Dialogs
   const [addRecipientOpen, setAddRecipientOpen] = useState(false);
   const [addIdeaOpen, setAddIdeaOpen] = useState(false);
   const [selectedRecipientForIdea, setSelectedRecipientForIdea] = useState<string | null>(null);
   
-  // Form states
   const [recipientName, setRecipientName] = useState('');
   const [recipientNotes, setRecipientNotes] = useState('');
   const [ideaTitle, setIdeaTitle] = useState('');
@@ -75,59 +71,52 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
   }, [user]);
 
   const fetchRecipients = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('gift_recipients')
       .select('*')
       .eq('user_id', user!.id)
       .order('name');
-    if (!error && data) setRecipients(data);
+    if (data) setRecipients(data);
   };
 
   const fetchIdeas = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('gift_ideas')
       .select('*')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false });
-    if (!error && data) setIdeas(data);
+    if (data) setIdeas(data);
   };
 
   const fetchAccounts = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('accounts')
       .select('id, name, balance')
       .eq('user_id', user!.id)
       .order('name');
-    if (!error && data) setAccounts(data);
+    if (data) setAccounts(data);
   };
 
   const toggleRecipient = (id: string) => {
     const newSet = new Set(expandedRecipients);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
     setExpandedRecipients(newSet);
   };
 
   const addRecipient = async () => {
     if (!recipientName.trim()) return;
-    
     const { error } = await supabase.from('gift_recipients').insert({
       user_id: user!.id,
       name: recipientName.trim(),
       notes: recipientNotes.trim() || null,
     });
-
     if (!error) {
       toast.success('Person hinzugefügt');
       setRecipientName('');
       setRecipientNotes('');
       setAddRecipientOpen(false);
       fetchRecipients();
-    } else {
-      toast.error('Fehler beim Hinzufügen');
     }
   };
 
@@ -142,7 +131,6 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
 
   const addIdea = async () => {
     if (!ideaTitle.trim() || !selectedRecipientForIdea) return;
-    
     const { error } = await supabase.from('gift_ideas').insert({
       user_id: user!.id,
       recipient_id: selectedRecipientForIdea,
@@ -151,14 +139,11 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
       price: ideaPrice ? parseFloat(ideaPrice) : null,
       url: ideaUrl.trim() || null,
     });
-
     if (!error) {
       toast.success('Geschenkidee hinzugefügt');
       resetIdeaForm();
       setAddIdeaOpen(false);
       fetchIdeas();
-    } else {
-      toast.error('Fehler beim Hinzufügen');
     }
   };
 
@@ -171,10 +156,7 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
   };
 
   const togglePurchased = async (idea: GiftIdea, accountId?: string) => {
-    if (!idea.purchased && !accountId && accounts.length > 0) {
-      // Show account selection if not purchased yet and has accounts
-      return false;
-    }
+    if (!idea.purchased && !accountId && accounts.length > 0) return false;
 
     const updates: any = {
       purchased: !idea.purchased,
@@ -183,8 +165,6 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
 
     if (accountId && !idea.purchased && idea.price) {
       updates.account_id = accountId;
-      
-      // Create transaction for the purchase
       await supabase.from('transactions').insert({
         user_id: user!.id,
         account_id: accountId,
@@ -194,8 +174,6 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
         description: `Geschenk: ${idea.title}`,
         date: format(new Date(), 'yyyy-MM-dd'),
       });
-
-      // Update account balance
       const account = accounts.find(a => a.id === accountId);
       if (account) {
         await supabase.from('accounts').update({
@@ -204,11 +182,7 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
       }
     }
 
-    const { error } = await supabase
-      .from('gift_ideas')
-      .update(updates)
-      .eq('id', idea.id);
-
+    const { error } = await supabase.from('gift_ideas').update(updates).eq('id', idea.id);
     if (!error) {
       toast.success(idea.purchased ? 'Als nicht gekauft markiert' : 'Als gekauft markiert');
       fetchIdeas();
@@ -225,22 +199,14 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
     setSelectedRecipientForIdea(null);
   };
 
-  const openAddIdea = (recipientId: string) => {
-    setSelectedRecipientForIdea(recipientId);
-    setAddIdeaOpen(true);
-  };
+  const getIdeasForRecipient = (recipientId: string) => ideas.filter(i => i.recipient_id === recipientId);
 
-  const getIdeasForRecipient = (recipientId: string) => {
-    return ideas.filter(i => i.recipient_id === recipientId);
-  };
-
-  const totalBudget = ideas.filter(i => !i.purchased && i.price).reduce((sum, i) => sum + (i.price || 0), 0);
-  const totalSpent = ideas.filter(i => i.purchased && i.price).reduce((sum, i) => sum + (i.price || 0), 0);
   const openIdeas = ideas.filter(i => !i.purchased).length;
+  const totalBudget = ideas.filter(i => !i.purchased && i.price).reduce((sum, i) => sum + (i.price || 0), 0);
 
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Compact Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-8 w-8">
@@ -250,18 +216,18 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
             <div className="p-2 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 shadow-lg shrink-0">
               <Gift className="w-4 h-4 text-white" />
             </div>
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold truncate">Geschenke</h2>
-              <p className="text-xs text-muted-foreground hidden sm:block">Ideen & Einkäufe verwalten</p>
-            </div>
+            <h2 className="text-lg font-bold truncate">Geschenke</h2>
+            {openIdeas > 0 && (
+              <Badge variant="secondary" className="text-xs">{openIdeas} offen</Badge>
+            )}
           </div>
         </div>
         <div className="flex gap-1.5 shrink-0">
           <Dialog open={addRecipientOpen} onOpenChange={setAddRecipientOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1 h-7 px-2 text-xs">
-                <User className="w-3 h-3" />
-                <span className="hidden sm:inline">Person</span>
+              <Button size="sm" variant="outline" className="hidden sm:flex gap-1 h-8 px-2 text-xs">
+                <User className="w-3.5 h-3.5" />
+                Person
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-sm">
@@ -271,158 +237,78 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
               <div className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label>Name</Label>
-                  <Input 
-                    value={recipientName} 
-                    onChange={(e) => setRecipientName(e.target.value)} 
-                    placeholder="z.B. Mama, Papa, Lisa..."
-                  />
+                  <Input value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="z.B. Mama" />
                 </div>
                 <div className="space-y-2">
                   <Label>Notizen (optional)</Label>
-                  <Input 
-                    value={recipientNotes} 
-                    onChange={(e) => setRecipientNotes(e.target.value)} 
-                    placeholder="z.B. Geburtstag, Interessen..."
-                  />
+                  <Input value={recipientNotes} onChange={(e) => setRecipientNotes(e.target.value)} placeholder="z.B. Interessen" />
                 </div>
                 <Button onClick={addRecipient} className="w-full">Hinzufügen</Button>
               </div>
             </DialogContent>
           </Dialog>
           
-          <Dialog open={addIdeaOpen} onOpenChange={(open) => {
-            setAddIdeaOpen(open);
-            if (!open) resetIdeaForm();
-          }}>
+          <Dialog open={addIdeaOpen} onOpenChange={(open) => { setAddIdeaOpen(open); if (!open) resetIdeaForm(); }}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1 h-7 px-2 text-xs bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700">
-                <Plus className="w-3 h-3" />
-                <span className="hidden sm:inline">Idee</span>
+              <Button size="sm" className="hidden sm:flex gap-1 h-8 px-2 text-xs">
+                <Plus className="w-3.5 h-3.5" />
+                Idee
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-sm">
               <DialogHeader>
-                <DialogTitle>Geschenkidee hinzufügen</DialogTitle>
+                <DialogTitle>Geschenkidee</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label>Für wen?</Label>
                   <Select value={selectedRecipientForIdea || ''} onValueChange={setSelectedRecipientForIdea}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Person wählen" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Person wählen" /></SelectTrigger>
                     <SelectContent>
-                      {recipients.map(r => (
-                        <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                      ))}
+                      {recipients.map(r => (<SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Geschenk</Label>
-                  <Input 
-                    value={ideaTitle} 
-                    onChange={(e) => setIdeaTitle(e.target.value)} 
-                    placeholder="z.B. Buch, Parfum..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Beschreibung (optional)</Label>
-                  <Input 
-                    value={ideaDescription} 
-                    onChange={(e) => setIdeaDescription(e.target.value)} 
-                    placeholder="z.B. Größe, Farbe..."
-                  />
+                  <Input value={ideaTitle} onChange={(e) => setIdeaTitle(e.target.value)} placeholder="z.B. Buch" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Preis (€)</Label>
-                    <Input 
-                      type="number"
-                      step="0.01"
-                      value={ideaPrice} 
-                      onChange={(e) => setIdeaPrice(e.target.value)} 
-                      placeholder="0.00"
-                    />
+                    <Input type="number" step="0.01" value={ideaPrice} onChange={(e) => setIdeaPrice(e.target.value)} placeholder="0" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Link (optional)</Label>
-                    <Input 
-                      value={ideaUrl} 
-                      onChange={(e) => setIdeaUrl(e.target.value)} 
-                      placeholder="https://..."
-                    />
+                    <Label>Link</Label>
+                    <Input value={ideaUrl} onChange={(e) => setIdeaUrl(e.target.value)} placeholder="https://" />
                   </div>
                 </div>
-                <Button onClick={addIdea} className="w-full" disabled={!selectedRecipientForIdea || !ideaTitle.trim()}>
-                  Hinzufügen
-                </Button>
+                <Button onClick={addIdea} className="w-full" disabled={!selectedRecipientForIdea || !ideaTitle.trim()}>Hinzufügen</Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-2">
-        <Card className="border-border/50 bg-gradient-to-br from-card to-card/80">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-pink-500/20 shrink-0">
-                <Gift className="w-3.5 h-3.5 text-pink-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Offen</p>
-                <p className="text-lg font-bold">{openIdeas}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-border/50 bg-gradient-to-br from-card to-card/80">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-amber-500/20 shrink-0">
-                <Euro className="w-3.5 h-3.5 text-amber-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Budget</p>
-                <p className="text-lg font-bold">{totalBudget.toLocaleString('de-DE')}€</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-border/50 bg-gradient-to-br from-card to-card/80">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-emerald-500/20 shrink-0">
-                <Check className="w-3.5 h-3.5 text-emerald-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Ausgegeben</p>
-                <p className="text-lg font-bold">{totalSpent.toLocaleString('de-DE')}€</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Compact Stats */}
+      {ideas.length > 0 && (
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span>{openIdeas} offene Ideen</span>
+          {totalBudget > 0 && (
+            <span>Budget: <span className="text-amber-500 font-medium">{totalBudget.toLocaleString('de-DE')}€</span></span>
+          )}
+        </div>
+      )}
 
       {/* Recipients List */}
       {recipients.length === 0 ? (
-        <Card className="border-border/50 border-dashed">
-          <CardContent className="p-6 text-center">
-            <User className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
-            <p className="text-sm text-muted-foreground">Noch keine Personen hinzugefügt</p>
-            <Button 
-              variant="link" 
-              className="text-xs mt-1"
-              onClick={() => setAddRecipientOpen(true)}
-            >
-              Erste Person hinzufügen
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center py-8 text-muted-foreground">
+          <User className="w-10 h-10 mx-auto mb-3 opacity-50" />
+          <p className="text-sm">Keine Personen</p>
+          <Button variant="link" className="text-xs mt-1" onClick={() => setAddRecipientOpen(true)}>
+            Erste Person hinzufügen
+          </Button>
+        </div>
       ) : (
         <div className="space-y-2">
           {recipients.map(recipient => {
@@ -431,35 +317,21 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
             const isExpanded = expandedRecipients.has(recipient.id);
             
             return (
-              <Collapsible 
-                key={recipient.id} 
-                open={isExpanded} 
-                onOpenChange={() => toggleRecipient(recipient.id)}
-              >
-                <Card className="border-border/50 overflow-hidden">
+              <Collapsible key={recipient.id} open={isExpanded} onOpenChange={() => toggleRecipient(recipient.id)}>
+                <div className="rounded-lg bg-card/80 border border-border/50 overflow-hidden">
                   <CollapsibleTrigger asChild>
                     <button className="w-full p-3 flex items-center justify-between hover:bg-muted/30 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="p-2 rounded-lg bg-gradient-to-br from-pink-500/20 to-rose-500/20 shrink-0">
+                        <div className="p-2 rounded-lg bg-pink-500/20 shrink-0">
                           <User className="w-4 h-4 text-pink-500" />
                         </div>
-                        <div className="text-left min-w-0">
-                          <div className="font-medium truncate">{recipient.name}</div>
-                          {recipient.notes && (
-                            <div className="text-xs text-muted-foreground truncate">{recipient.notes}</div>
-                          )}
-                        </div>
+                        <span className="font-medium text-sm truncate">{recipient.name}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {openCount > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            {openCount} offen
-                          </Badge>
+                          <Badge variant="secondary" className="text-xs">{openCount}</Badge>
                         )}
-                        <ChevronDown className={cn(
-                          "w-4 h-4 text-muted-foreground transition-transform",
-                          isExpanded && "rotate-180"
-                        )} />
+                        <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
                       </div>
                     </button>
                   </CollapsibleTrigger>
@@ -467,164 +339,138 @@ export function GiftsSection({ onBack }: GiftsSectionProps) {
                   <CollapsibleContent>
                     <div className="px-3 pb-3 space-y-2 border-t border-border/50 pt-2">
                       {recipientIdeas.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-2">
-                          Keine Geschenkideen
-                        </p>
+                        <p className="text-xs text-muted-foreground text-center py-2">Keine Ideen</p>
                       ) : (
                         recipientIdeas.map(idea => (
                           <GiftIdeaCard 
                             key={idea.id} 
                             idea={idea} 
                             accounts={accounts}
-                            onToggle={togglePurchased}
+                            onTogglePurchased={togglePurchased}
                             onDelete={deleteIdea}
                           />
                         ))
                       )}
-                      <div className="flex gap-2 pt-1">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex-1 h-7 text-xs"
-                          onClick={() => openAddIdea(recipient.id)}
-                        >
-                          <Plus className="w-3 h-3 mr-1" />
-                          Idee hinzufügen
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 text-xs text-destructive hover:text-destructive"
-                          onClick={() => deleteRecipient(recipient.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full text-xs h-8"
+                        onClick={() => { setSelectedRecipientForIdea(recipient.id); setAddIdeaOpen(true); }}
+                      >
+                        <Plus className="w-3 h-3 mr-1" /> Idee hinzufügen
+                      </Button>
                     </div>
                   </CollapsibleContent>
-                </Card>
+                </div>
               </Collapsible>
             );
           })}
         </div>
       )}
+
+      {/* Mobile FAB */}
+      <Button 
+        className="fixed bottom-20 right-4 sm:hidden h-12 w-12 rounded-full shadow-lg z-40"
+        onClick={() => setAddIdeaOpen(true)}
+      >
+        <Plus className="w-5 h-5" />
+      </Button>
     </div>
   );
 }
 
-// Sub-component for gift idea cards
 function GiftIdeaCard({ 
   idea, 
-  accounts, 
-  onToggle, 
+  accounts,
+  onTogglePurchased, 
   onDelete 
 }: { 
   idea: GiftIdea; 
   accounts: Account[];
-  onToggle: (idea: GiftIdea, accountId?: string) => Promise<boolean>;
+  onTogglePurchased: (idea: GiftIdea, accountId?: string) => Promise<boolean>;
   onDelete: (id: string) => void;
 }) {
   const [showAccountSelect, setShowAccountSelect] = useState(false);
 
-  const handleCheckChange = async () => {
-    if (!idea.purchased && accounts.length > 0 && idea.price) {
-      setShowAccountSelect(true);
-    } else {
-      await onToggle(idea);
-    }
-  };
-
-  const handleAccountSelect = async (accountId: string) => {
-    await onToggle(idea, accountId);
-    setShowAccountSelect(false);
+  const handleToggle = async (accountId?: string) => {
+    const success = await onTogglePurchased(idea, accountId);
+    if (success) setShowAccountSelect(false);
   };
 
   return (
     <div className={cn(
-      "p-2 rounded-lg border transition-all",
+      "relative flex items-center gap-3 p-2.5 rounded-lg border transition-all",
       idea.purchased 
-        ? "bg-muted/30 border-border/30" 
-        : "bg-card border-border/50"
+        ? "bg-muted/30 border-border/30 opacity-60" 
+        : "bg-background/50 border-border/50"
     )}>
-      <div className="flex items-start gap-2">
-        <Checkbox 
-          checked={idea.purchased}
-          onCheckedChange={handleCheckChange}
-          className="mt-0.5"
-        />
-        <div className="flex-1 min-w-0">
-          <div className={cn(
-            "font-medium text-sm truncate",
-            idea.purchased && "line-through text-muted-foreground"
-          )}>
-            {idea.title}
-          </div>
-          {idea.description && (
-            <div className="text-xs text-muted-foreground truncate">{idea.description}</div>
-          )}
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {idea.price && (
-              <Badge variant={idea.purchased ? "secondary" : "outline"} className="text-xs">
-                {idea.price.toLocaleString('de-DE')}€
-              </Badge>
-            )}
-            {idea.url && (
-              <a 
-                href={idea.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-0.5 text-xs"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Link <ExternalLink className="w-2.5 h-2.5" />
-              </a>
-            )}
-            {idea.purchased && idea.purchased_date && (
-              <span className="text-xs text-muted-foreground">
-                Gekauft: {format(new Date(idea.purchased_date), 'dd.MM.yy', { locale: de })}
-              </span>
-            )}
-          </div>
-          
-          {showAccountSelect && (
-            <div className="mt-2 p-2 bg-muted/50 rounded-lg space-y-2">
-              <p className="text-xs font-medium">Von welchem Konto?</p>
-              <div className="flex flex-wrap gap-1">
-                {accounts.map(account => (
-                  <Button 
-                    key={account.id}
-                    variant="outline"
-                    size="sm"
-                    className="h-6 text-xs px-2"
-                    onClick={() => handleAccountSelect(account.id)}
-                  >
-                    {account.name}
-                  </Button>
-                ))}
-                <Button 
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-xs px-2"
-                  onClick={() => {
-                    onToggle(idea);
-                    setShowAccountSelect(false);
-                  }}
-                >
-                  Ohne Konto
-                </Button>
-              </div>
-            </div>
+      {/* Status indicator */}
+      <div className={cn(
+        "absolute left-0 top-0 bottom-0 w-1 rounded-l-lg",
+        idea.purchased ? "bg-emerald-500" : "bg-pink-500"
+      )} />
+
+      {/* Checkbox */}
+      <button
+        className={cn(
+          "ml-2 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+          idea.purchased ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground hover:border-pink-500"
+        )}
+        onClick={() => {
+          if (!idea.purchased && accounts.length > 0 && idea.price) {
+            setShowAccountSelect(true);
+          } else {
+            handleToggle();
+          }
+        }}
+      >
+        {idea.purchased && <Check className="w-3 h-3 text-white" />}
+      </button>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <p className={cn("text-sm font-medium truncate", idea.purchased && "line-through")}>{idea.title}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {idea.price && <span>{idea.price.toLocaleString('de-DE')}€</span>}
+          {idea.url && (
+            <a href={idea.url} target="_blank" rel="noopener" className="text-primary hover:underline flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+              Link <ExternalLink className="w-2.5 h-2.5" />
+            </a>
           )}
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
-          onClick={() => onDelete(idea.id)}
-        >
-          <Trash2 className="w-3 h-3" />
-        </Button>
       </div>
+
+      {/* Delete */}
+      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => onDelete(idea.id)}>
+        <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+      </Button>
+
+      {/* Account Selection Dialog */}
+      {showAccountSelect && (
+        <Dialog open={showAccountSelect} onOpenChange={setShowAccountSelect}>
+          <DialogContent className="max-w-xs">
+            <DialogHeader>
+              <DialogTitle className="text-sm">Konto wählen</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 mt-2">
+              {accounts.map(account => (
+                <Button
+                  key={account.id}
+                  variant="outline"
+                  className="w-full justify-between text-sm h-10"
+                  onClick={() => handleToggle(account.id)}
+                >
+                  <span>{account.name}</span>
+                  <span className="text-muted-foreground">{account.balance.toLocaleString('de-DE')}€</span>
+                </Button>
+              ))}
+              <Button variant="ghost" className="w-full text-xs" onClick={() => handleToggle()}>
+                Ohne Konto
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -465,22 +465,24 @@ export function AbsencesSection({ onBack }: AbsencesSectionProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
-            <ArrowLeft className="w-5 h-5" />
+    <div className="space-y-4">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-8 w-8">
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold">Fehltage</h2>
-            <p className="text-sm text-muted-foreground">Tippe auf Stunden zum Auswählen</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 shadow-lg shrink-0">
+              <Calendar className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="text-lg font-bold truncate">Fehltage</h2>
+            <span className="text-xs text-muted-foreground">({stats.total} Std)</span>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setShowReportDialog(true)} className="gap-2">
-          <FileDown className="w-4 h-4" />
-          <span className="hidden sm:inline">PDF-Bericht</span>
-          <span className="sm:hidden">PDF</span>
+        <Button variant="outline" size="sm" onClick={() => setShowReportDialog(true)} className="gap-1 h-8 text-xs">
+          <FileDown className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">PDF</span>
         </Button>
       </div>
 

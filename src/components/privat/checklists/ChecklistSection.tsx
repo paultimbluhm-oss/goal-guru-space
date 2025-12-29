@@ -40,7 +40,6 @@ export function ChecklistSection({ onBack }: ChecklistSectionProps) {
     if (error) {
       toast({ title: 'Fehler beim Laden', description: error.message, variant: 'destructive' });
     } else {
-      // Fetch item counts for each checklist
       const checklistsWithCounts = await Promise.all(
         (data || []).map(async (checklist) => {
           const { data: items } = await supabase
@@ -66,11 +65,7 @@ export function ChecklistSection({ onBack }: ChecklistSectionProps) {
 
   const handleDelete = async (id: string) => {
     const supabase = getSupabase();
-    
-    // First delete all items
     await supabase.from('checklist_items').delete().eq('checklist_id', id);
-    
-    // Then delete the checklist
     const { error } = await supabase.from('checklists').delete().eq('id', id);
     
     if (error) {
@@ -93,34 +88,64 @@ export function ChecklistSection({ onBack }: ChecklistSectionProps) {
     );
   }
 
+  const totalItems = checklists.reduce((sum, c) => sum + (c.items_count || 0), 0);
+  const completedItems = checklists.reduce((sum, c) => sum + (c.completed_count || 0), 0);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
+    <div className="space-y-4">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-8 w-8">
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="p-3 rounded-xl bg-primary/20">
-            <ListChecks className="w-6 h-6 text-primary" />
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-lg shrink-0">
+              <ListChecks className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="text-lg font-bold truncate">Checklisten</h2>
+            <span className="text-xs text-muted-foreground">({checklists.length})</span>
           </div>
-          <h2 className="text-2xl font-bold">Checklisten</h2>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Neue Checkliste
+        <Button 
+          size="sm" 
+          onClick={() => setShowAddDialog(true)}
+          className="hidden sm:flex gap-1 h-8 text-xs"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Neu
         </Button>
       </div>
 
+      {/* Compact Stats */}
+      {checklists.length > 0 && (
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span>{completedItems} / {totalItems} Punkte erledigt</span>
+          {totalItems > 0 && (
+            <span className="text-emerald-500 font-medium">
+              {Math.round((completedItems / totalItems) * 100)}%
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Checklists List */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Laden...</div>
+        <div className="text-center py-8 text-muted-foreground text-sm">Laden...</div>
       ) : checklists.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <ListChecks className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Noch keine Checklisten vorhanden</p>
-          <p className="text-sm mt-2">Erstelle deine erste Checkliste für wiederkehrende Aufgaben</p>
+        <div className="text-center py-8 text-muted-foreground">
+          <ListChecks className="w-10 h-10 mx-auto mb-3 opacity-50" />
+          <p className="text-sm">Keine Checklisten</p>
+          <Button 
+            variant="link" 
+            className="text-xs mt-1"
+            onClick={() => setShowAddDialog(true)}
+          >
+            Erste Checkliste erstellen
+          </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-2">
           {checklists.map((checklist) => (
             <ChecklistCard
               key={checklist.id}
@@ -131,6 +156,14 @@ export function ChecklistSection({ onBack }: ChecklistSectionProps) {
           ))}
         </div>
       )}
+
+      {/* Mobile FAB */}
+      <Button 
+        className="fixed bottom-20 right-4 sm:hidden h-12 w-12 rounded-full shadow-lg z-40"
+        onClick={() => setShowAddDialog(true)}
+      >
+        <Plus className="w-5 h-5" />
+      </Button>
 
       <AddChecklistDialog
         open={showAddDialog}
