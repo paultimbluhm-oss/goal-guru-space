@@ -82,7 +82,6 @@ export function EditTransactionDialog({
     const supabase = getSupabase();
     const amountNum = parseFloat(amount);
     const oldAmount = transaction.amount;
-    const account = accounts.find(a => a.id === transaction.account_id);
 
     // Calculate balance difference
     const balanceDiff = amountNum - oldAmount;
@@ -101,12 +100,20 @@ export function EditTransactionDialog({
     if (error) {
       toast.error('Fehler beim Aktualisieren');
     } else {
-      // Update account balance if amount changed
-      if (account && balanceDiff !== 0) {
-        await supabase
+      // Update account balance if amount changed - fetch current balance from DB first
+      if (balanceDiff !== 0) {
+        const { data: currentAccount } = await supabase
           .from('accounts')
-          .update({ balance: account.balance + balanceChange })
-          .eq('id', account.id);
+          .select('balance')
+          .eq('id', transaction.account_id)
+          .single();
+        
+        if (currentAccount) {
+          await supabase
+            .from('accounts')
+            .update({ balance: (currentAccount.balance || 0) + balanceChange })
+            .eq('id', transaction.account_id);
+        }
       }
       toast.success('Transaktion aktualisiert');
       onOpenChange(false);
