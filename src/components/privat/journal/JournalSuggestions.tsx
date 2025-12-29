@@ -34,7 +34,7 @@ function generateSuggestions(entries: JournalEntry[], today: JournalEntry | null
   const validEntries = entries.filter(e => e.mood_rating || e.energy_level);
   if (validEntries.length === 0 && !today) {
     return [{
-      icon: <Sparkles className="h-4 w-4 text-purple-500" />,
+      icon: <Sparkles className="h-4 w-4 text-amber-500" />,
       title: 'Beginne dein Journal',
       description: 'Fülle deinen ersten Eintrag aus, um personalisierte Vorschläge basierend auf der Glücksforschung zu erhalten.',
       priority: 'high'
@@ -85,7 +85,7 @@ function generateSuggestions(entries: JournalEntry[], today: JournalEntry | null
   // Relationships (R) - Social connections
   if (avgSocial < 2) {
     suggestions.push({
-      icon: <Users className="h-4 w-4 text-purple-500" />,
+      icon: <Users className="h-4 w-4 text-emerald-500" />,
       title: 'Soziale Verbindungen stärken',
       description: 'Harvard-Studie (75+ Jahre): Qualität der Beziehungen ist der wichtigste Faktor für Lebenszufriedenheit.',
       priority: avgSocial < 1 ? 'high' : 'medium'
@@ -94,7 +94,7 @@ function generateSuggestions(entries: JournalEntry[], today: JournalEntry | null
 
   if (avgConnection > 0 && avgConnection < 3) {
     suggestions.push({
-      icon: <Users className="h-4 w-4 text-purple-500" />,
+      icon: <Users className="h-4 w-4 text-emerald-500" />,
       title: 'Tiefere Gespräche führen',
       description: 'Oberflächliche Gespräche vs. tiefe: Letztere korrelieren 3x stärker mit Glück. Stelle bedeutungsvolle Fragen.',
       priority: 'medium'
@@ -132,7 +132,7 @@ function generateSuggestions(entries: JournalEntry[], today: JournalEntry | null
 
   if (avgAutonomy > 0 && avgAutonomy < 3) {
     suggestions.push({
-      icon: <Compass className="h-4 w-4 text-indigo-500" />,
+      icon: <Compass className="h-4 w-4 text-sky-500" />,
       title: 'Mehr Selbstbestimmung',
       description: 'Self-Determination Theory: Autonomie ist ein Grundbedürfnis. Wo kannst du mehr Wahlfreiheit schaffen?',
       priority: 'medium'
@@ -188,18 +188,18 @@ export function JournalSuggestions({ entries, todayEntry }: JournalSuggestionsPr
   if (suggestions.length === 0) return null;
 
   return (
-    <Card className="border-border/50 bg-gradient-to-br from-purple-500/5 to-indigo-500/5">
-      <CardHeader className="py-3">
-        <CardTitle className="text-base flex items-center gap-2">
+    <Card className="border-border/50 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+      <CardHeader className="py-2 px-3">
+        <CardTitle className="text-sm flex items-center gap-2">
           <Lightbulb className="h-4 w-4 text-amber-500" />
-          Vorschläge für morgen
+          Vorschläge
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 space-y-2">
+      <CardContent className="pt-0 pb-2 px-3 space-y-1.5">
         {suggestions.map((suggestion, i) => (
           <div 
             key={i} 
-            className={`p-3 rounded-lg border flex gap-3 ${
+            className={`p-2 rounded-lg border flex gap-2 ${
               suggestion.priority === 'high' 
                 ? 'bg-rose-500/10 border-rose-500/20' 
                 : suggestion.priority === 'medium'
@@ -207,10 +207,10 @@ export function JournalSuggestions({ entries, todayEntry }: JournalSuggestionsPr
                 : 'bg-muted/50 border-border/50'
             }`}
           >
-            <div className="mt-0.5">{suggestion.icon}</div>
+            <div className="mt-0.5 flex-shrink-0">{suggestion.icon}</div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium">{suggestion.title}</div>
-              <div className="text-xs text-muted-foreground">{suggestion.description}</div>
+              <div className="text-xs font-medium">{suggestion.title}</div>
+              <div className="text-xs text-muted-foreground leading-snug">{suggestion.description}</div>
             </div>
           </div>
         ))}

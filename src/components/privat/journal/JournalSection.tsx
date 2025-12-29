@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BookHeart, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, BookHeart, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -14,7 +14,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 interface JournalEntry {
   id: string;
   entry_date: string;
-  // PERMA Model fields
   mood_rating: number | null;
   energy_level: number | null;
   stress_level: number | null;
@@ -123,24 +122,25 @@ export function JournalSection({ onBack }: JournalSectionProps) {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
+    <div className="space-y-3">
+      {/* Header - compact */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg border-2 border-purple-500 text-purple-500">
-              <BookHeart className="h-5 w-5" strokeWidth={1.5} />
+            <div className="p-1.5 rounded-lg border-2 border-cyan-500 text-cyan-500">
+              <BookHeart className="h-4 w-4" strokeWidth={1.5} />
             </div>
-            <h1 className="text-xl font-bold">Journal</h1>
+            <h1 className="text-lg font-bold">Journal</h1>
           </div>
         </div>
         {todayEntry && !isFormOpen && (
           <Button 
             variant="outline" 
             size="sm"
+            className="h-7 text-xs"
             onClick={() => setIsFormOpen(true)}
           >
             Bearbeiten
@@ -155,13 +155,13 @@ export function JournalSection({ onBack }: JournalSectionProps) {
       <Collapsible open={isFormOpen} onOpenChange={setIsFormOpen}>
         <Card className="border-border/50">
           <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-2 px-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-500" />
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <div className="w-1.5 h-4 rounded-full bg-cyan-500" />
                   Heutiger Eintrag
                   <span className="text-xs text-muted-foreground font-normal">
-                    {format(new Date(), 'EEEE, d. MMMM', { locale: de })}
+                    {format(new Date(), 'EEE, d. MMM', { locale: de })}
                   </span>
                 </CardTitle>
                 {isFormOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -169,7 +169,7 @@ export function JournalSection({ onBack }: JournalSectionProps) {
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 px-3 pb-3">
               <JournalEntryForm 
                 initialData={todayEntry || undefined} 
                 onSave={handleSave}

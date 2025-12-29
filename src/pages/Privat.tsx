@@ -14,9 +14,9 @@ import { JournalSection } from '@/components/privat/journal';
 const sections = [
   { id: 'habits', icon: Check, label: 'Habits', color: 'text-emerald-500' },
   { id: 'finanzen', icon: Wallet, label: 'Finanzen', color: 'text-amber-500' },
-  { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', color: 'text-violet-500' },
+  { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', color: 'text-sky-500' },
   { id: 'rezepte', icon: ChefHat, label: 'Rezepte', color: 'text-red-500' },
-  { id: 'journal', icon: BookHeart, label: 'Journal', color: 'text-purple-500' },
+  { id: 'journal', icon: BookHeart, label: 'Journal', color: 'text-cyan-500' },
   { id: 'checklisten', icon: ListChecks, label: 'Checklisten', color: 'text-blue-500' },
   { id: 'geschenke', icon: Gift, label: 'Geschenke', color: 'text-pink-500' },
 ];
