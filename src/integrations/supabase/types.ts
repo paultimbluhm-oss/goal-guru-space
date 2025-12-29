@@ -1610,6 +1610,8 @@ export type Database = {
           due_date: string | null
           id: string
           priority: string | null
+          recurrence_end_date: string | null
+          recurrence_type: string | null
           title: string
           user_id: string
           xp_reward: number | null
@@ -1621,6 +1623,8 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: string | null
+          recurrence_end_date?: string | null
+          recurrence_type?: string | null
           title: string
           user_id: string
           xp_reward?: number | null
@@ -1632,6 +1636,8 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: string | null
+          recurrence_end_date?: string | null
+          recurrence_type?: string | null
           title?: string
           user_id?: string
           xp_reward?: number | null
