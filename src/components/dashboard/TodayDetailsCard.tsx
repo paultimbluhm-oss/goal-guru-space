@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { CheckCircle2, Star, Flame, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 
@@ -105,69 +104,50 @@ export function TodayDetailsCard() {
       label: 'Tasks', 
       completed: stats.tasksCompleted, 
       total: stats.tasksTotal,
-      icon: CheckCircle2,
-      color: 'text-primary',
-      bgColor: 'bg-primary/20'
     },
     { 
       label: 'Hausaufgaben', 
       completed: stats.homeworkCompleted, 
       total: stats.homeworkTotal,
-      icon: Star,
-      color: 'text-accent',
-      bgColor: 'bg-accent/20'
     },
     { 
       label: 'Habits', 
       completed: stats.habitsCompleted, 
       total: stats.habitsTotal,
-      icon: Flame,
-      color: 'text-streak',
-      bgColor: 'bg-streak/20'
     },
   ];
 
-  // Time Progress
-  const now = new Date();
-  const hoursElapsed = now.getHours() + now.getMinutes() / 60;
-  const dayProgress = Math.round((hoursElapsed / 24) * 100);
-
   return (
-    <div className="glass-card p-4">
-      <div className="grid grid-cols-4 gap-2 md:gap-3">
-        {/* Time Progress */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-2 md:p-3 rounded-lg bg-secondary/30 text-center"
-        >
-          <div className="p-1.5 md:p-2 rounded-lg bg-secondary/50 w-fit mx-auto mb-1.5">
-            <Clock className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
-          </div>
-          <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Tag</p>
-          <p className="text-sm md:text-base font-bold text-foreground">{dayProgress}%</p>
-        </motion.div>
-
-        {/* Progress Items */}
+    <div className="glass-card p-3">
+      <div className="grid grid-cols-3 gap-2">
         {progressItems.map((item, i) => {
-          const Icon = item.icon;
           const itemDone = item.total > 0 && item.completed === item.total;
+          const hasItems = item.total > 0;
 
           return (
             <motion.div
               key={item.label}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: (i + 1) * 0.1 }}
-              className={`p-2 md:p-3 rounded-lg bg-secondary/30 text-center ${itemDone ? 'ring-1 ring-success/50' : ''}`}
+              transition={{ delay: i * 0.1 }}
+              className={`p-3 rounded-xl text-center transition-all ${
+                itemDone 
+                  ? 'bg-success/10 ring-1 ring-success/30' 
+                  : hasItems 
+                    ? 'bg-secondary/40' 
+                    : 'bg-secondary/20'
+              }`}
             >
-              <div className={`p-1.5 md:p-2 rounded-lg ${item.bgColor} w-fit mx-auto mb-1.5`}>
-                <Icon className={`w-3 h-3 md:w-4 md:h-4 ${itemDone ? 'text-success' : item.color}`} />
-              </div>
-              <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">{item.label}</p>
-              <p className={`text-sm md:text-base font-bold ${itemDone ? 'text-success' : 'text-foreground'}`}>
+              <p className={`text-lg md:text-xl font-bold font-mono ${
+                itemDone 
+                  ? 'text-success' 
+                  : hasItems 
+                    ? 'text-foreground' 
+                    : 'text-muted-foreground'
+              }`}>
                 {item.completed}/{item.total}
               </p>
+              <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5">{item.label}</p>
             </motion.div>
           );
         })}
