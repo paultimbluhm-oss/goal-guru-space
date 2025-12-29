@@ -84,26 +84,35 @@ export function ProgressRingWidget() {
     
     // All done for today (either 100% completed or nothing to do)
     const allDone = totalItems === 0 || totalCompleted === totalItems;
-    const lastActiveDate = profile.last_active_date;
     
-    // Only update streak if:
-    // 1. All items are done for today
-    // 2. We haven't already credited today's streak (last_active_date !== today)
-    if (allDone && lastActiveDate !== today) {
+    // Check localStorage to see if we already awarded streak today
+    const streakAwardedKey = `streak_awarded_${user.id}_${today}`;
+    const alreadyAwarded = localStorage.getItem(streakAwardedKey) === 'true';
+    
+    if (allDone && !alreadyAwarded) {
       hasUpdatedStreakRef.current = true;
+      localStorage.setItem(streakAwardedKey, 'true');
       
       // Calculate new streak
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
       
+      const lastActiveDate = profile.last_active_date;
       let newStreak: number;
       
       // If last active was yesterday, continue streak. Otherwise start fresh at 1.
       if (lastActiveDate === yesterdayStr) {
         newStreak = (profile.streak_days || 0) + 1;
+      } else if (lastActiveDate === today) {
+        // Already active today but streak not set - set to 1
+        newStreak = Math.max(profile.streak_days || 0, 1);
+        if (profile.streak_days >= 1) {
+          // Already has streak for today, don't update
+          return;
+        }
       } else {
-        // Either first day or streak was broken - start at 1
+        // First day or streak was broken - start at 1
         newStreak = 1;
       }
       
