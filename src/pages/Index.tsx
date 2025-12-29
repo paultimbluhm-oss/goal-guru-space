@@ -93,9 +93,6 @@ export default function Index() {
           <NextActionsCard />
           <HabitsOverview />
         </div>
-
-        {/* Bottom: Achievements */}
-        <AchievementsCard />
       </div>
     </AppLayout>
   );

@@ -121,6 +121,11 @@ export function HabitsOverview() {
   const percentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const allDone = totalCount > 0 && completedCount === totalCount;
 
+  // Hide widget completely when all habits are done
+  if (allDone) {
+    return null;
+  }
+
   if (habits.length === 0) {
     return (
       <Card className="glass-card p-6">
