@@ -4,15 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Check, Flame, Trophy, Trash2, Edit, TrendingUp, Target, Zap, Calendar, Star, Award } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Trash2, Edit, TrendingUp, Calendar, Award } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useGamification } from '@/contexts/GamificationContext';
 import { toast } from 'sonner';
-import { format, subDays, startOfWeek, differenceInDays } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, BarChart, Bar, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from '@/components/ui/chart';
 
 interface Habit {
@@ -206,7 +205,6 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
   };
 
   const getCompletionRate = (date: string) => {
-    // Only consider habits that existed on this date (created_at <= date)
     const habitsOnDate = habits.filter(h => {
       const createdDate = format(new Date(h.created_at), 'yyyy-MM-dd');
       return createdDate <= date;
@@ -248,42 +246,6 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
     });
   }, [habits, completions]);
 
-  // Calculate streaks and stats
-  const currentStreak = useMemo(() => {
-    if (habits.length === 0) return 0;
-    let streak = 0;
-    const sortedDates = Array.from({ length: 30 }, (_, i) => format(subDays(new Date(), i), 'yyyy-MM-dd'));
-    
-    for (const date of sortedDates) {
-      const allCompleted = habits.every(h => 
-        completions.some(c => c.habit_id === h.id && c.completed_date === date)
-      );
-      if (allCompleted) streak++;
-      else if (date !== today) break;
-    }
-    return streak;
-  }, [habits, completions, today]);
-
-  const totalXPEarned = useMemo(() => {
-    return completions.reduce((sum, c) => {
-      const habit = habits.find(h => h.id === c.habit_id);
-      return sum + (habit?.xp_reward || 0);
-    }, 0);
-  }, [habits, completions]);
-
-  const bestHabit = useMemo(() => {
-    if (habitStats.length === 0) return null;
-    return habitStats.reduce((best, current) => 
-      current.completedDays > best.completedDays ? current : best
-    );
-  }, [habitStats]);
-
-  const weeklyAverage = useMemo(() => {
-    if (chartData.length === 0) return 0;
-    const last7 = chartData.slice(-7);
-    return Math.round(last7.reduce((sum, d) => sum + d.rate, 0) / 7);
-  }, [chartData]);
-
   const chartConfig = {
     rate: {
       label: 'Erfolgsrate',
@@ -292,28 +254,25 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Header - Compact */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7">
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/25">
-              <Check className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg border-2 border-emerald-500 text-emerald-500">
+              <Check className="w-4 h-4" strokeWidth={1.5} />
             </div>
-            <div>
-              <h2 className="text-xl font-bold">Habit Tracker</h2>
-              <p className="text-sm text-muted-foreground">Baue starke Gewohnheiten auf</p>
-            </div>
+            <h2 className="text-lg font-bold">Habits</h2>
           </div>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setDialogOpen(open); }}>
           <DialogTrigger asChild>
-            <Button size="sm" className="hidden sm:flex bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Neuer Habit
+            <Button size="sm" className="hidden sm:flex h-7 text-xs">
+              <Plus className="w-3 h-3 mr-1" />
+              Neu
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -341,125 +300,56 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
         </Dialog>
       </div>
 
-      {/* Hero Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/80">
-          <div className="absolute -top-8 -right-8 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/20">
-                <Target className="w-4 h-4 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Heute</p>
-                <p className="text-xl font-bold">{completedToday}/{habits.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/80">
-          <div className="absolute -top-8 -right-8 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl" />
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/20">
-                <Flame className="w-4 h-4 text-orange-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Streak</p>
-                <p className="text-xl font-bold">{currentStreak} Tage</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/80">
-          <div className="absolute -top-8 -right-8 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <TrendingUp className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Ø Woche</p>
-                <p className="text-xl font-bold">{weeklyAverage}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/80">
-          <div className="absolute -top-8 -right-8 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl" />
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-yellow-500/20">
-                <Zap className="w-4 h-4 text-yellow-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">XP verdient</p>
-                <p className="text-xl font-bold">{totalXPEarned}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Today's Progress - Compact Ring */}
+      <div className="flex items-center gap-4 p-3 rounded-xl bg-card border border-border/50">
+        {/* Progress Ring */}
+        <div className="relative w-16 h-16 flex-shrink-0">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+            <circle
+              cx="18" cy="18" r="15"
+              fill="none"
+              stroke="hsl(var(--muted))"
+              strokeWidth="3"
+            />
+            <circle
+              cx="18" cy="18" r="15"
+              fill="none"
+              stroke="hsl(142, 76%, 36%)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={`${progressPercent * 0.94} 100`}
+              className="transition-all duration-700"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-sm font-bold">{Math.round(progressPercent)}%</span>
+          </div>
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium">Heute</div>
+          <div className="text-xs text-muted-foreground">
+            {completedToday}/{habits.length} erledigt
+          </div>
+          {allHabitsCompletedToday() && habits.length > 0 && (
+            <div className="text-xs text-emerald-500 font-medium mt-0.5">Perfekt!</div>
+          )}
+        </div>
       </div>
 
-      {/* Today's Progress - Hero Card */}
-      <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card via-card to-emerald-500/5">
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-primary/10 rounded-full blur-3xl" />
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-500" />
-              <span>Heutiger Fortschritt</span>
-            </div>
-            {allHabitsCompletedToday() && (
-              <div className="flex items-center gap-1 text-emerald-500 text-sm font-normal">
-                <Star className="w-4 h-4 fill-current" />
-                Perfekt!
-              </div>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-end justify-between">
-              <div>
-                <span className="text-4xl font-bold bg-gradient-to-r from-emerald-500 to-green-600 bg-clip-text text-transparent">
-                  {Math.round(progressPercent)}%
-                </span>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {completedToday} von {habits.length} Habits erledigt
-                </p>
-              </div>
-              {allHabitsCompletedToday() && (
-                <div className="text-4xl animate-bounce">🎉</div>
-              )}
-            </div>
-            <div className="h-3 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all duration-700 ease-out rounded-full"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Charts Grid - Compact */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* 14-Day Trend Chart */}
         <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
+          <CardHeader className="py-2 px-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="w-3.5 h-3.5 text-primary" />
               14-Tage Trend
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[180px] w-full">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <CardContent className="px-3 pb-3">
+            <ChartContainer config={chartConfig} className="h-[120px] w-full">
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -468,17 +358,18 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
                 </defs>
                 <XAxis 
                   dataKey="label" 
-                  tick={{ fontSize: 10 }} 
+                  tick={{ fontSize: 8 }} 
                   tickLine={false}
                   axisLine={false}
-                  interval={1}
+                  interval={2}
                 />
                 <YAxis 
-                  tick={{ fontSize: 10 }} 
+                  tick={{ fontSize: 8 }} 
                   tickLine={false}
                   axisLine={false}
                   domain={[0, 100]}
                   tickFormatter={(v) => `${v}%`}
+                  width={30}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Area 
@@ -494,36 +385,34 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
           </CardContent>
         </Card>
 
-        {/* Weekly Heatmap */}
+        {/* Weekly Heatmap - Compact */}
         <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-emerald-500" />
-              Wochenübersicht
+          <CardHeader className="py-2 px-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+              Woche
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-7 gap-2">
+          <CardContent className="px-3 pb-3">
+            <div className="grid grid-cols-7 gap-1.5">
               {getLast7Days().map((date) => {
                 const rate = getCompletionRate(date);
                 const isCurrentDay = date === today;
                 const dayLabel = format(new Date(date), 'EEEEEE', { locale: de });
                 return (
-                  <div key={date} className="flex flex-col items-center gap-2">
-                    <span className="text-xs text-muted-foreground uppercase">{dayLabel}</span>
+                  <div key={date} className="flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground uppercase">{dayLabel}</span>
                     <div 
-                      className={`relative w-full aspect-square rounded-xl flex flex-col items-center justify-center transition-all ${
+                      className={`w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all ${
                         rate === 100 
-                          ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/25' 
+                          ? 'bg-emerald-500 text-white' 
                           : rate > 0 
-                            ? 'bg-emerald-500/20 text-emerald-500' 
+                            ? 'bg-emerald-500/30 text-emerald-500' 
                             : 'bg-muted text-muted-foreground'
-                      } ${isCurrentDay ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                      } ${isCurrentDay ? 'ring-1 ring-primary ring-offset-1 ring-offset-background' : ''}`}
                     >
-                      <span className="text-lg font-bold">{format(new Date(date), 'd')}</span>
-                      {rate === 100 && <Check className="w-3 h-3 absolute bottom-1" />}
+                      {format(new Date(date), 'd')}
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-medium">{Math.round(rate)}%</span>
                   </div>
                 );
               })}
@@ -532,45 +421,38 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
         </Card>
       </div>
 
-      {/* Habit Performance */}
+      {/* Habit Performance - Compact */}
       {habitStats.length > 0 && (
         <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Award className="w-4 h-4 text-yellow-500" />
-              Habit Performance (7 Tage)
+          <CardHeader className="py-2 px-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Award className="w-3.5 h-3.5 text-amber-500" />
+              Performance
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {habitStats.map((habit, index) => (
-                <div key={habit.id} className="flex items-center gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    index === 0 && habit.completedDays > 0 
-                      ? 'bg-yellow-500 text-white' 
-                      : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {index + 1}
-                  </div>
+          <CardContent className="px-3 pb-3">
+            <div className="space-y-2">
+              {habitStats.map((habit) => (
+                <div key={habit.id} className="flex items-center gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium truncate">{habit.name}</span>
-                      <span className="text-xs text-muted-foreground">{habit.completedDays}/7 Tage</span>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs font-medium truncate">{habit.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{habit.completedDays}/7</span>
                     </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${
-                          habit.rate >= 80 ? 'bg-gradient-to-r from-emerald-500 to-green-500' :
-                          habit.rate >= 50 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' :
-                          'bg-gradient-to-r from-red-500 to-orange-500'
+                          habit.rate >= 80 ? 'bg-emerald-500' :
+                          habit.rate >= 50 ? 'bg-amber-500' :
+                          'bg-red-500'
                         }`}
                         style={{ width: `${habit.rate}%` }}
                       />
                     </div>
                   </div>
-                  <span className={`text-sm font-bold ${
+                  <span className={`text-xs font-bold w-8 text-right ${
                     habit.rate >= 80 ? 'text-emerald-500' :
-                    habit.rate >= 50 ? 'text-yellow-500' :
+                    habit.rate >= 50 ? 'text-amber-500' :
                     'text-red-500'
                   }`}>
                     {Math.round(habit.rate)}%
@@ -582,83 +464,69 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
         </Card>
       )}
 
-      {/* Habits List */}
-      <div className="space-y-3">
-        <h3 className="font-semibold text-muted-foreground flex items-center gap-2">
-          <Check className="w-4 h-4" />
-          Deine Habits
-        </h3>
+      {/* Habits List - Compact */}
+      <div className="space-y-2">
         {habits.length === 0 ? (
-          <Card className="p-8 border-border/50 text-center bg-gradient-to-br from-card to-muted/20">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-500/20 flex items-center justify-center">
-              <Plus className="w-8 h-8 text-emerald-500" />
+          <Card className="p-6 border-border/50 text-center">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+              <Plus className="w-6 h-6 text-emerald-500" />
             </div>
-            <p className="text-muted-foreground">Noch keine Habits erstellt</p>
-            <p className="text-sm text-muted-foreground mt-1">Erstelle deinen ersten Habit!</p>
+            <p className="text-sm text-muted-foreground">Noch keine Habits</p>
             <Button 
-              className="mt-4 bg-gradient-to-r from-emerald-500 to-green-600" 
+              size="sm"
+              className="mt-3" 
               onClick={() => setDialogOpen(true)}
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-3 h-3 mr-1" />
               Ersten Habit erstellen
             </Button>
           </Card>
         ) : (
           habits.map((habit) => {
             const completed = isCompletedToday(habit.id);
-            const stats = habitStats.find(s => s.id === habit.id);
             return (
-              <Card 
+              <div 
                 key={habit.id} 
-                className={`overflow-hidden transition-all duration-300 border-border/50 ${
+                className={`flex items-center gap-3 p-2.5 rounded-lg border transition-all ${
                   completed 
-                    ? 'bg-gradient-to-r from-emerald-500/10 to-green-500/5 border-emerald-500/30' 
-                    : 'hover:border-primary/30'
+                    ? 'bg-emerald-500/10 border-emerald-500/30' 
+                    : 'bg-card border-border/50 hover:border-primary/30'
                 }`}
               >
-                <div className="p-4 flex items-center gap-4">
-                  <div 
-                    className={`relative w-12 h-12 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-300 ${
-                      completed 
-                        ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/25' 
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                    onClick={() => toggleHabit(habit)}
-                  >
-                    <Check className={`w-6 h-6 transition-all ${completed ? 'text-white scale-110' : 'text-muted-foreground'}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-medium transition-all ${completed ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
-                      {habit.name}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      {habit.description && (
-                        <p className="text-xs text-muted-foreground">{habit.description}</p>
-                      )}
-                      {stats && (
-                        <span className="text-xs text-muted-foreground">
-                          {stats.completedDays}/7 diese Woche
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                      completed 
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                        : 'bg-primary/10 text-primary'
-                    }`}>
-                      +{habit.xp_reward} XP
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(habit)}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => deleteHabit(habit.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                <div 
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer transition-all ${
+                    completed 
+                      ? 'bg-emerald-500 shadow-md shadow-emerald-500/25' 
+                      : 'bg-muted hover:bg-muted/80'
+                  }`}
+                  onClick={() => toggleHabit(habit)}
+                >
+                  <Check className={`w-4 h-4 transition-all ${completed ? 'text-white' : 'text-muted-foreground'}`} />
                 </div>
-              </Card>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium truncate ${completed ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
+                    {habit.name}
+                  </p>
+                  {habit.description && (
+                    <p className="text-xs text-muted-foreground truncate">{habit.description}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                    completed 
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                      : 'bg-primary/10 text-primary'
+                  }`}>
+                    +{habit.xp_reward}
+                  </span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(habit)}>
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => deleteHabit(habit.id)}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
             );
           })
         )}
@@ -666,10 +534,10 @@ export function HabitsSection({ onBack }: HabitsSectionProps) {
 
       {/* Mobile FAB */}
       <Button 
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-2xl sm:hidden bg-gradient-to-br from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700" 
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full shadow-xl sm:hidden" 
         onClick={() => setDialogOpen(true)}
       >
-        <Plus className="w-6 h-6" />
+        <Plus className="w-5 h-5" />
       </Button>
     </div>
   );
