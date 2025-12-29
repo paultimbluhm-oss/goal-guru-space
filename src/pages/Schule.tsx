@@ -2,17 +2,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { GraduationCap, FolderKanban, CalendarX, ChevronRight, ClipboardList } from 'lucide-react';
+import { GraduationCap, FolderKanban, CalendarX, ClipboardList } from 'lucide-react';
 import { ProjectsSection } from '@/components/schule/ProjectsSection';
 import { SchoolTasksSection } from '@/components/schule/SchoolTasksSection';
 import { AbsencesSection } from '@/components/schule/AbsencesSection';
 import { UnifiedTimetableSection } from '@/components/schule/UnifiedTimetableSection';
 
 const sections = [
-  { id: 'stundenplan', icon: GraduationCap, label: 'Stundenplan & Fächer', desc: 'Wochenplan, Noten & Hausaufgaben', color: 'from-blue-500 to-indigo-600' },
-  { id: 'projekte', icon: FolderKanban, label: 'Projekte', desc: 'Schulische Projekte verwalten', color: 'from-purple-500 to-violet-600' },
-  { id: 'fehltage', icon: CalendarX, label: 'Fehltage', desc: 'Abwesenheiten verwalten', color: 'from-rose-500 to-red-600' },
-  { id: 'aufgaben', icon: ClipboardList, label: 'Aufgaben', desc: 'Für Mitschüler & Lehrer', color: 'from-orange-500 to-amber-600' },
+  { id: 'stundenplan', icon: GraduationCap, label: 'Stundenplan', color: 'from-blue-500 to-indigo-600' },
+  { id: 'projekte', icon: FolderKanban, label: 'Projekte', color: 'from-purple-500 to-violet-600' },
+  { id: 'fehltage', icon: CalendarX, label: 'Fehltage', color: 'from-rose-500 to-red-600' },
+  { id: 'aufgaben', icon: ClipboardList, label: 'Aufgaben', color: 'from-orange-500 to-amber-600' },
 ];
 
 export default function Schule() {
@@ -70,45 +70,24 @@ export default function Schule() {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-        {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-secondary/30 border border-border/50 p-6 md:p-8">
-          <div className="absolute -top-32 -right-32 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
-          <div className="absolute inset-0 industrial-grid opacity-20" />
-          
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="p-3 md:p-4 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/5 border border-blue-500/20">
-              <GraduationCap className="w-6 h-6 md:w-8 md:h-8 text-blue-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Schule</h1>
-              <p className="text-muted-foreground text-sm md:text-base">Alles für deinen Schulalltag</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Section Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+        {/* Section Cards Grid - compact for mobile */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3">
           {sections.map((s, i) => (
             <div
               key={s.id}
               onClick={() => setActiveSection(s.id)}
-              className="group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-4 md:p-5 hover:border-primary/50 transition-all duration-300 cursor-pointer fade-in"
+              className="group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-3 md:p-4 hover:border-primary/50 transition-all duration-300 cursor-pointer fade-in"
               style={{ animationDelay: `${i * 0.05}s` }}
             >
               {/* Gradient overlay on hover */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${s.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${s.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
               
-              <div className="relative z-10 flex items-center gap-4">
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${s.color} shadow-lg`}>
+              <div className="relative z-10 flex flex-col items-center gap-2 text-center">
+                <div className={`p-2.5 md:p-3 rounded-xl bg-gradient-to-br ${s.color} shadow-lg`}>
                   <s.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base md:text-lg group-hover:text-primary transition-colors">{s.label}</h3>
-                  <p className="text-xs md:text-sm text-muted-foreground truncate">{s.desc}</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                <h3 className="font-medium text-xs md:text-sm group-hover:text-primary transition-colors">{s.label}</h3>
               </div>
             </div>
           ))}

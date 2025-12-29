@@ -10,9 +10,11 @@ import {
   Menu,
   X,
   Settings,
+  Flame,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -43,7 +45,10 @@ export function Sidebar() {
   const [expanded, setExpanded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { signOut, user } = useAuth();
+  const { profile } = useProfile();
   const location = useLocation();
+
+  const streakDays = profile?.streak_days || 0;
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -64,19 +69,27 @@ export function Sidebar() {
   return (
     <TooltipProvider delayDuration={0}>
       {/* Mobile Header Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-2"
-        >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
-        <NavLink to="/" className="flex items-center gap-2 ml-2">
-          <Warehouse className="w-5 h-5 text-primary" />
-        </NavLink>
-        <span className="ml-2 text-lg font-semibold">{pageTitle}</span>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-12 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-3">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-1.5 h-8 w-8"
+          >
+            {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </Button>
+          <NavLink to="/" className="flex items-center">
+            <Warehouse className="w-4 h-4 text-primary" />
+          </NavLink>
+          <span className="text-sm font-semibold">{pageTitle}</span>
+        </div>
+        
+        {/* Streak in header */}
+        <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${streakDays > 0 ? 'bg-streak/10 text-streak' : 'text-muted-foreground'}`}>
+          <Flame className="w-3.5 h-3.5" />
+          <span className="text-xs font-bold font-mono">{streakDays}</span>
+        </div>
       </div>
 
       {/* Mobile Overlay */}
@@ -95,7 +108,7 @@ export function Sidebar() {
           'hidden md:flex md:sticky md:top-0',
           expanded ? 'md:w-56' : 'md:w-14',
           // Mobile styles
-          mobileOpen && 'fixed top-14 left-0 bottom-0 w-64 z-50 flex'
+          mobileOpen && 'fixed top-12 left-0 bottom-0 w-64 z-50 flex'
         )}
       >
         {/* Desktop Logo & Toggle */}
