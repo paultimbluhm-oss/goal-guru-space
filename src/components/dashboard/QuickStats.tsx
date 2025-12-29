@@ -1,65 +1,56 @@
-import { CheckCircle2, ListTodo, Target, TrendingUp, Loader2 } from 'lucide-react';
+import { ListTodo, Target, TrendingUp, Loader2 } from 'lucide-react';
 
 interface QuickStatsProps {
-  tasksCompleted: number;
   tasksPending: number;
   averageGrade: number | null;
   totalBalance: number;
   loadingPrices?: boolean;
 }
 
-export function QuickStats({ tasksCompleted, tasksPending, averageGrade, totalBalance, loadingPrices }: QuickStatsProps) {
+export function QuickStats({ tasksPending, averageGrade, totalBalance, loadingPrices }: QuickStatsProps) {
   const stats = [
-    {
-      icon: CheckCircle2,
-      label: 'Erledigte Aufgaben',
-      value: tasksCompleted.toString(),
-      color: 'text-success',
-      bgColor: 'bg-success/20',
-      loading: false,
-    },
     {
       icon: ListTodo,
       label: 'Offene Aufgaben',
       value: tasksPending.toString(),
       color: 'text-warning',
       bgColor: 'bg-warning/20',
-      loading: false,
+      highlight: tasksPending > 0,
     },
     {
       icon: Target,
-      label: 'Notendurchschnitt',
+      label: 'Notenschnitt',
       value: averageGrade !== null ? averageGrade.toFixed(1) + ' Pkt' : '—',
       color: 'text-accent',
       bgColor: 'bg-accent/20',
-      loading: false,
+      highlight: false,
     },
     {
       icon: TrendingUp,
-      label: 'Gesamtvermögen',
+      label: 'Vermögen',
       value: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(totalBalance),
       color: 'text-primary',
       bgColor: 'bg-primary/20',
       loading: loadingPrices,
+      highlight: false,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
-      {stats.map((stat, i) => (
+    <div className="grid grid-cols-3 gap-2">
+      {stats.map((stat) => (
         <div
           key={stat.label}
-          className="glass-card p-3 md:p-4 fade-in"
-          style={{ animationDelay: `${i * 0.1}s` }}
+          className={`glass-card p-3 ${stat.highlight ? 'ring-1 ring-warning/50' : ''}`}
         >
-          <div className={`p-1.5 md:p-2 rounded-lg ${stat.bgColor} w-fit mb-2 md:mb-3`}>
-            <stat.icon className={`w-4 h-4 md:w-5 md:h-5 ${stat.color}`} />
+          <div className={`p-1.5 rounded-lg ${stat.bgColor} w-fit mb-2`}>
+            <stat.icon className={`w-4 h-4 ${stat.color}`} />
           </div>
-          <div className="flex items-center gap-2">
-            <p className="text-lg md:text-2xl font-bold font-mono truncate">{stat.value}</p>
-            {stat.loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+          <div className="flex items-center gap-1">
+            <p className="text-base md:text-lg font-bold font-mono truncate">{stat.value}</p>
+            {stat.loading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
           </div>
-          <p className="text-xs text-muted-foreground truncate">{stat.label}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{stat.label}</p>
         </div>
       ))}
     </div>
