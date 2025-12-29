@@ -121,8 +121,8 @@ export function TodayDetailsCard() {
     <div className="glass-card p-3">
       <div className="grid grid-cols-3 gap-2">
         {progressItems.map((item, i) => {
-          const itemDone = item.total > 0 && item.completed === item.total;
-          const hasItems = item.total > 0;
+          // 0/0 counts as "done" (nothing to do = complete)
+          const itemDone = item.total === 0 || item.completed === item.total;
 
           return (
             <motion.div
@@ -133,17 +133,11 @@ export function TodayDetailsCard() {
               className={`p-3 rounded-xl text-center transition-all ${
                 itemDone 
                   ? 'bg-success/10 ring-1 ring-success/30' 
-                  : hasItems 
-                    ? 'bg-secondary/40' 
-                    : 'bg-secondary/20'
+                  : 'bg-secondary/40'
               }`}
             >
               <p className={`text-lg md:text-xl font-bold font-mono ${
-                itemDone 
-                  ? 'text-success' 
-                  : hasItems 
-                    ? 'text-foreground' 
-                    : 'text-muted-foreground'
+                itemDone ? 'text-success' : 'text-foreground'
               }`}>
                 {item.completed}/{item.total}
               </p>
