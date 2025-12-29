@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
-import { Trophy, CheckCircle2, Star, Flame } from 'lucide-react';
+import { Flame } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 
@@ -16,6 +17,7 @@ interface TodayStats {
 
 export function ProgressRingWidget() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [stats, setStats] = useState<TodayStats>({
     tasksCompleted: 0,
     tasksTotal: 0,
@@ -104,71 +106,78 @@ export function ProgressRingWidget() {
   const totalItems = stats.tasksTotal + stats.homeworkTotal + stats.habitsTotal;
   const overallProgress = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
   const allDone = totalItems > 0 && totalCompleted === totalItems;
+  const streakDays = profile?.streak_days || 0;
+
+  // Ring dimensions for the circular widget
+  const size = 96; // md:w-24 h-24
+  const strokeWidth = 6;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
 
   return (
-    <div className={`glass-card p-4 flex flex-col items-center justify-center relative overflow-hidden ${allDone ? 'ring-2 ring-success/50' : ''}`}>
-      {/* Glow when all done */}
-      {allDone && (
-        <div className="absolute inset-0 bg-gradient-to-br from-success/20 to-transparent pointer-events-none" />
-      )}
-
-      <div className="relative z-10 flex flex-col items-center">
-        {/* Progress Ring */}
-        <div className="relative">
-          <svg className="w-20 h-20 md:w-24 md:h-24 transform -rotate-90" viewBox="0 0 100 100">
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke="hsl(var(--secondary))"
-              strokeWidth="6"
-              className="opacity-40"
-            />
-            <motion.circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke={allDone ? "url(#progressGradientSuccess)" : "url(#progressGradient)"}
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 42}
-              initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-              animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - overallProgress / 100) }}
-              transition={{ duration: 1, ease: 'easeOut' }}
-              className={allDone ? 'drop-shadow-[0_0_10px_hsl(var(--success)/0.6)]' : 'drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]'}
-            />
-            <defs>
-              <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="hsl(var(--primary))" />
-                <stop offset="100%" stopColor="hsl(var(--accent))" />
-              </linearGradient>
-              <linearGradient id="progressGradientSuccess" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="hsl(var(--success))" />
-                <stop offset="50%" stopColor="hsl(160 60% 50%)" />
-                <stop offset="100%" stopColor="hsl(var(--success))" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <motion.span 
-              key={overallProgress}
-              initial={{ scale: 1.2, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={`text-xl md:text-2xl font-bold font-mono ${allDone ? 'text-success' : 'text-foreground'}`}
-            >
-              {overallProgress}%
-            </motion.span>
+    <div className="flex items-center justify-center p-2">
+      <div className="relative">
+        {/* SVG Ring as the widget border */}
+        <svg 
+          className="w-24 h-24 md:w-28 md:h-28 transform -rotate-90" 
+          viewBox={`0 0 ${size} ${size}`}
+        >
+          {/* Background ring */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="hsl(var(--card))"
+            stroke="hsl(var(--secondary))"
+            strokeWidth={strokeWidth}
+            className="opacity-60"
+          />
+          {/* Progress ring */}
+          <motion.circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={allDone ? "url(#progressGradientSuccess)" : "url(#progressGradient)"}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset: circumference * (1 - overallProgress / 100) }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+            className={allDone ? 'drop-shadow-[0_0_12px_hsl(var(--success)/0.7)]' : 'drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]'}
+          />
+          <defs>
+            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="hsl(var(--primary))" />
+              <stop offset="100%" stopColor="hsl(var(--accent))" />
+            </linearGradient>
+            <linearGradient id="progressGradientSuccess" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="hsl(var(--success))" />
+              <stop offset="50%" stopColor="hsl(160 60% 50%)" />
+              <stop offset="100%" stopColor="hsl(var(--success))" />
+            </linearGradient>
+          </defs>
+        </svg>
+        
+        {/* Content inside the ring */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center rotate-0">
+          {/* Percentage */}
+          <motion.span 
+            key={overallProgress}
+            initial={{ scale: 1.2, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`text-lg md:text-xl font-bold font-mono ${allDone ? 'text-success' : 'text-foreground'}`}
+          >
+            {overallProgress}%
+          </motion.span>
+          
+          {/* Streak with flame */}
+          <div className={`flex items-center gap-1 ${streakDays > 0 ? 'text-streak' : 'text-muted-foreground'}`}>
+            <Flame className="w-3 h-3" />
+            <span className="text-[10px] font-bold font-mono">{streakDays}</span>
           </div>
         </div>
-        
-        <p className="text-xs text-muted-foreground mt-2">Heute</p>
-        
-        {/* Completion count */}
-        <p className={`text-xs mt-1 ${allDone ? 'text-success font-medium' : 'text-muted-foreground'}`}>
-          {totalCompleted}/{totalItems}
-        </p>
       </div>
     </div>
   );
