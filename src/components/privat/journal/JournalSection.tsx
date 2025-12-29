@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BookHeart, Plus, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, BookHeart, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -14,20 +14,24 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 interface JournalEntry {
   id: string;
   entry_date: string;
-  sleep_hours: number | null;
-  sleep_quality: number | null;
-  nutrition_quality: number | null;
-  hydration_liters: number | null;
-  exercise_minutes: number | null;
-  exercise_type: string | null;
+  // PERMA Model fields
   mood_rating: number | null;
   energy_level: number | null;
   stress_level: number | null;
+  flow_experiences: number | null;
   social_interactions: number | null;
+  connection_quality: number | null;
+  purpose_feeling: number | null;
+  helped_others: boolean | null;
+  accomplishment_feeling: number | null;
+  progress_made: number | null;
+  autonomy_feeling: number | null;
+  exercise_minutes: number | null;
   quality_time_minutes: number | null;
   gratitude_1: string | null;
   gratitude_2: string | null;
   gratitude_3: string | null;
+  best_moment: string | null;
   notes: string | null;
 }
 
@@ -65,7 +69,7 @@ export function JournalSection({ onBack }: JournalSectionProps) {
       .single();
     
     if (todayData) {
-      setTodayEntry(todayData);
+      setTodayEntry(todayData as JournalEntry);
       setIsFormOpen(false);
     }
     
@@ -79,7 +83,7 @@ export function JournalSection({ onBack }: JournalSectionProps) {
       .order('entry_date', { ascending: false });
     
     if (recentData) {
-      setRecentEntries(recentData);
+      setRecentEntries(recentData as JournalEntry[]);
     }
   };
 
@@ -127,8 +131,8 @@ export function JournalSection({ onBack }: JournalSectionProps) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600">
-              <BookHeart className="h-5 w-5 text-white" />
+            <div className="p-2 rounded-lg border-2 border-purple-500 text-purple-500">
+              <BookHeart className="h-5 w-5" strokeWidth={1.5} />
             </div>
             <h1 className="text-xl font-bold">Journal</h1>
           </div>
@@ -197,7 +201,7 @@ export function JournalSection({ onBack }: JournalSectionProps) {
                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                       {entry.mood_rating && <span>Stimmung: {entry.mood_rating}/5</span>}
                       {entry.energy_level && <span>Energie: {entry.energy_level}/5</span>}
-                      {entry.sleep_hours && <span>Schlaf: {entry.sleep_hours}h</span>}
+                      {entry.flow_experiences !== null && entry.flow_experiences > 0 && <span>Flow: {entry.flow_experiences}x</span>}
                     </div>
                   </div>
                 ))}

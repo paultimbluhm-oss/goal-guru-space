@@ -870,66 +870,75 @@ export type Database = {
       }
       journal_entries: {
         Row: {
+          accomplishment_feeling: number | null
+          autonomy_feeling: number | null
+          best_moment: string | null
+          connection_quality: number | null
           created_at: string
           energy_level: number | null
           entry_date: string
           exercise_minutes: number | null
-          exercise_type: string | null
+          flow_experiences: number | null
           gratitude_1: string | null
           gratitude_2: string | null
           gratitude_3: string | null
-          hydration_liters: number | null
+          helped_others: boolean | null
           id: string
           mood_rating: number | null
           notes: string | null
-          nutrition_quality: number | null
+          progress_made: number | null
+          purpose_feeling: number | null
           quality_time_minutes: number | null
-          sleep_hours: number | null
-          sleep_quality: number | null
           social_interactions: number | null
           stress_level: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          accomplishment_feeling?: number | null
+          autonomy_feeling?: number | null
+          best_moment?: string | null
+          connection_quality?: number | null
           created_at?: string
           energy_level?: number | null
           entry_date?: string
           exercise_minutes?: number | null
-          exercise_type?: string | null
+          flow_experiences?: number | null
           gratitude_1?: string | null
           gratitude_2?: string | null
           gratitude_3?: string | null
-          hydration_liters?: number | null
+          helped_others?: boolean | null
           id?: string
           mood_rating?: number | null
           notes?: string | null
-          nutrition_quality?: number | null
+          progress_made?: number | null
+          purpose_feeling?: number | null
           quality_time_minutes?: number | null
-          sleep_hours?: number | null
-          sleep_quality?: number | null
           social_interactions?: number | null
           stress_level?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          accomplishment_feeling?: number | null
+          autonomy_feeling?: number | null
+          best_moment?: string | null
+          connection_quality?: number | null
           created_at?: string
           energy_level?: number | null
           entry_date?: string
           exercise_minutes?: number | null
-          exercise_type?: string | null
+          flow_experiences?: number | null
           gratitude_1?: string | null
           gratitude_2?: string | null
           gratitude_3?: string | null
-          hydration_liters?: number | null
+          helped_others?: boolean | null
           id?: string
           mood_rating?: number | null
           notes?: string | null
-          nutrition_quality?: number | null
+          progress_made?: number | null
+          purpose_feeling?: number | null
           quality_time_minutes?: number | null
-          sleep_hours?: number | null
-          sleep_quality?: number | null
           social_interactions?: number | null
           stress_level?: number | null
           updated_at?: string

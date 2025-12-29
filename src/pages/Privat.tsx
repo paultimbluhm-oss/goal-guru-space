@@ -12,13 +12,13 @@ import { GiftsSection } from '@/components/privat/gifts';
 import { JournalSection } from '@/components/privat/journal';
 
 const sections = [
-  { id: 'habits', icon: Check, label: 'Habits', color: 'from-emerald-500 to-green-600' },
-  { id: 'journal', icon: BookHeart, label: 'Journal', color: 'from-purple-500 to-indigo-600' },
-  { id: 'finanzen', icon: Wallet, label: 'Finanzen', color: 'from-amber-500 to-orange-600' },
-  { id: 'checklisten', icon: ListChecks, label: 'Checklisten', color: 'from-blue-500 to-indigo-600' },
-  { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', color: 'from-violet-500 to-purple-600' },
-  { id: 'rezepte', icon: ChefHat, label: 'Rezepte', color: 'from-red-500 to-orange-600' },
-  { id: 'geschenke', icon: Gift, label: 'Geschenke', color: 'from-pink-500 to-rose-600' },
+  { id: 'habits', icon: Check, label: 'Habits', color: 'text-emerald-500' },
+  { id: 'finanzen', icon: Wallet, label: 'Finanzen', color: 'text-amber-500' },
+  { id: 'aufgaben', icon: Calendar, label: 'Aufgaben', color: 'text-violet-500' },
+  { id: 'rezepte', icon: ChefHat, label: 'Rezepte', color: 'text-red-500' },
+  { id: 'journal', icon: BookHeart, label: 'Journal', color: 'text-purple-500' },
+  { id: 'checklisten', icon: ListChecks, label: 'Checklisten', color: 'text-blue-500' },
+  { id: 'geschenke', icon: Gift, label: 'Geschenke', color: 'text-pink-500' },
 ];
 export default function Privat() {
   const { user, loading } = useAuth();
@@ -124,7 +124,7 @@ export default function Privat() {
     <AppLayout>
       <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
         {/* Section Cards Grid - compact for mobile */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 md:gap-3">
           {sections.map((s, i) => (
             <div
               key={s.id}
@@ -132,12 +132,9 @@ export default function Privat() {
               className="group relative overflow-hidden rounded-xl bg-card/80 backdrop-blur-sm border border-border/50 p-3 md:p-4 hover:border-primary/50 transition-all duration-300 cursor-pointer fade-in"
               style={{ animationDelay: `${i * 0.05}s` }}
             >
-              {/* Gradient overlay on hover */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${s.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-              
               <div className="relative z-10 flex flex-col items-center gap-2 text-center">
-                <div className={`p-2.5 md:p-3 rounded-xl bg-gradient-to-br ${s.color} shadow-lg`}>
-                  <s.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                <div className={`p-2.5 md:p-3 rounded-xl border-2 border-current ${s.color} bg-transparent`}>
+                  <s.icon className="w-5 h-5 md:w-6 md:h-6" strokeWidth={1.5} />
                 </div>
                 <h3 className="font-medium text-xs md:text-sm group-hover:text-primary transition-colors">{s.label}</h3>
               </div>

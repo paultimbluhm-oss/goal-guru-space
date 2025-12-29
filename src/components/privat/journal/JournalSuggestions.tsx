@@ -1,16 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lightbulb, Moon, Utensils, Droplets, Dumbbell, Heart, Users, Brain, Sparkles } from 'lucide-react';
+import { Lightbulb, Heart, Users, Target, Compass, Sparkles, Dumbbell, Brain } from 'lucide-react';
 
 interface JournalEntry {
-  sleep_hours?: number | null;
-  sleep_quality?: number | null;
-  nutrition_quality?: number | null;
-  hydration_liters?: number | null;
-  exercise_minutes?: number | null;
   mood_rating?: number | null;
   energy_level?: number | null;
   stress_level?: number | null;
+  flow_experiences?: number | null;
   social_interactions?: number | null;
+  connection_quality?: number | null;
+  purpose_feeling?: number | null;
+  helped_others?: boolean | null;
+  progress_made?: number | null;
+  autonomy_feeling?: number | null;
+  exercise_minutes?: number | null;
   gratitude_1?: string | null;
 }
 
@@ -29,128 +31,155 @@ interface Suggestion {
 function generateSuggestions(entries: JournalEntry[], today: JournalEntry | null): Suggestion[] {
   const suggestions: Suggestion[] = [];
   
-  // Calculate averages from recent entries
-  const validEntries = entries.filter(e => e.sleep_hours || e.mood_rating || e.energy_level);
+  const validEntries = entries.filter(e => e.mood_rating || e.energy_level);
   if (validEntries.length === 0 && !today) {
     return [{
       icon: <Sparkles className="h-4 w-4 text-purple-500" />,
       title: 'Beginne dein Journal',
-      description: 'Fülle deinen ersten Eintrag aus, um personalisierte Vorschläge zu erhalten.',
+      description: 'Fülle deinen ersten Eintrag aus, um personalisierte Vorschläge basierend auf der Glücksforschung zu erhalten.',
       priority: 'high'
     }];
   }
 
-  const avgSleep = validEntries.reduce((acc, e) => acc + (e.sleep_hours || 0), 0) / Math.max(validEntries.length, 1);
-  const avgSleepQuality = validEntries.reduce((acc, e) => acc + (e.sleep_quality || 0), 0) / Math.max(validEntries.filter(e => e.sleep_quality).length, 1);
-  const avgNutrition = validEntries.reduce((acc, e) => acc + (e.nutrition_quality || 0), 0) / Math.max(validEntries.filter(e => e.nutrition_quality).length, 1);
-  const avgHydration = validEntries.reduce((acc, e) => acc + (e.hydration_liters || 0), 0) / Math.max(validEntries.filter(e => e.hydration_liters).length, 1);
-  const avgExercise = validEntries.reduce((acc, e) => acc + (e.exercise_minutes || 0), 0) / Math.max(validEntries.length, 1);
-  const avgMood = validEntries.reduce((acc, e) => acc + (e.mood_rating || 0), 0) / Math.max(validEntries.filter(e => e.mood_rating).length, 1);
-  const avgEnergy = validEntries.reduce((acc, e) => acc + (e.energy_level || 0), 0) / Math.max(validEntries.filter(e => e.energy_level).length, 1);
-  const avgStress = validEntries.reduce((acc, e) => acc + (e.stress_level || 0), 0) / Math.max(validEntries.filter(e => e.stress_level).length, 1);
-  const avgSocial = validEntries.reduce((acc, e) => acc + (e.social_interactions || 0), 0) / Math.max(validEntries.filter(e => e.social_interactions !== null).length, 1);
+  // Calculate averages
+  const avg = (field: keyof JournalEntry) => {
+    const vals = validEntries.filter(e => typeof e[field] === 'number').map(e => e[field] as number);
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  };
 
-  // Sleep suggestions (7-9 hours optimal per science)
-  if (avgSleep < 7) {
-    suggestions.push({
-      icon: <Moon className="h-4 w-4 text-indigo-500" />,
-      title: 'Mehr Schlaf priorisieren',
-      description: `Du schläfst durchschnittlich ${avgSleep.toFixed(1)}h. Studien zeigen, dass 7-9 Stunden optimal für Wohlbefinden sind.`,
-      priority: avgSleep < 6 ? 'high' : 'medium'
-    });
-  }
-  
-  if (avgSleepQuality > 0 && avgSleepQuality < 3) {
-    suggestions.push({
-      icon: <Moon className="h-4 w-4 text-indigo-500" />,
-      title: 'Schlafqualität verbessern',
-      description: 'Versuche 1h vor dem Schlafen kein Bildschirmlicht, kühles Zimmer (18°C) und eine feste Schlafenszeit.',
-      priority: 'medium'
-    });
-  }
+  const avgMood = avg('mood_rating');
+  const avgEnergy = avg('energy_level');
+  const avgStress = avg('stress_level');
+  const avgFlow = avg('flow_experiences');
+  const avgSocial = avg('social_interactions');
+  const avgConnection = avg('connection_quality');
+  const avgPurpose = avg('purpose_feeling');
+  const avgProgress = avg('progress_made');
+  const avgAutonomy = avg('autonomy_feeling');
+  const avgExercise = avg('exercise_minutes');
+  const entriesWithGratitude = entries.filter(e => e.gratitude_1);
+  const entriesWithHelping = entries.filter(e => e.helped_others === true);
 
-  // Hydration (2L minimum recommended)
-  if (avgHydration > 0 && avgHydration < 2) {
-    suggestions.push({
-      icon: <Droplets className="h-4 w-4 text-blue-500" />,
-      title: 'Mehr Wasser trinken',
-      description: `Du trinkst ~${avgHydration.toFixed(1)}L/Tag. Dehydration beeinflusst Konzentration und Stimmung. Ziel: 2-3L.`,
-      priority: avgHydration < 1.5 ? 'high' : 'medium'
-    });
-  }
+  // PERMA-based suggestions
 
-  // Exercise (150min/week = ~21min/day recommended)
-  if (avgExercise < 20) {
-    suggestions.push({
-      icon: <Dumbbell className="h-4 w-4 text-green-500" />,
-      title: 'Mehr Bewegung einbauen',
-      description: 'WHO empfiehlt 150min moderate Bewegung/Woche. Schon 20min Spaziergang täglich verbessert die Stimmung.',
-      priority: avgExercise < 10 ? 'high' : 'medium'
-    });
-  }
-
-  // Nutrition
-  if (avgNutrition > 0 && avgNutrition < 3) {
-    suggestions.push({
-      icon: <Utensils className="h-4 w-4 text-orange-500" />,
-      title: 'Ernährung optimieren',
-      description: 'Eine ausgewogene Ernährung mit viel Gemüse, Protein und Vollkorn stabilisiert Energie und Stimmung.',
-      priority: 'medium'
-    });
-  }
-
-  // Stress management
+  // Positive Emotions (P) - Stress management
   if (avgStress > 3) {
     suggestions.push({
       icon: <Brain className="h-4 w-4 text-rose-500" />,
-      title: 'Stress reduzieren',
-      description: 'Dein Stresslevel ist erhöht. Versuche 5-10min Meditation, Atemübungen oder Naturzeit täglich.',
+      title: 'Stressreduktion priorisieren',
+      description: 'Dein Stresslevel ist erhöht. Studien zeigen: 10 Min. Atemübungen oder Meditation senken Cortisol signifikant.',
       priority: avgStress > 4 ? 'high' : 'medium'
     });
   }
 
-  // Social connections
+  // Engagement (E) - Flow experiences
+  if (avgFlow < 1) {
+    suggestions.push({
+      icon: <Target className="h-4 w-4 text-cyan-500" />,
+      title: 'Flow-Momente schaffen',
+      description: 'Plane Aktivitäten, die dich herausfordern aber nicht überfordern. Flow erhöht nachweislich das Wohlbefinden.',
+      priority: 'medium'
+    });
+  }
+
+  // Relationships (R) - Social connections
   if (avgSocial < 2) {
     suggestions.push({
       icon: <Users className="h-4 w-4 text-purple-500" />,
-      title: 'Soziale Kontakte pflegen',
-      description: 'Soziale Verbindungen sind essentiell für Glück. Plane bewusst Zeit mit Freunden/Familie ein.',
+      title: 'Soziale Verbindungen stärken',
+      description: 'Harvard-Studie (75+ Jahre): Qualität der Beziehungen ist der wichtigste Faktor für Lebenszufriedenheit.',
       priority: avgSocial < 1 ? 'high' : 'medium'
     });
   }
 
+  if (avgConnection > 0 && avgConnection < 3) {
+    suggestions.push({
+      icon: <Users className="h-4 w-4 text-purple-500" />,
+      title: 'Tiefere Gespräche führen',
+      description: 'Oberflächliche Gespräche vs. tiefe: Letztere korrelieren 3x stärker mit Glück. Stelle bedeutungsvolle Fragen.',
+      priority: 'medium'
+    });
+  }
+
+  // Meaning (M) - Purpose and helping others
+  if (avgPurpose > 0 && avgPurpose < 3) {
+    suggestions.push({
+      icon: <Compass className="h-4 w-4 text-amber-500" />,
+      title: 'Sinn im Alltag finden',
+      description: 'Verbinde tägliche Aufgaben mit grösseren Werten. Frag dich: Wem hilft das? Warum ist es wichtig?',
+      priority: 'medium'
+    });
+  }
+
+  if (entriesWithHelping.length < entries.length / 2 && entries.length > 2) {
+    suggestions.push({
+      icon: <Heart className="h-4 w-4 text-rose-500" />,
+      title: 'Anderen helfen',
+      description: 'Altruismus aktiviert das Belohnungszentrum stärker als eigener Gewinn. Kleine Hilfen zählen.',
+      priority: 'low'
+    });
+  }
+
+  // Accomplishment (A) - Progress and autonomy
+  if (avgProgress > 0 && avgProgress < 3) {
+    suggestions.push({
+      icon: <Target className="h-4 w-4 text-green-500" />,
+      title: 'Kleine Fortschritte feiern',
+      description: 'Der "Progress Principle": Selbst minimaler Fortschritt bei bedeutsamen Zielen steigert die Motivation.',
+      priority: 'medium'
+    });
+  }
+
+  if (avgAutonomy > 0 && avgAutonomy < 3) {
+    suggestions.push({
+      icon: <Compass className="h-4 w-4 text-indigo-500" />,
+      title: 'Mehr Selbstbestimmung',
+      description: 'Self-Determination Theory: Autonomie ist ein Grundbedürfnis. Wo kannst du mehr Wahlfreiheit schaffen?',
+      priority: 'medium'
+    });
+  }
+
+  // Exercise - kept as requested
+  if (avgExercise < 20) {
+    suggestions.push({
+      icon: <Dumbbell className="h-4 w-4 text-green-500" />,
+      title: 'Bewegung für die Psyche',
+      description: '20 Min. moderate Bewegung wirkt antidepressiv und steigert Endorphine. Spaziergang zählt.',
+      priority: avgExercise < 10 ? 'high' : 'medium'
+    });
+  }
+
   // Gratitude practice
-  const entriesWithGratitude = entries.filter(e => e.gratitude_1);
   if (entriesWithGratitude.length < entries.length / 2) {
     suggestions.push({
       icon: <Sparkles className="h-4 w-4 text-amber-500" />,
-      title: 'Dankbarkeit üben',
-      description: 'Studien zeigen: Täglich 3 Dinge aufschreiben, wofür man dankbar ist, steigert langfristig das Wohlbefinden.',
+      title: 'Dankbarkeit praktizieren',
+      description: 'Emmons-Studie: 3 Dinge täglich aufschreiben steigert Wohlbefinden um 25% nach 10 Wochen.',
       priority: 'low'
     });
   }
 
-  // Positive reinforcement based on good patterns
-  if (avgMood >= 4 && avgEnergy >= 4) {
+  // Positive reinforcement
+  if (avgMood >= 4 && avgEnergy >= 4 && avgStress <= 2) {
     suggestions.unshift({
       icon: <Heart className="h-4 w-4 text-green-500" />,
-      title: 'Weiter so! 🎉',
-      description: 'Deine Stimmung und Energie sind gut. Behalte deine aktuellen Gewohnheiten bei!',
+      title: 'Weiter so!',
+      description: 'Deine Werte sind sehr gut. Behalte deine aktuellen Gewohnheiten bei.',
       priority: 'low'
     });
   }
 
-  // If mood is low but sleep/exercise are good, suggest other factors
-  if (avgMood < 3 && avgSleep >= 7 && avgExercise >= 20) {
+  // Low mood with good social connections - suggest other areas
+  if (avgMood < 3 && avgSocial >= 3 && avgConnection >= 3) {
     suggestions.push({
-      icon: <Heart className="h-4 w-4 text-rose-500" />,
-      title: 'Emotionale Reflexion',
-      description: 'Deine Basics sind gut, aber die Stimmung niedrig. Vielleicht hilft ein Gespräch mit Freunden oder Journaling.',
+      icon: <Target className="h-4 w-4 text-cyan-500" />,
+      title: 'Fokus auf Fortschritt',
+      description: 'Soziale Verbindungen sind gut. Versuche mehr Flow-Aktivitäten oder setze dir erreichbare Tagesziele.',
       priority: 'high'
     });
   }
 
-  return suggestions.slice(0, 4); // Max 4 suggestions
+  return suggestions.slice(0, 4);
 }
 
 export function JournalSuggestions({ entries, todayEntry }: JournalSuggestionsProps) {
