@@ -95,15 +95,19 @@ export function LevelRingWidget({ xp, level, streakDays }: LevelRingWidgetProps)
           </div>
         </div>
         
-        <p className="text-xs text-muted-foreground mt-2">Level</p>
-        
-        {/* Streak indicator */}
-        {streakDays > 0 && (
-          <div className="flex items-center gap-1 mt-2 text-streak">
-            <Flame className="w-3 h-3" />
-            <span className="text-xs font-bold font-mono">{streakDays}</span>
-          </div>
-        )}
+        {/* Level + Streak Row */}
+        <div className="flex items-center gap-3 mt-2">
+          <span className="text-xs text-muted-foreground">Level</span>
+          {streakDays > 0 && (
+            <>
+              <span className="text-muted-foreground/30">|</span>
+              <div className="flex items-center gap-1 text-streak">
+                <Flame className="w-3.5 h-3.5" />
+                <span className="text-xs font-bold font-mono">{streakDays} Tage</span>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Level Detail Dialog */}
