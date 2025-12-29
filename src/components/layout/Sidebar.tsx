@@ -28,6 +28,17 @@ const navItems = [
   { to: '/business', icon: Briefcase, label: 'Business' },
 ];
 
+const getPageTitle = (pathname: string): string => {
+  if (pathname === '/') return 'Dashboard';
+  if (pathname === '/schule') return 'Schule';
+  if (pathname === '/privat') return 'Privat';
+  if (pathname === '/business') return 'Business';
+  if (pathname === '/kalender') return 'Kalender';
+  if (pathname === '/profil') return 'Profil';
+  return 'LifeOS';
+};
+
+
 export function Sidebar() {
   const [expanded, setExpanded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -48,6 +59,8 @@ export function Sidebar() {
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
+  const pageTitle = getPageTitle(location.pathname);
+
   return (
     <TooltipProvider delayDuration={0}>
       {/* Mobile Header Bar */}
@@ -60,10 +73,7 @@ export function Sidebar() {
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
-        <NavLink to="/" className="flex items-center gap-2 ml-2">
-          <Warehouse className="w-5 h-5 text-primary" />
-          <span className="text-lg font-bold text-gradient-primary">LifeOS</span>
-        </NavLink>
+        <span className="ml-3 text-lg font-semibold">{pageTitle}</span>
       </div>
 
       {/* Mobile Overlay */}
