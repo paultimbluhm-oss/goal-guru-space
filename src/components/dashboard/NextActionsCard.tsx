@@ -144,12 +144,18 @@ export function NextActionsCard() {
     celebrateTaskComplete(task.title);
   };
 
+  // Don't render anything if no tasks for today
+  if (!loading && tasks.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="glass-card p-4 md:p-5">
-      <div className="flex items-center justify-between mb-3">
+    <div className="glass-card p-3 md:p-4">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold text-sm">Heute zu erledigen</h3>
+          <h3 className="font-semibold text-sm">Heute</h3>
+          <span className="text-xs text-muted-foreground">({tasks.length})</span>
         </div>
         <Link to="/privat?section=aufgaben" className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
           Alle <ArrowRight className="w-3 h-3" />
@@ -157,20 +163,14 @@ export function NextActionsCard() {
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-14 bg-secondary/50 rounded-lg animate-pulse" />
+        <div className="space-y-2">
+          {[1, 2].map(i => (
+            <div key={i} className="h-10 bg-secondary/50 rounded-lg animate-pulse" />
           ))}
-        </div>
-      ) : tasks.length === 0 ? (
-        <div className="text-center py-8">
-          <CheckCircle2 className="w-12 h-12 text-success mx-auto mb-3 opacity-60" />
-          <p className="text-muted-foreground text-sm">Keine anstehenden Aufgaben!</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Du bist auf dem Laufenden</p>
         </div>
       ) : (
         <AnimatePresence mode="popLayout">
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {tasks.map((task, i) => (
               <motion.div
                 key={task.id}
@@ -179,34 +179,26 @@ export function NextActionsCard() {
                 exit={{ opacity: 0, x: 20, height: 0 }}
                 transition={{ delay: i * 0.05 }}
                 layout
-                className="group flex items-center gap-3 p-2.5 rounded-xl bg-secondary/40 hover:bg-secondary/60 transition-all"
+                className="group flex items-center gap-2 p-2 rounded-lg bg-secondary/40 hover:bg-secondary/60 transition-all"
               >
                 {/* Priority indicator */}
-                <div className={`w-1 h-8 rounded-full ${getPriorityIndicator(task.priority)}`} />
+                <div className={`w-0.5 h-6 rounded-full ${getPriorityIndicator(task.priority)}`} />
                 
                 {/* Checkbox */}
                 <div 
                   onClick={(e) => completeTask(task, e)}
                   className="cursor-pointer"
                 >
-                  <Checkbox className="data-[state=checked]:bg-success data-[state=checked]:border-success" />
+                  <Checkbox className="h-4 w-4 data-[state=checked]:bg-success data-[state=checked]:border-success" />
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
+                  <p className="text-xs font-medium truncate">
                     {task.title}
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {task.subject_name && (
-                      <span className="text-accent">{task.subject_name}</span>
-                    )}
-                    {task.type === 'homework' && (
-                      <span className="text-accent text-[10px]">HA</span>
-                    )}
-                  </div>
                 </div>
                 
-                <span className="text-xs text-muted-foreground font-mono">
+                <span className="text-[10px] text-muted-foreground font-mono">
                   +{task.xp_reward || 10}
                 </span>
               </motion.div>
