@@ -176,9 +176,14 @@ export function TaskSection({ onBack }: TaskSectionProps) {
 
     switch (activeTab) {
       case 'today':
-        filtered = filtered.filter(item => 
-          item.due_date && isToday(parseISO(item.due_date))
-        );
+        filtered = filtered.filter(item => {
+          if (!item.due_date) return false;
+          const date = parseISO(item.due_date);
+          // Heute ODER überfällig mit hoher Priorität
+          if (isToday(date)) return true;
+          if (isPast(date) && !item.completed && item.priority === 'high') return true;
+          return false;
+        });
         break;
       case 'week':
         filtered = filtered.filter(item => 
