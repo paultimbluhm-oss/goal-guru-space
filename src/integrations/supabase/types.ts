@@ -1749,6 +1749,36 @@ export type Database = {
         }
         Relationships: []
       }
+      time_entries: {
+        Row: {
+          category: string
+          created_at: string
+          entry_date: string
+          id: string
+          minutes: number
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          entry_date?: string
+          id?: string
+          minutes?: number
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          entry_date?: string
+          id?: string
+          minutes?: number
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       timetable_entries: {
         Row: {
           created_at: string

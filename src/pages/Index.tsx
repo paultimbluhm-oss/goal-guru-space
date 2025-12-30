@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useStats } from '@/hooks/useStats';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { LevelRingWidget } from '@/components/dashboard/LevelRingWidget';
+import { TimeDistributionWidget } from '@/components/dashboard/TimeDistributionWidget';
 import { ProgressRingWidget } from '@/components/dashboard/ProgressRingWidget';
 import { TodayDetailsCard } from '@/components/dashboard/TodayDetailsCard';
 import { NextActionsCard } from '@/components/dashboard/NextActionsCard';
@@ -70,11 +70,7 @@ export default function Index() {
       <div className="p-4 md:p-6 lg:p-8 space-y-3 md:space-y-4 max-w-7xl mx-auto">
         {/* Top Row: Two Ring Widgets */}
         <div className="grid grid-cols-2 gap-3">
-          <LevelRingWidget
-            xp={profile?.xp || 0}
-            level={profile?.level || 1}
-            streakDays={profile?.streak_days || 0}
-          />
+          <TimeDistributionWidget />
           <ProgressRingWidget />
         </div>
 
