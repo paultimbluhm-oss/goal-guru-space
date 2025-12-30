@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, RotateCcw, Pencil, Check, X, Trash2, FolderPlus, ChevronDown, ChevronRight, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Plus, RotateCcw, Pencil, Check, X, Trash2, FolderPlus, ChevronDown, ChevronRight, MoreVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -214,6 +214,46 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
     }
   };
 
+  const moveItem = async (item: ChecklistItem, direction: 'up' | 'down') => {
+    const supabase = getSupabase();
+    
+    // Get items in the same section, sorted by order_index
+    const sectionItems = items
+      .filter(i => i.section_id === item.section_id)
+      .sort((a, b) => a.order_index - b.order_index);
+    
+    const currentIndex = sectionItems.findIndex(i => i.id === item.id);
+    if (currentIndex === -1) return;
+    
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    // Check bounds
+    if (targetIndex < 0 || targetIndex >= sectionItems.length) return;
+    
+    const targetItem = sectionItems[targetIndex];
+    
+    // Swap order_index values
+    const updates = [
+      supabase
+        .from('checklist_items')
+        .update({ order_index: targetItem.order_index })
+        .eq('id', item.id),
+      supabase
+        .from('checklist_items')
+        .update({ order_index: item.order_index })
+        .eq('id', targetItem.id),
+    ];
+    
+    await Promise.all(updates);
+    
+    // Update local state
+    setItems(items.map(i => {
+      if (i.id === item.id) return { ...i, order_index: targetItem.order_index };
+      if (i.id === targetItem.id) return { ...i, order_index: item.order_index };
+      return i;
+    }));
+  };
+
   const resetAll = async () => {
     const supabase = getSupabase();
 
@@ -246,75 +286,99 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
   const progress = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
   const hasCompletedItems = completedCount > 0;
   
-  const unsortedItems = items.filter(i => !i.section_id);
+  const unsortedItems = items
+    .filter(i => !i.section_id)
+    .sort((a, b) => a.order_index - b.order_index);
 
-  const renderItem = (item: ChecklistItem) => (
-    <div
-      key={item.id}
-      className={cn(
-        "flex items-center gap-3 px-3 py-3 border-b border-border/30 last:border-0 touch-manipulation",
-        item.completed && "bg-muted/20"
-      )}
-    >
-      <Checkbox
-        checked={item.completed}
-        onCheckedChange={() => toggleItem(item)}
-        className="h-5 w-5 rounded-full"
-      />
+  const renderItem = (item: ChecklistItem, sectionItems: ChecklistItem[]) => {
+    const sortedSectionItems = [...sectionItems].sort((a, b) => a.order_index - b.order_index);
+    const currentIndex = sortedSectionItems.findIndex(i => i.id === item.id);
+    const isFirst = currentIndex === 0;
+    const isLast = currentIndex === sortedSectionItems.length - 1;
 
-      {editingItemId === item.id ? (
-        <div className="flex-1 flex items-center gap-2">
-          <Input
-            value={tempItemContent}
-            onChange={(e) => setTempItemContent(e.target.value)}
-            autoFocus
-            className="h-9"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') updateItemContent(item.id);
-              if (e.key === 'Escape') setEditingItemId(null);
-            }}
-          />
-          <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => updateItemContent(item.id)}>
-            <Check className="w-4 h-4" />
-          </Button>
-          <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => setEditingItemId(null)}>
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      ) : (
-        <>
-          <span
-            className={cn(
-              "flex-1 text-sm",
-              item.completed && "line-through text-muted-foreground"
-            )}
-          >
-            {item.content}
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {
-                setEditingItemId(item.id);
-                setTempItemContent(item.content);
-              }}>
-                <Pencil className="w-4 h-4 mr-2" />
-                Bearbeiten
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive" onClick={() => deleteItem(item.id)}>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Löschen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
-      )}
-    </div>
-  );
+    return (
+      <div
+        key={item.id}
+        className={cn(
+          "flex items-center gap-3 px-3 py-3 border-b border-border/30 last:border-0 touch-manipulation",
+          item.completed && "bg-muted/20"
+        )}
+      >
+        <Checkbox
+          checked={item.completed}
+          onCheckedChange={() => toggleItem(item)}
+          className="h-5 w-5 rounded-full"
+        />
+
+        {editingItemId === item.id ? (
+          <div className="flex-1 flex items-center gap-2">
+            <Input
+              value={tempItemContent}
+              onChange={(e) => setTempItemContent(e.target.value)}
+              autoFocus
+              className="h-9"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') updateItemContent(item.id);
+                if (e.key === 'Escape') setEditingItemId(null);
+              }}
+            />
+            <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => updateItemContent(item.id)}>
+              <Check className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => setEditingItemId(null)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <span
+              className={cn(
+                "flex-1 text-sm",
+                item.completed && "line-through text-muted-foreground"
+              )}
+            >
+              {item.content}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => moveItem(item, 'up')}
+                  disabled={isFirst}
+                >
+                  <ArrowUp className="w-4 h-4 mr-2" />
+                  Nach oben
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => moveItem(item, 'down')}
+                  disabled={isLast}
+                >
+                  <ArrowDown className="w-4 h-4 mr-2" />
+                  Nach unten
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => {
+                  setEditingItemId(item.id);
+                  setTempItemContent(item.content);
+                }}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Bearbeiten
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive" onClick={() => deleteItem(item.id)}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Löschen
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        )}
+      </div>
+    );
+  };
 
   const renderAddItemInput = (sectionId: string | null) => {
     const isActive = activeAddSection === (sectionId ?? 'main');
@@ -465,7 +529,9 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
       <div className="space-y-3">
         {/* Sections */}
         {sections.map((section) => {
-          const sectionItems = items.filter(i => i.section_id === section.id);
+          const sectionItems = items
+            .filter(i => i.section_id === section.id)
+            .sort((a, b) => a.order_index - b.order_index);
           const sectionCompleted = sectionItems.filter(i => i.completed).length;
           const isCollapsed = collapsedSections.has(section.id);
           const sectionProgress = sectionItems.length > 0 ? Math.round((sectionCompleted / sectionItems.length) * 100) : 0;
@@ -548,7 +614,7 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
                 
                 <CollapsibleContent>
                   <div>
-                    {sectionItems.map(renderItem)}
+                    {sectionItems.map(item => renderItem(item, sectionItems))}
                     {renderAddItemInput(section.id)}
                   </div>
                 </CollapsibleContent>
@@ -569,7 +635,7 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
               </div>
             )}
             <div>
-              {unsortedItems.map(renderItem)}
+              {unsortedItems.map(item => renderItem(item, unsortedItems))}
               {renderAddItemInput(null)}
             </div>
           </div>
