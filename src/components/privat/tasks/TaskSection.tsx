@@ -179,9 +179,9 @@ export function TaskSection({ onBack }: TaskSectionProps) {
         filtered = filtered.filter(item => {
           if (!item.due_date) return false;
           const date = parseISO(item.due_date);
-          // Heute ODER überfällig mit hoher Priorität
+          // Heute ODER überfällig (alle überfälligen Aufgaben anzeigen)
           if (isToday(date)) return true;
-          if (isPast(date) && !item.completed && item.priority === 'high') return true;
+          if (isPast(date) && !item.completed) return true;
           return false;
         });
         break;

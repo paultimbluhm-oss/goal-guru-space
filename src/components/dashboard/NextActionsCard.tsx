@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowRight, BookOpen, CheckCircle2, Clock, Target, Check } from 'lucide-react';
-import { format, isToday, isTomorrow, parseISO } from 'date-fns';
+import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -51,13 +51,21 @@ export function NextActionsCard() {
         .limit(10),
     ]);
 
-    // Filter to only show today's tasks/homework
+    // Filter to show today's AND overdue tasks/homework
     const allTasks: Task[] = [
       ...(tasksRes.data || [])
-        .filter(t => t.due_date && format(new Date(t.due_date), 'yyyy-MM-dd') === today)
+        .filter(t => {
+          if (!t.due_date) return false;
+          const date = parseISO(t.due_date);
+          return isToday(date) || isPast(date);
+        })
         .map(t => ({ ...t, type: 'task' as const })),
       ...(homeworkRes.data || [])
-        .filter(h => h.due_date && format(new Date(h.due_date), 'yyyy-MM-dd') === today)
+        .filter(h => {
+          if (!h.due_date) return false;
+          const date = parseISO(h.due_date);
+          return isToday(date) || isPast(date);
+        })
         .map(h => ({
           id: h.id,
           title: h.title,
