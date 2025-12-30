@@ -14,46 +14,73 @@ interface ChecklistCardProps {
 }
 
 export function ChecklistCard({ checklist, onClick, onDelete }: ChecklistCardProps) {
-  const progress = checklist.items_count 
-    ? (checklist.completed_count || 0) / checklist.items_count * 100 
-    : 0;
-  const isComplete = checklist.items_count && checklist.items_count > 0 && progress === 100;
+  const itemsCount = checklist.items_count || 0;
+  const completedCount = checklist.completed_count || 0;
+  const progress = itemsCount > 0 ? (completedCount / itemsCount) * 100 : 0;
+  const isComplete = itemsCount > 0 && progress === 100;
+
+  // Calculate progress ring properties
+  const size = 36;
+  const strokeWidth = 3;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (progress / 100) * circumference;
 
   return (
     <div
-      className="relative flex items-center gap-3 p-3 rounded-lg bg-card/80 border border-border/50 hover:border-primary/50 transition-all cursor-pointer group"
+      className="relative flex items-center gap-3 p-4 rounded-xl bg-card border border-border/50 active:scale-[0.98] transition-all cursor-pointer touch-manipulation"
       onClick={onClick}
     >
-      {/* Progress indicator bar */}
-      <div 
-        className={cn(
-          "absolute left-0 top-0 bottom-0 w-1 rounded-l-lg transition-all",
-          isComplete ? "bg-emerald-500" : progress > 0 ? "bg-teal-500" : "bg-muted"
-        )}
-      />
-
-      {/* Icon */}
-      <div className={cn(
-        "p-2 rounded-lg shrink-0 ml-2",
-        isComplete ? "bg-emerald-500/20" : "bg-teal-500/20"
-      )}>
-        {isComplete ? (
-          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-        ) : (
-          <ListChecks className="w-4 h-4 text-teal-500" />
-        )}
+      {/* Progress Ring */}
+      <div className="relative shrink-0">
+        <svg width={size} height={size} className="transform -rotate-90">
+          {/* Background circle */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-muted/30"
+          />
+          {/* Progress circle */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            className={cn(
+              "transition-all duration-300",
+              isComplete ? "text-emerald-500" : "text-primary"
+            )}
+          />
+        </svg>
+        {/* Center icon */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {isComplete ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          ) : (
+            <ListChecks className="w-4 h-4 text-primary" />
+          )}
+        </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <h3 className="font-medium text-sm truncate">{checklist.name}</h3>
-        <p className="text-xs text-muted-foreground">
-          {checklist.completed_count || 0} / {checklist.items_count || 0}
-          {checklist.items_count && checklist.items_count > 0 && (
-            <span className="ml-1.5 text-teal-500">
-              ({Math.round(progress)}%)
-            </span>
-          )}
+        <h3 className={cn(
+          "font-medium text-sm truncate",
+          isComplete && "text-muted-foreground"
+        )}>
+          {checklist.name}
+        </h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {completedCount} von {itemsCount} erledigt
         </p>
       </div>
 
@@ -62,15 +89,15 @@ export function ChecklistCard({ checklist, onClick, onDelete }: ChecklistCardPro
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-9 w-9 text-muted-foreground hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
         >
-          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+          <Trash2 className="w-4 h-4" />
         </Button>
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        <ChevronRight className="w-5 h-5 text-muted-foreground" />
       </div>
     </div>
   );

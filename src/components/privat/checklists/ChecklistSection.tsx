@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, ListChecks } from 'lucide-react';
+import { ArrowLeft, Plus, ListChecks, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -66,6 +66,7 @@ export function ChecklistSection({ onBack }: ChecklistSectionProps) {
   const handleDelete = async (id: string) => {
     const supabase = getSupabase();
     await supabase.from('checklist_items').delete().eq('checklist_id', id);
+    await supabase.from('checklist_sections').delete().eq('checklist_id', id);
     const { error } = await supabase.from('checklists').delete().eq('id', id);
     
     if (error) {
@@ -90,57 +91,66 @@ export function ChecklistSection({ onBack }: ChecklistSectionProps) {
 
   const totalItems = checklists.reduce((sum, c) => sum + (c.items_count || 0), 0);
   const completedItems = checklists.reduce((sum, c) => sum + (c.completed_count || 0), 0);
+  const overallProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   return (
     <div className="space-y-4">
-      {/* Compact Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-8 w-8">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-lg shrink-0">
-              <ListChecks className="w-4 h-4 text-white" />
-            </div>
-            <h2 className="text-lg font-bold truncate">Checklisten</h2>
-            <span className="text-xs text-muted-foreground">({checklists.length})</span>
-          </div>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-9 w-9">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-bold">Checklisten</h2>
         </div>
         <Button 
           size="sm" 
           onClick={() => setShowAddDialog(true)}
-          className="hidden sm:flex gap-1 h-8 text-xs"
+          className="hidden sm:flex gap-1.5"
         >
-          <Plus className="w-3.5 h-3.5" />
-          Neu
+          <Plus className="w-4 h-4" />
+          Neue Liste
         </Button>
       </div>
 
-      {/* Compact Stats */}
+      {/* Summary Stats */}
       {checklists.length > 0 && (
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span>{completedItems} / {totalItems} Punkte erledigt</span>
-          {totalItems > 0 && (
-            <span className="text-emerald-500 font-medium">
-              {Math.round((completedItems / totalItems) * 100)}%
-            </span>
-          )}
+        <div className="flex items-center gap-4 p-3 rounded-xl bg-muted/30 border border-border/50">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <ListChecks className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{checklists.length}</p>
+              <p className="text-xs text-muted-foreground">Listen</p>
+            </div>
+          </div>
+          <div className="h-8 w-px bg-border" />
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-emerald-500/10">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{completedItems}<span className="text-sm font-normal text-muted-foreground">/{totalItems}</span></p>
+              <p className="text-xs text-muted-foreground">{overallProgress}% erledigt</p>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Checklists List */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground text-sm">Laden...</div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
       ) : checklists.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <ListChecks className="w-10 h-10 mx-auto mb-3 opacity-50" />
-          <p className="text-sm">Keine Checklisten</p>
-          <Button 
-            variant="link" 
-            className="text-xs mt-1"
-            onClick={() => setShowAddDialog(true)}
-          >
+        <div className="text-center py-12">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/50 flex items-center justify-center">
+            <ListChecks className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <p className="text-muted-foreground mb-4">Noch keine Checklisten</p>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
             Erste Checkliste erstellen
           </Button>
         </div>
@@ -159,10 +169,10 @@ export function ChecklistSection({ onBack }: ChecklistSectionProps) {
 
       {/* Mobile FAB */}
       <Button 
-        className="fixed bottom-20 right-4 sm:hidden h-12 w-12 rounded-full shadow-lg z-40"
+        className="fixed bottom-20 right-4 sm:hidden h-14 w-14 rounded-full shadow-lg z-40"
         onClick={() => setShowAddDialog(true)}
       >
-        <Plus className="w-5 h-5" />
+        <Plus className="w-6 h-6" />
       </Button>
 
       <AddChecklistDialog

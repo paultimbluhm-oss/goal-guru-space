@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, RotateCcw, Pencil, Check, X, GripVertical, Trash2, FolderPlus, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, RotateCcw, Pencil, Check, X, Trash2, FolderPlus, ChevronDown, ChevronRight, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth, getSupabase } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface ChecklistSection {
   id: string;
@@ -40,7 +41,7 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [newItemContent, setNewItemContent] = useState('');
-  const [newItemSectionId, setNewItemSectionId] = useState<string | null>(null);
+  const [activeAddSection, setActiveAddSection] = useState<string | null | 'main'>('main');
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState('');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -139,7 +140,6 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
   const deleteSection = async (sectionId: string) => {
     const supabase = getSupabase();
     
-    // Move items to unsorted before deleting section
     await supabase
       .from('checklist_items')
       .update({ section_id: null })
@@ -172,7 +172,6 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
       toast({ title: 'Fehler', description: error.message, variant: 'destructive' });
     } else {
       setNewItemContent('');
-      setNewItemSectionId(null);
       fetchData();
     }
   };
@@ -244,6 +243,7 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
   };
 
   const completedCount = items.filter(i => i.completed).length;
+  const progress = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
   const hasCompletedItems = completedCount > 0;
   
   const unsortedItems = items.filter(i => !i.section_id);
@@ -251,15 +251,15 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
   const renderItem = (item: ChecklistItem) => (
     <div
       key={item.id}
-      className={`p-3 flex items-center gap-3 group border-b border-border/50 last:border-0 ${
-        item.completed ? 'opacity-60' : ''
-      }`}
+      className={cn(
+        "flex items-center gap-3 px-3 py-3 border-b border-border/30 last:border-0 touch-manipulation",
+        item.completed && "bg-muted/20"
+      )}
     >
-      <GripVertical className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-grab" />
-      
       <Checkbox
         checked={item.completed}
         onCheckedChange={() => toggleItem(item)}
+        className="h-5 w-5 rounded-full"
       />
 
       {editingItemId === item.id ? (
@@ -268,256 +268,284 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
             value={tempItemContent}
             onChange={(e) => setTempItemContent(e.target.value)}
             autoFocus
+            className="h-9"
             onKeyDown={(e) => {
               if (e.key === 'Enter') updateItemContent(item.id);
               if (e.key === 'Escape') setEditingItemId(null);
             }}
           />
-          <Button size="icon" variant="ghost" onClick={() => updateItemContent(item.id)}>
+          <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => updateItemContent(item.id)}>
             <Check className="w-4 h-4" />
           </Button>
-          <Button size="icon" variant="ghost" onClick={() => setEditingItemId(null)}>
+          <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => setEditingItemId(null)}>
             <X className="w-4 h-4" />
           </Button>
         </div>
       ) : (
         <>
           <span
-            className={`flex-1 text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}
-            onDoubleClick={() => {
-              setEditingItemId(item.id);
-              setTempItemContent(item.content);
-            }}
+            className={cn(
+              "flex-1 text-sm",
+              item.completed && "line-through text-muted-foreground"
+            )}
           >
             {item.content}
           </span>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="opacity-0 group-hover:opacity-100 h-8 w-8"
-            onClick={() => {
-              setEditingItemId(item.id);
-              setTempItemContent(item.content);
-            }}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="opacity-0 group-hover:opacity-100 h-8 w-8"
-            onClick={() => deleteItem(item.id)}
-          >
-            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                setEditingItemId(item.id);
+                setTempItemContent(item.content);
+              }}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Bearbeiten
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={() => deleteItem(item.id)}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Löschen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )}
     </div>
   );
 
   const renderAddItemInput = (sectionId: string | null) => {
-    if (newItemSectionId !== sectionId) {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-muted-foreground"
-          onClick={() => setNewItemSectionId(sectionId)}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Punkt hinzufügen
-        </Button>
-      );
-    }
-
+    const isActive = activeAddSection === (sectionId ?? 'main');
+    
     return (
-      <div className="flex gap-2 p-2">
-        <Input
-          value={newItemContent}
-          onChange={(e) => setNewItemContent(e.target.value)}
-          placeholder="Neuen Punkt eingeben..."
-          autoFocus
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') addItem(sectionId);
-            if (e.key === 'Escape') {
-              setNewItemSectionId(null);
-              setNewItemContent('');
-            }
-          }}
-        />
-        <Button size="sm" onClick={() => addItem(sectionId)} disabled={!newItemContent.trim()}>
-          <Plus className="w-4 h-4" />
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => {
-          setNewItemSectionId(null);
-          setNewItemContent('');
-        }}>
-          <X className="w-4 h-4" />
-        </Button>
+      <div className="px-3 py-2 border-t border-border/30">
+        <div className="flex gap-2">
+          <Input
+            value={isActive ? newItemContent : ''}
+            onChange={(e) => setNewItemContent(e.target.value)}
+            placeholder="Neuen Punkt hinzufügen..."
+            className="h-10"
+            onFocus={() => setActiveAddSection(sectionId ?? 'main')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newItemContent.trim()) {
+                addItem(sectionId);
+              }
+            }}
+          />
+          <Button 
+            size="icon" 
+            className="h-10 w-10 shrink-0"
+            onClick={() => addItem(sectionId)} 
+            disabled={!isActive || !newItemContent.trim()}
+          >
+            <Plus className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
     );
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-muted-foreground">Laden...</div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          
-          {editingName ? (
-            <div className="flex items-center gap-2">
-              <Input
-                value={tempName}
-                onChange={(e) => setTempName(e.target.value)}
-                className="text-xl font-bold"
-                autoFocus
-              />
-              <Button size="icon" variant="ghost" onClick={updateChecklistName}>
-                <Check className="w-4 h-4" />
-              </Button>
-              <Button size="icon" variant="ghost" onClick={() => setEditingName(false)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold">{checklist?.name}</h2>
-              <Button size="icon" variant="ghost" onClick={() => setEditingName(true)}>
-                <Pencil className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-2">
-          {hasCompletedItems && (
-            <Button variant="outline" size="sm" onClick={resetAll}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Zurücksetzen
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          {completedCount} / {items.length} erledigt
-        </div>
-        <Button variant="outline" size="sm" onClick={() => setShowAddSection(true)}>
-          <FolderPlus className="w-4 h-4 mr-2" />
-          Bereich hinzufügen
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-9 w-9">
+          <ArrowLeft className="w-5 h-5" />
         </Button>
-      </div>
-
-      {showAddSection && (
-        <Card className="p-3">
-          <div className="flex gap-2">
+        
+        {editingName ? (
+          <div className="flex-1 flex items-center gap-2">
             <Input
-              value={newSectionName}
-              onChange={(e) => setNewSectionName(e.target.value)}
-              placeholder="Name des Bereichs..."
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              className="font-bold"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === 'Enter') addSection();
-                if (e.key === 'Escape') {
-                  setShowAddSection(false);
-                  setNewSectionName('');
-                }
+                if (e.key === 'Enter') updateChecklistName();
+                if (e.key === 'Escape') setEditingName(false);
               }}
             />
-            <Button onClick={addSection} disabled={!newSectionName.trim()}>
-              Erstellen
+            <Button size="icon" variant="ghost" className="shrink-0" onClick={updateChecklistName}>
+              <Check className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" onClick={() => {
-              setShowAddSection(false);
-              setNewSectionName('');
-            }}>
+            <Button size="icon" variant="ghost" className="shrink-0" onClick={() => setEditingName(false)}>
               <X className="w-4 h-4" />
             </Button>
           </div>
-        </Card>
+        ) : (
+          <div className="flex-1 flex items-center gap-2 min-w-0">
+            <h2 className="text-lg font-bold truncate">{checklist?.name}</h2>
+            <Button size="icon" variant="ghost" className="shrink-0 h-8 w-8" onClick={() => setEditingName(true)}>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9">
+              <MoreVertical className="w-5 h-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setShowAddSection(true)}>
+              <FolderPlus className="w-4 h-4 mr-2" />
+              Bereich hinzufügen
+            </DropdownMenuItem>
+            {hasCompletedItems && (
+              <DropdownMenuItem onClick={resetAll}>
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Alle zurücksetzen
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{completedCount} von {items.length} erledigt</span>
+          <span className={cn(
+            "font-medium",
+            progress === 100 ? "text-emerald-500" : "text-primary"
+          )}>{progress}%</span>
+        </div>
+        <div className="h-2 rounded-full bg-muted/50 overflow-hidden">
+          <div 
+            className={cn(
+              "h-full rounded-full transition-all duration-300",
+              progress === 100 ? "bg-emerald-500" : "bg-primary"
+            )}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Add Section Form */}
+      {showAddSection && (
+        <div className="flex gap-2 p-3 rounded-xl bg-muted/30 border border-border/50">
+          <Input
+            value={newSectionName}
+            onChange={(e) => setNewSectionName(e.target.value)}
+            placeholder="Name des Bereichs..."
+            className="h-10"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addSection();
+              if (e.key === 'Escape') {
+                setShowAddSection(false);
+                setNewSectionName('');
+              }
+            }}
+          />
+          <Button onClick={addSection} disabled={!newSectionName.trim()} className="h-10">
+            Erstellen
+          </Button>
+          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => {
+            setShowAddSection(false);
+            setNewSectionName('');
+          }}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
       )}
 
-      <div className="space-y-4">
+      {/* Content */}
+      <div className="space-y-3">
         {/* Sections */}
         {sections.map((section) => {
           const sectionItems = items.filter(i => i.section_id === section.id);
           const sectionCompleted = sectionItems.filter(i => i.completed).length;
           const isCollapsed = collapsedSections.has(section.id);
+          const sectionProgress = sectionItems.length > 0 ? Math.round((sectionCompleted / sectionItems.length) * 100) : 0;
 
           return (
-            <Card key={section.id} className="overflow-hidden">
+            <div key={section.id} className="rounded-xl bg-card border border-border/50 overflow-hidden">
               <Collapsible open={!isCollapsed} onOpenChange={() => toggleSectionCollapse(section.id)}>
-                <div className="flex items-center justify-between p-3 bg-muted/50 border-b border-border">
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/30">
                   <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="p-0 h-auto hover:bg-transparent">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                       {isCollapsed ? (
-                        <ChevronRight className="w-4 h-4 mr-2" />
+                        <ChevronRight className="w-4 h-4" />
                       ) : (
-                        <ChevronDown className="w-4 h-4 mr-2" />
-                      )}
-                      {editingSectionId === section.id ? (
-                        <Input
-                          value={tempSectionName}
-                          onChange={(e) => setTempSectionName(e.target.value)}
-                          className="h-7 text-sm font-medium"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => {
-                            e.stopPropagation();
-                            if (e.key === 'Enter') updateSectionName(section.id);
-                            if (e.key === 'Escape') setEditingSectionId(null);
-                          }}
-                        />
-                      ) : (
-                        <span className="font-medium">{section.name}</span>
+                        <ChevronDown className="w-4 h-4" />
                       )}
                     </Button>
                   </CollapsibleTrigger>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {sectionCompleted}/{sectionItems.length}
-                    </span>
-                    {editingSectionId === section.id ? (
-                      <>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSectionName(section.id)}>
-                          <Check className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingSectionId(null)}>
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => {
+                  
+                  {editingSectionId === section.id ? (
+                    <div className="flex-1 flex items-center gap-2">
+                      <Input
+                        value={tempSectionName}
+                        onChange={(e) => setTempSectionName(e.target.value)}
+                        className="h-8"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') updateSectionName(section.id);
+                          if (e.key === 'Escape') setEditingSectionId(null);
+                        }}
+                      />
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => updateSectionName(section.id)}>
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingSectionId(null)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="flex-1 font-medium text-sm">{section.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {sectionCompleted}/{sectionItems.length}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
                             setEditingSectionId(section.id);
                             setTempSectionName(section.name);
-                          }}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => deleteSection(section.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                          }}>
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Umbenennen
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => deleteSection(section.id)}>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Löschen
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                  )}
                 </div>
+                
+                {/* Section Progress */}
+                {sectionItems.length > 0 && (
+                  <div className="h-1 bg-muted/30">
+                    <div 
+                      className={cn(
+                        "h-full transition-all duration-300",
+                        sectionProgress === 100 ? "bg-emerald-500" : "bg-primary/60"
+                      )}
+                      style={{ width: `${sectionProgress}%` }}
+                    />
+                  </div>
+                )}
+                
                 <CollapsibleContent>
                   <div>
                     {sectionItems.map(renderItem)}
@@ -525,26 +553,26 @@ export function ChecklistDetailView({ checklistId, onBack }: ChecklistDetailView
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-            </Card>
+            </div>
           );
         })}
 
         {/* Unsorted items */}
         {(unsortedItems.length > 0 || sections.length === 0) && (
-          <Card className="overflow-hidden">
-            <div className="p-3 bg-muted/30 border-b border-border">
-              <span className="font-medium text-muted-foreground">
-                {sections.length > 0 ? 'Unsortiert' : 'Punkte'}
-              </span>
-              <span className="text-xs text-muted-foreground ml-2">
-                {unsortedItems.filter(i => i.completed).length}/{unsortedItems.length}
-              </span>
-            </div>
+          <div className="rounded-xl bg-card border border-border/50 overflow-hidden">
+            {sections.length > 0 && (
+              <div className="px-3 py-2.5 bg-muted/30 border-b border-border/30">
+                <span className="font-medium text-sm text-muted-foreground">Unsortiert</span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  {unsortedItems.filter(i => i.completed).length}/{unsortedItems.length}
+                </span>
+              </div>
+            )}
             <div>
               {unsortedItems.map(renderItem)}
               {renderAddItemInput(null)}
             </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>
